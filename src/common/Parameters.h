@@ -21,6 +21,17 @@ public:
     QString stringValue(const QString &key, const QString &defaultValue="", const QString &group = "General");
     void setValue(const QString &key, const QString &value, const QString &group = "General");
 
+    bool boolValue(const QString &key, const QString &defaultValue="", const QString &group = "General");
+    void setValue(const QString &key, bool value, const QString &group = "General");
+
+    // [General] settings
+    bool debugMode();
+    void setDebugMode(bool value);
+
+    QString version();
+    void setVersion(const QString& value);
+    // End [General] settings
+
 signals:
 
 public slots:

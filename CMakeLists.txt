@@ -26,7 +26,7 @@ set(INCLUDE_DIRS
     ${INCLUDE_DIRS}
     ./src
     ${Boost_INCLUDE_DIRS}
-    ${OPENCV_INCLUDE_DIRS}
+    ${OpenCV_INCLUDE_DIRS}
     ${PCL_INCLUDE_DIRS}
     ${FLANN_INCLUDE_DIRS}
     ${VTK_INCLUDE_DIRS}
@@ -56,6 +56,16 @@ set(CONTROLLER_SRCS
     src/controller/FrameStepController.cpp
 )
 
+set(DEVICE_HEADERS
+    src/device/Device.h
+    src/device/SensorReaderDevice.h
+)
+
+set(DEVICE_SRCS
+    src/device/Device.cpp
+    src/device/SensorReaderDevice.cpp
+)
+
 set(UI_HEADERS
     src/ui/MainWindow.h
 )
@@ -68,6 +78,7 @@ set(UI_SRCS
 set(HEADER_FILES
     ${COMMON_HEADERS}
     ${CONTROLLER_HEADERS}
+    ${DEVICE_HEADERS}
     ${UI_HEADERS}
 )
 
@@ -76,6 +87,7 @@ set(SRC_FILES
     ${BASE_SRCS}
     ${COMMON_SRCS}
     ${CONTROLLER_SRCS}
+    ${DEVICE_SRCS}
     ${UI_SRCS}
 )
 
@@ -90,7 +102,7 @@ include_directories(${INCLUDE_DIRS})
 add_executable(recfls ${SRC_FILES})
 
 # Use the Widgets module from Qt 5.
-target_link_libraries(recfls Qt5::Widgets Qt5::Charts ${PCL_LIBRARIES} ${OPENCV_LIBRARIES} ${FLANN_LIBRARIES} ${VTK_LIBRARIES})
+target_link_libraries(recfls Qt5::Widgets Qt5::Charts ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${FLANN_LIBRARIES} ${VTK_LIBRARIES})
 
 # Install the executable
 install(TARGETS recfls DESTINATION bin)

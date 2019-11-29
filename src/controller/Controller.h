@@ -11,9 +11,7 @@ class Controller : public QObject
 public:
     explicit Controller(QObject *parent = nullptr);
 
-    static Controller *current();
-
-    static void destroy();
+    virtual QString name() const = 0;
 
     virtual bool supportRandomAccessing() const = 0;
 
@@ -25,13 +23,14 @@ public:
 
     virtual void reset() = 0;
 
+    virtual Frame getFrame(int frameIndex) = 0;
+
 signals:
     void frameFetched(Frame& frame);
 
 public slots:
 
 private:
-    static Controller *m_current;
 };
 
 #endif // CONTROLLER_H

@@ -3,6 +3,8 @@
 #include <QDebug>
 #include "common/Parameters.h"
 #include "controller/Controller.h"
+#include "device/Device.h"
+#include "device/SensorReaderDevice.h"
 
 int main(int argc, char *argv[])
 {
@@ -10,16 +12,18 @@ int main(int argc, char *argv[])
 
     Parameters::Global().load();
 
-    qDebug() << "version:" << Parameters::Global().stringValue("version", "0.1.0");
+    qDebug() << "version:" << Parameters::Global().version();
 
-    Controller::current();
+    Device *device = new SensorReaderDevice;
+    device->open();
 
     MainWindow w;
     w.show();
 
     int result = app.exec();
 
-    Controller::destroy();
+    delete device;
+
     return result;
 }
 
