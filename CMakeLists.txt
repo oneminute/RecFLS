@@ -9,18 +9,88 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 
 # Find the QtWidgets library
-find_package(Qt5Widgets CONFIG REQUIRED)
+#find_package(Boost REQUIRED QUIET)
+find_package(Qt5 COMPONENTS Widgets Charts CONFIG REQUIRED)
+find_package(OpenCV REQUIRED QUIET)
+find_package(PCL REQUIRED QUIET COMPONENTS common io kdtree search surface filters registration sample_consensus segmentation visualization)
+find_package(OpenMP REQUIRED QUIET)
+find_package(FLANN REQUIRED QUIET)
+find_package(VTK REQUIRED QUIET)
 
-set(recfls_SRC
-  src/main.cpp
-  src/recfls.cpp
+set(Boost_USE_STATIC_LIBS OFF)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+find_package(Boost REQUIRED QUIET)
+
+set(INCLUDE_DIRS
+    ${INCLUDE_DIRS}
+    ./src
+    ${Boost_INCLUDE_DIRS}
+    ${OPENCV_INCLUDE_DIRS}
+    ${PCL_INCLUDE_DIRS}
+    ${FLANN_INCLUDE_DIRS}
+    ${VTK_INCLUDE_DIRS}
 )
 
+set(BASE_SRCS
+    src/main.cpp
+)
+
+set(COMMON_HEADERS
+    src/common/Parameters.h
+    src/common/Frame.h
+)
+
+set(COMMON_SRCS
+    src/common/Parameters.cpp
+    src/common/Frame.cpp
+)
+
+set(CONTROLLER_HEADERS
+    src/controller/Controller.h
+    src/controller/FrameStepController.h
+)
+
+set(CONTROLLER_SRCS
+    src/controller/Controller.cpp
+    src/controller/FrameStepController.cpp
+)
+
+set(UI_HEADERS
+    src/ui/MainWindow.h
+)
+
+set(UI_SRCS
+    src/ui/MainWindow.ui
+    src/ui/MainWindow.cpp
+)
+
+set(HEADER_FILES
+    ${COMMON_HEADERS}
+    ${CONTROLLER_HEADERS}
+    ${UI_HEADERS}
+)
+
+set(SRC_FILES
+    ${SRC_FILES}
+    ${BASE_SRCS}
+    ${COMMON_SRCS}
+    ${CONTROLLER_SRCS}
+    ${UI_SRCS}
+)
+
+IF(MSVC)
+    FILE(GLOB HEADERS ${HEADER_FILES})
+    set(SRC_FILES ${SRC_FILES} ${HEADER_FILES})
+ENDIF(MSVC)
+
+include_directories(${INCLUDE_DIRS})
+
 # Tell CMake to create the helloworld executable
-add_executable(recfls ${recfls_SRC})
+add_executable(recfls ${SRC_FILES})
 
 # Use the Widgets module from Qt 5.
-target_link_libraries(recfls Qt5::Widgets)
+target_link_libraries(recfls Qt5::Widgets Qt5::Charts ${PCL_LIBRARIES} ${OPENCV_LIBRARIES} ${FLANN_LIBRARIES} ${VTK_LIBRARIES})
 
 # Install the executable
 install(TARGETS recfls DESTINATION bin)
