@@ -39,11 +39,13 @@ set(BASE_SRCS
 set(COMMON_HEADERS
     src/common/Parameters.h
     src/common/Frame.h
+    src/common/ImuFrame.h
 )
 
 set(COMMON_SRCS
     src/common/Parameters.cpp
     src/common/Frame.cpp
+    src/common/ImuFrame.cpp
 )
 
 set(CONTROLLER_HEADERS
@@ -75,11 +77,21 @@ set(UI_SRCS
     src/ui/MainWindow.cpp
 )
 
+set(UTIL_HEADERS
+    src/util/Utils.h
+)
+
+set(UTIL_SRCS
+    src/util/Utils.cpp
+)
+
 set(HEADER_FILES
+    ${HEADER_FILES}
     ${COMMON_HEADERS}
     ${CONTROLLER_HEADERS}
     ${DEVICE_HEADERS}
     ${UI_HEADERS}
+    ${UTIL_HEADERS}
 )
 
 set(SRC_FILES
@@ -89,6 +101,7 @@ set(SRC_FILES
     ${CONTROLLER_SRCS}
     ${DEVICE_SRCS}
     ${UI_SRCS}
+    ${UTIL_SRCS}
 )
 
 IF(MSVC)

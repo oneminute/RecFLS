@@ -1,11 +1,14 @@
 #include "SensorReaderDevice.h"
 #include "common/Parameters.h"
+#include "util/Utils.h"
 
 #include <QDebug>
 #include <QFile>
 #include <QDataStream>
 
 SensorReaderDevice::SensorReaderDevice()
+    : m_frameCount(0)
+    , m_imuFrameCount(0)
 {
 
 }
@@ -49,12 +52,8 @@ bool SensorReaderDevice::open()
     QString sensorName(sensorNameBytes);
 
     // read camera calibration parameters
-    for (int i = 0; i < m_colorIntrinsic.size(); i++)
-    {
-        float v = 0;
-        stream >> v;
-        m_colorIntrinsic.data()[i] = v;
-    }
+    stream >> m_colorIntrinsic;
+
     for (int i = 0; i < m_colorExtrinsic.size(); i++)
     {
         float v = 0;
@@ -100,6 +99,15 @@ bool SensorReaderDevice::open()
     stream >> m_frameCount;
     for (quint64 i = 0; i < m_frameCount; i++)
     {
+        Frame frame;
+        frame.setDeviceFrameIndex(static_cast<int>(i));
+        stream >> frame;
+//        frame.showInfo();
+    }
+
+    stream >> m_imuFrameCount;
+    for (quint64 i = 0; i < m_imuFrameCount; i++)
+    {
 
     }
 
@@ -112,14 +120,15 @@ bool SensorReaderDevice::open()
     qDebug() << "[SensorReaderDevice::open()]" << "depth size = " << m_depthSize;
     qDebug() << "[SensorReaderDevice::open()]" << "depth shift = " << m_depthShift;
     qDebug() << "[SensorReaderDevice::open()]" << "frame count = " << m_frameCount;
-    std::cout << "[SensorReaderDevice::open()] " << "color intrincic =" << std::endl;
-    std::cout << m_colorIntrinsic << std::endl;
-    std::cout << "[SensorReaderDevice::open()] " << "color extrinsic =" << std::endl;
-    std::cout << m_colorExtrinsic << std::endl;
-    std::cout << "[SensorReaderDevice::open()] " << "depth intrincic =" << std::endl;
-    std::cout << m_depthIntrinsic << std::endl;
-    std::cout << "[SensorReaderDevice::open()] " << "depth extrinsic =" << std::endl;
-    std::cout << m_depthExtrinsic << std::endl;
+    qDebug() << "[SensorReaderDevice::open()]" << "imu frame count = " << m_imuFrameCount;
+    qDebug() << "[SensorReaderDevice::open()]" << "color intrincic =";
+    qDebug() << m_colorIntrinsic;
+    qDebug() << "[SensorReaderDevice::open()]" << "color extrinsic =";
+    qDebug() << m_colorExtrinsic;
+    qDebug() << "[SensorReaderDevice::open()]" << "depth intrincic =";
+    qDebug() << m_depthIntrinsic;
+    qDebug() << "[SensorReaderDevice::open()]" << "depth extrinsic =";
+    qDebug() << m_depthExtrinsic;
     return true;
 }
 

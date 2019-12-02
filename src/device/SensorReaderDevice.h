@@ -23,6 +23,7 @@ public:
 private:
     quint64 m_frameCount;
     QList<Frame> m_frames;
+    quint64 m_imuFrameCount;
 };
 
 #endif // SENSORREADERDEVICE_H
