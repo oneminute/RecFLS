@@ -8,6 +8,8 @@ set(CMAKE_AUTOMOC ON)
 # Instruct CMake to create code from Qt designer ui files
 set(CMAKE_AUTOUIC ON)
 
+add_definitions(-DSTB_IMAGE_IMPLEMENTATION)
+
 # Find the QtWidgets library
 #find_package(Boost REQUIRED QUIET)
 find_package(Qt5 COMPONENTS Widgets Charts CONFIG REQUIRED)
@@ -30,6 +32,8 @@ set(INCLUDE_DIRS
     ${PCL_INCLUDE_DIRS}
     ${FLANN_INCLUDE_DIRS}
     ${VTK_INCLUDE_DIRS}
+    ./third/stb_image
+    ./third/uplinksimple
 )
 
 set(BASE_SRCS
@@ -70,11 +74,19 @@ set(DEVICE_SRCS
 
 set(UI_HEADERS
     src/ui/MainWindow.h
+    src/ui/ImageViewer.h
+    src/ui/CloudViewer.h
+    src/ui/CloudViewerCellPicker.h
+    src/ui/vtkImageMatSource.h
 )
 
 set(UI_SRCS
     src/ui/MainWindow.ui
     src/ui/MainWindow.cpp
+    src/ui/ImageViewer.cpp
+    src/ui/CloudViewer.cpp
+    src/ui/CloudViewerCellPicker.cpp
+    src/ui/vtkImageMatSource.cpp
 )
 
 set(UTIL_HEADERS

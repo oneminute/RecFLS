@@ -60,10 +60,28 @@ public:
     QByteArray depthCompressed() const;
 
     void setColorMat(const cv::Mat &colorMat);
-    cv::Mat colorMat() const;
+    cv::Mat colorMat();
 
     void setDepthMat(const cv::Mat &depthMat);
-    cv::Mat depthMat() const;
+    cv::Mat depthMat();
+
+    Frame::COMPRESSION_TYPE_COLOR getColorCompressionType() const;
+    void setColorCompressionType(const Frame::COMPRESSION_TYPE_COLOR &value);
+
+    Frame::COMPRESSION_TYPE_DEPTH getDepthCompressionType() const;
+    void setDepthCompressionType(const Frame::COMPRESSION_TYPE_DEPTH &value);
+
+    int getColorWidth() const;
+    void setColorWidth(int value);
+
+    int getColorHeight() const;
+    void setColorHeight(int value);
+
+    int getDepthWidth() const;
+    void setDepthWidth(int value);
+
+    int getDepthHeight() const;
+    void setDepthHeight(int value);
 
     QDataStream& load(QDataStream &in);
 
@@ -76,6 +94,8 @@ public:
     void clearCompressedData();
 
     void clearUncompressedData();
+
+    bool isAvailable() const;
 
 signals:
 

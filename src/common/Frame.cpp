@@ -1,6 +1,8 @@
 #include "Frame.h"
 #include "util/Utils.h"
 
+#include "stb_image.h"
+
 class FrameData : public QSharedData
 {
 public:
@@ -8,16 +10,24 @@ public:
         : deviceFrameIndex(-1)
         , frameIndex(-1)
         , keyFrameIndex(-1)
+        , colorWidth(0)
+        , colorHeight(0)
         , cameraToWorld(Eigen::Matrix4f::Zero())
         , timeStampColor(0)
         , timeStampDepth(0)
         , colorCompressed()
         , depthCompressed()
+        , colorCompressionType(Frame::TYPE_COLOR_UNKNOWN)
+        , depthCompressionType(Frame::TYPE_DEPTH_UNKNOWN)
     {}
 
     qint64 deviceFrameIndex;
     qint64 frameIndex;
     qint64 keyFrameIndex;
+    int colorWidth;
+    int colorHeight;
+    int depthWidth;
+    int depthHeight;
     Eigen::Matrix4f cameraToWorld;
     quint64 timeStampColor;
     quint64 timeStampDepth;
@@ -25,6 +35,8 @@ public:
     QByteArray depthCompressed;
     cv::Mat colorMat;
     cv::Mat depthMat;
+    Frame::COMPRESSION_TYPE_COLOR colorCompressionType;
+    Frame::COMPRESSION_TYPE_DEPTH depthCompressionType;
 };
 
 Frame::Frame(QObject *parent) : QObject(parent), data(new FrameData)
@@ -134,8 +146,23 @@ void Frame::setColorMat(const cv::Mat &colorMat)
     data->colorMat = colorMat;
 }
 
-cv::Mat Frame::colorMat() const
+cv::Mat Frame::colorMat()
 {
+    if (data->colorMat.empty())
+    {
+        if (data->colorCompressed.size() > 0)
+        {
+            if (data->colorCompressionType == TYPE_RAW)
+            {
+                data->colorMat = cv::Mat(data->colorHeight, data->colorWidth, CV_8U, const_cast<char*>(data->colorCompressed.data()));
+            }
+            else
+            {
+                cv::Mat compressed(1, data->colorCompressed.size(), CV_8U, const_cast<char*>(data->colorCompressed.data()));
+                data->colorMat = cv::imdecode(compressed, cv::IMREAD_UNCHANGED);
+            }
+        }
+    }
     return data->colorMat;
 }
 
@@ -144,9 +171,87 @@ void Frame::setDepthMat(const cv::Mat &depthMat)
     data->depthMat = depthMat;
 }
 
-cv::Mat Frame::depthMat() const
+cv::Mat Frame::depthMat()
 {
+    if (data->depthMat.empty())
+    {
+        if (data->depthCompressed.size() > 0)
+        {
+            if (data->depthCompressionType == TYPE_RAW_USHORT)
+            {
+                data->depthMat = cv::Mat(data->depthHeight, data->depthWidth, CV_16U, const_cast<char*>(data->depthCompressed.data()));
+            }
+            else if (data->depthCompressionType == TYPE_ZLIB_USHORT)
+            {
+                char* res;
+                int len;
+                res = stbi_zlib_decode_malloc(data->depthCompressed.data(), data->depthCompressed.size(), &len);
+                data->depthMat = cv::Mat(data->depthHeight, data->depthWidth, CV_16U);
+                memcpy(data->depthMat.data, res, len);
+            }
+        }
+    }
     return data->depthMat;
+}
+
+Frame::COMPRESSION_TYPE_COLOR Frame::getColorCompressionType() const
+{
+    return data->colorCompressionType;
+}
+
+void Frame::setColorCompressionType(const Frame::COMPRESSION_TYPE_COLOR &value)
+{
+    data->colorCompressionType = value;
+}
+
+Frame::COMPRESSION_TYPE_DEPTH Frame::getDepthCompressionType() const
+{
+    return data->depthCompressionType;
+}
+
+void Frame::setDepthCompressionType(const Frame::COMPRESSION_TYPE_DEPTH &value)
+{
+    data->depthCompressionType = value;
+}
+
+int Frame::getColorHeight() const
+{
+    return data->colorHeight;
+}
+
+void Frame::setColorHeight(int value)
+{
+    data->colorHeight = value;
+}
+
+int Frame::getColorWidth() const
+{
+    return data->colorWidth;
+}
+
+void Frame::setColorWidth(int value)
+{
+    data->colorWidth = value;
+}
+
+int Frame::getDepthHeight() const
+{
+    return data->depthHeight;
+}
+
+void Frame::setDepthHeight(int value)
+{
+    data->depthHeight = value;
+}
+
+int Frame::getDepthWidth() const
+{
+    return data->depthWidth;
+}
+
+void Frame::setDepthWidth(int value)
+{
+    data->depthWidth = value;
 }
 
 QDataStream &Frame::load(QDataStream &in)
@@ -204,6 +309,11 @@ void Frame::clearUncompressedData()
 {
     data->colorMat = cv::Mat();
     data->depthMat = cv::Mat();
+}
+
+bool Frame::isAvailable() const
+{
+    return data->frameIndex >= 0;
 }
 
 QDataStream &operator>>(QDataStream &in, Frame &frame)

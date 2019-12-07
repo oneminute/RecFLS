@@ -28,8 +28,11 @@ public:
 
     virtual Frame getFrame(int frameIndex) = 0;
 
+    virtual void fetchNext() = 0;
+
 signals:
-    void frameFetched(const Frame& frame);
+    void frameFetched(Frame& frame);
+    void reachEnd();
 
 public slots:
 
@@ -39,8 +42,6 @@ protected:
     Eigen::Matrix4f m_depthIntrinsic;
     Eigen::Matrix4f m_depthExtrinsic;
 
-    Frame::COMPRESSION_TYPE_COLOR m_colorCompressionType;
-    Frame::COMPRESSION_TYPE_DEPTH m_depthCompressionType;
 
     QSize m_colorSize;
     QSize m_depthSize;

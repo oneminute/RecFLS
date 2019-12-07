@@ -2,8 +2,17 @@
 #include "common/Parameters.h"
 #include "FrameStepController.h"
 
-Controller::Controller(QObject *parent) : QObject(parent)
+Controller::Controller(Device *device, QObject *parent)
+    : QObject(parent)
+    , m_device(device)
 {
+    Q_ASSERT(m_device);
 
+//    connect(m_device, &Device::frameFetched, this, &Controller::frameFetched);
+}
+
+bool Controller::supportRandomAccessing() const
+{
+    return m_device->supportRandomAccessing();
 }
 

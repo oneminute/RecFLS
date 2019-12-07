@@ -79,9 +79,6 @@ bool SensorReaderDevice::open()
     stream >> colorCompressType;
     stream >> depthCompressType;
 
-    m_colorCompressionType = static_cast<Frame::COMPRESSION_TYPE_COLOR>(colorCompressType);
-    m_depthCompressionType = static_cast<Frame::COMPRESSION_TYPE_DEPTH>(depthCompressType);
-
     // read color and depth images' size
     int colorWidth, colorHeight;
     int depthWidth, depthHeight;
@@ -103,6 +100,13 @@ bool SensorReaderDevice::open()
         frame.setDeviceFrameIndex(static_cast<int>(i));
         stream >> frame;
 //        frame.showInfo();
+        frame.setColorWidth(colorWidth);
+        frame.setColorHeight(colorHeight);
+        frame.setDepthWidth(depthWidth);
+        frame.setDepthHeight(depthHeight);
+        frame.setColorCompressionType(static_cast<Frame::COMPRESSION_TYPE_COLOR>(colorCompressType));
+        frame.setDepthCompressionType(static_cast<Frame::COMPRESSION_TYPE_DEPTH>(depthCompressType));
+        m_frames.append(frame);
     }
 
     stream >> m_imuFrameCount;
@@ -114,8 +118,8 @@ bool SensorReaderDevice::open()
     file.close();
     qDebug() <<"[SensorReaderDevice::open()]" << "version =" << version;
     qDebug() <<"[SensorReaderDevice::open()]" << "sensor name =" << sensorName;
-    qDebug() << "[SensorReaderDevice::open()]" << "color compression type = " << m_colorCompressionType;
-    qDebug() << "[SensorReaderDevice::open()]" << "depth compression type = " << m_depthCompressionType;
+    qDebug() << "[SensorReaderDevice::open()]" << "color compression type = " << colorCompressType;
+    qDebug() << "[SensorReaderDevice::open()]" << "depth compression type = " << depthCompressType;
     qDebug() << "[SensorReaderDevice::open()]" << "color size = " << m_colorSize;
     qDebug() << "[SensorReaderDevice::open()]" << "depth size = " << m_depthSize;
     qDebug() << "[SensorReaderDevice::open()]" << "depth shift = " << m_depthShift;
@@ -129,6 +133,8 @@ bool SensorReaderDevice::open()
     qDebug() << m_depthIntrinsic;
     qDebug() << "[SensorReaderDevice::open()]" << "depth extrinsic =";
     qDebug() << m_depthExtrinsic;
+
+    m_currentIndex = 0;
     return true;
 }
 
@@ -148,5 +154,21 @@ void SensorReaderDevice::skip(int skipCount)
 Frame SensorReaderDevice::getFrame(int frameIndex)
 {
     Frame frame;
+    if (frameIndex >= 0 && frameIndex < m_frameCount)
+    {
+        frame = m_frames[frameIndex];
+    }
     return frame;
+}
+
+void SensorReaderDevice::fetchNext()
+{
+    if (m_currentIndex < m_frameCount)
+    {
+        emit frameFetched(m_frames[m_currentIndex++]);
+    }
+    else
+    {
+        emit reachEnd();
+    }
 }

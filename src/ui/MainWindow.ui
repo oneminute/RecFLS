@@ -6,35 +6,41 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>884</width>
+    <width>878</width>
     <height>641</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>RecFLS</string>
   </property>
-  <widget class="QWidget" name="centralWidget">
-   <widget class="QDockWidget" name="dockWidget">
-    <property name="geometry">
-     <rect>
-      <x>440</x>
-      <y>30</y>
-      <width>281</width>
-      <height>191</height>
-     </rect>
-    </property>
-    <widget class="QWidget" name="dockWidgetContents"/>
-   </widget>
-  </widget>
+  <widget class="QWidget" name="centralWidget"/>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>884</width>
+     <width>878</width>
      <height>23</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menu_File">
+    <property name="title">
+     <string>&amp;File</string>
+    </property>
+   </widget>
+   <widget class="QMenu" name="menu_Device">
+    <property name="title">
+     <string>&amp;Device</string>
+    </property>
+   </widget>
+   <widget class="QMenu" name="menu_Option">
+    <property name="title">
+     <string>&amp;Option</string>
+    </property>
+   </widget>
+   <addaction name="menu_File"/>
+   <addaction name="menu_Device"/>
+   <addaction name="menu_Option"/>
   </widget>
   <widget class="QToolBar" name="mainToolBar">
    <attribute name="toolBarArea">
@@ -43,27 +49,166 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <addaction name="actionOpen_Device"/>
+   <addaction name="actionPrevious_Frame"/>
+   <addaction name="actionNext_Frame"/>
+   <addaction name="actionPause"/>
+   <addaction name="actionClose_Device"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
-  <widget class="QDockWidget" name="dockWidget_3">
+  <widget class="QDockWidget" name="dockWidgetColorImage">
+   <property name="minimumSize">
+    <size>
+     <width>200</width>
+     <height>50</height>
+    </size>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>400</width>
+     <height>524287</height>
+    </size>
+   </property>
+   <property name="windowTitle">
+    <string>Color Image</string>
+   </property>
    <attribute name="dockWidgetArea">
     <number>1</number>
    </attribute>
-   <widget class="QWidget" name="dockWidgetContents_3"/>
+   <widget class="QWidget" name="dockWidgetContents_3">
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <item>
+      <widget class="ImageViewer" name="widgetColorImage" native="true"/>
+     </item>
+    </layout>
+   </widget>
   </widget>
-  <widget class="QDockWidget" name="dockWidget_4">
+  <widget class="QDockWidget" name="dockWidgetFilters">
+   <property name="minimumSize">
+    <size>
+     <width>200</width>
+     <height>38</height>
+    </size>
+   </property>
+   <property name="windowTitle">
+    <string>Filters</string>
+   </property>
    <attribute name="dockWidgetArea">
     <number>8</number>
    </attribute>
    <widget class="QWidget" name="dockWidgetContents_4"/>
   </widget>
-  <widget class="QDockWidget" name="dockWidget_5">
+  <widget class="QDockWidget" name="dockWidgetDepthImage">
+   <property name="minimumSize">
+    <size>
+     <width>200</width>
+     <height>50</height>
+    </size>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>400</width>
+     <height>524287</height>
+    </size>
+   </property>
+   <property name="windowTitle">
+    <string>Depth Image</string>
+   </property>
    <attribute name="dockWidgetArea">
     <number>1</number>
    </attribute>
-   <widget class="QWidget" name="dockWidgetContents_5"/>
+   <widget class="QWidget" name="dockWidgetContents_5">
+    <layout class="QVBoxLayout" name="verticalLayout_2">
+     <item>
+      <widget class="ImageViewer" name="widgetDepthImage" native="true"/>
+     </item>
+    </layout>
+   </widget>
   </widget>
+  <widget class="QDockWidget" name="dockWidgetMainScene">
+   <property name="minimumSize">
+    <size>
+     <width>200</width>
+     <height>50</height>
+    </size>
+   </property>
+   <property name="floating">
+    <bool>false</bool>
+   </property>
+   <property name="windowTitle">
+    <string>Main Scene</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContentsMainScene">
+    <layout class="QVBoxLayout" name="layoutDockMainScene"/>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="dockWidgetFrameList">
+   <property name="minimumSize">
+    <size>
+     <width>200</width>
+     <height>38</height>
+    </size>
+   </property>
+   <property name="windowTitle">
+    <string>Frame List</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_2"/>
+  </widget>
+  <action name="actionNext_Frame">
+   <property name="text">
+    <string>Next Frame</string>
+   </property>
+   <property name="toolTip">
+    <string>Next Frame</string>
+   </property>
+  </action>
+  <action name="actionPrevious_Frame">
+   <property name="text">
+    <string>Previous Frame</string>
+   </property>
+   <property name="toolTip">
+    <string>Previous Frame</string>
+   </property>
+  </action>
+  <action name="actionOpen_Device">
+   <property name="text">
+    <string>Open Device</string>
+   </property>
+   <property name="toolTip">
+    <string>Open Device</string>
+   </property>
+  </action>
+  <action name="actionPause">
+   <property name="text">
+    <string>Pause</string>
+   </property>
+   <property name="toolTip">
+    <string>Pause</string>
+   </property>
+  </action>
+  <action name="actionClose_Device">
+   <property name="text">
+    <string>Close Device</string>
+   </property>
+   <property name="toolTip">
+    <string>Close Device</string>
+   </property>
+  </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ImageViewer</class>
+   <extends>QWidget</extends>
+   <header>ImageViewer.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

@@ -9,17 +9,21 @@ class FrameStepController : public Controller
     Q_OBJECT
 
 public:
-    FrameStepController();
+    FrameStepController(Device *device, QObject *parent = nullptr);
 
     // Controller interface
 public:
     virtual QString name() const override;
-    virtual bool supportRandomAccessing() const;
-    virtual void fetchNext();
-    virtual void moveTo(int frameIndex);
-    virtual void skip(int frameNumbers);
-    virtual void reset();
-    virtual Frame getFrame(int frameIndex);
+    virtual bool open() override;
+    virtual void close() override;
+    virtual void fetchNext() override;
+    virtual void moveTo(int frameIndex) override;
+    virtual void skip(int frameNumbers) override;
+    virtual void reset() override;
+    virtual Frame getFrame(int frameIndex) override;
+
+private slots:
+    void onFrameFetched(Frame &frame);
 };
 
 #endif // FRAMESTEPCONTROLLER_H
