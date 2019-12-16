@@ -188,6 +188,7 @@ cv::Mat Frame::depthMat()
                 res = stbi_zlib_decode_malloc(data->depthCompressed.data(), data->depthCompressed.size(), &len);
                 data->depthMat = cv::Mat(data->depthHeight, data->depthWidth, CV_16U);
                 memcpy(data->depthMat.data, res, len);
+                stbi_image_free(res);
             }
         }
     }

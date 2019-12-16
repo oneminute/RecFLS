@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include "Controller.h"
+#include "extractor/EDLine3DExtractor.h"
 
 class FrameStepController : public Controller
 {
@@ -24,6 +25,11 @@ public:
 
 private slots:
     void onFrameFetched(Frame &frame);
+
+private:
+    std::vector<pcl::EDLine3D> m_lastMergedLines;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr m_lastLineCloud;
+
 };
 
 #endif // FRAMESTEPCONTROLLER_H

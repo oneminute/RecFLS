@@ -14,7 +14,7 @@ add_definitions(-DSTB_IMAGE_IMPLEMENTATION)
 #find_package(Boost REQUIRED QUIET)
 find_package(Qt5 COMPONENTS Widgets Charts CONFIG REQUIRED)
 find_package(OpenCV REQUIRED QUIET)
-find_package(PCL REQUIRED QUIET COMPONENTS common io kdtree search surface filters registration sample_consensus segmentation visualization)
+find_package(PCL REQUIRED QUIET COMPONENTS common features io kdtree search surface filters registration sample_consensus segmentation visualization)
 find_package(OpenMP REQUIRED QUIET)
 find_package(FLANN REQUIRED QUIET)
 find_package(VTK REQUIRED QUIET)
@@ -72,6 +72,14 @@ set(DEVICE_SRCS
     src/device/SensorReaderDevice.cpp
 )
 
+set(EXTRACTOR_HEADERS
+    src/extractor/EDLine3DExtractor.h
+)
+
+set(EXTRACTOR_SRCS
+    src/extractor/EDLine3DExtractor.hpp
+)
+
 set(UI_HEADERS
     src/ui/MainWindow.h
     src/ui/ImageViewer.h
@@ -102,6 +110,7 @@ set(HEADER_FILES
     ${COMMON_HEADERS}
     ${CONTROLLER_HEADERS}
     ${DEVICE_HEADERS}
+    ${EXTRACTOR_HEADERS}
     ${UI_HEADERS}
     ${UTIL_HEADERS}
 )
@@ -112,6 +121,7 @@ set(SRC_FILES
     ${COMMON_SRCS}
     ${CONTROLLER_SRCS}
     ${DEVICE_SRCS}
+    ${EXTRACTOR_SRCS}
     ${UI_SRCS}
     ${UTIL_SRCS}
 )

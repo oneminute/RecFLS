@@ -2,6 +2,10 @@
 #include "ui_MainWindow.h"
 #include "util/Utils.h"
 
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/filters/filter.h>
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_ui(new Ui::MainWindow)
@@ -14,6 +18,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_cloudViewer = new CloudViewer(m_ui->dockWidgetContentsMainScene);
     m_ui->layoutDockMainScene->addWidget(m_cloudViewer);
+//    m_cloudViewer->setCameraPosition(0, 0, 0, 0, 0, 1, 0, -1, 0);
+    Eigen::Matrix4f targetPos;
 
     removeDockWidget(m_ui->dockWidgetMainScene);
     removeDockWidget(m_ui->dockWidgetColorImage);
@@ -57,6 +63,7 @@ void MainWindow::setController(Controller *controller)
     m_controller = controller;
 
     connect(m_controller, &Controller::frameFetched, this, &MainWindow::onFrameFetched);
+    m_controller->setCloudViewer(m_cloudViewer);
 }
 
 Controller *MainWindow::controller() const
@@ -124,6 +131,36 @@ void MainWindow::onFrameFetched(Frame &frame)
 
     m_ui->widgetColorImage->setImage(cvMat2QImage(frame.colorMat()));
     m_ui->widgetDepthImage->setImage(cvMat2QImage(frame.depthMat(), false));
+
+    m_ui->dockWidgetContentsFilters->setUpdatesEnabled(false);
+    qDeleteAll(m_ui->dockWidgetContentsFilters->findChildren<ImageViewer*>("", Qt::FindDirectChildrenOnly));
+    m_ui->dockWidgetContentsFilters->setUpdatesEnabled(true);
+
+    for (QList<QPair<QString, cv::Mat>>::iterator i = m_controller->filteredMats().begin(); i != m_controller->filteredMats().end(); i++)
+    {
+        QString name = i->first;
+        cv::Mat mat = i->second;
+
+        ImageViewer *widget = new ImageViewer(m_ui->dockWidgetContentsFilters);
+        m_ui->layoutFilters->addWidget(widget);
+        if (name.contains("depth"))
+        {
+            widget->setImage(cvMat2QImage(mat, false));
+        }
+        else if (name.contains("color"))
+        {
+            widget->setImage(cvMat2QImage(mat));
+        }
+    }
+
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud = m_controller->cloud();
+//    std::vector<int> mapping;
+//    pcl::removeNaNFromPointCloud(*cloud, *cloud, mapping);
+    m_cloudViewer->addCloud("main scene", cloud);
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr result(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::copyPointCloud(*m_controller->result(), *result);
+    m_cloudViewer->addCloud("boundary points", result, Eigen::Matrix4f::Identity(), QColor(255, 0, 0, 255));
 }
 
 MainWindow::~MainWindow()

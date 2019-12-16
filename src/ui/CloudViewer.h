@@ -368,6 +368,7 @@ public:
 	void setNormalsScale(float scale);
 	void buildPickingLocator(bool enable);
     const QMap<QString, vtkSmartPointer<vtkOBBTree>> & getLocators() const {return _locators;}
+    pcl::visualization::PCLVisualizer * visualizer() {return _visualizer;}
 
 public Q_SLOTS:
 	void setDefaultBackgroundColor(const QColor & color);
@@ -391,7 +392,6 @@ protected:
 	virtual void handleAction(QAction * event);
     virtual void mouseDoubleClickEvent(QMouseEvent *event);
     QMenu * menu() {return _menu;}
-	pcl::visualization::PCLVisualizer * visualizer() {return _visualizer;}
 
 private:
 	void createMenu();

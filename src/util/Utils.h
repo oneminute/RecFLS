@@ -25,12 +25,14 @@ public:
 };
 
 template<typename _Scalar, int _Rows, int _Cols>
-QDebug &qDebugMatrix(QDebug &out, Eigen::Matrix<_Scalar, _Rows, _Cols> m);
+QDebug &qDebugMatrix(QDebug &out, const Eigen::Matrix<_Scalar, _Rows, _Cols>& m);
 
 template<typename _Scalar, int _Rows, int _Cols>
 QDataStream &streamInMatrix(QDataStream &in, Eigen::Matrix<_Scalar, _Rows, _Cols> &m);
 
-QDebug &operator<<(QDebug out, Eigen::Matrix4f m);
+QDebug &operator<<(QDebug out, const Eigen::Matrix4f &m);
+
+QDebug &operator<<(QDebug out, const cv::Mat &m);
 
 QDataStream &operator>>(QDataStream &in, Eigen::Matrix4f &m);
 
@@ -55,6 +57,8 @@ Eigen::Vector4f vector4fZeroFrom(const Eigen::Matrix4f &m);
 Eigen::Matrix4f rotationFrom(const Eigen::Matrix4f &m);
 
 Eigen::Matrix4f translationFrom(const Eigen::Matrix4f &m);
+
+cv::Mat cvMatFrom(const Eigen::MatrixXf &m);
 
 template<class T>
 int sign(const T &v)

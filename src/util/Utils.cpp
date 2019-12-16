@@ -16,7 +16,7 @@ void Utils::registerTypes()
 }
 
 template<typename _Scalar, int _Rows, int _Cols>
-QDebug &qDebugMatrix(QDebug &out, Eigen::Matrix<_Scalar, _Rows, _Cols> m)
+QDebug &qDebugMatrix(QDebug &out, const Eigen::Matrix<_Scalar, _Rows, _Cols> &m)
 {
     for (int i = 0; i < m.rows(); i++)
     {
@@ -41,7 +41,7 @@ QDataStream &streamInMatrix(QDataStream &in, Eigen::Matrix<_Scalar, _Rows, _Cols
     return in;
 }
 
-QDebug &operator<<(QDebug out, Eigen::Matrix4f m)
+QDebug &operator<<(QDebug out, const Eigen::Matrix4f &m)
 {
     return qDebugMatrix(out, m);
 }
@@ -280,4 +280,38 @@ Eigen::Matrix4f translationFrom(const Eigen::Matrix4f &m)
 Eigen::Vector4f vector4fZeroFrom(const Eigen::Matrix4f &m)
 {
     return Eigen::Vector4f(m(0, 3), m(1, 3), m(2, 3), 0);
+}
+
+cv::Mat cvMatFrom(const Eigen::MatrixXf &m)
+{
+    cv::Mat mat(static_cast<int>(m.rows()), static_cast<int>(m.cols()), CV_32FC1);
+    for (int r = 0; r < m.rows(); r++)
+    {
+        for (int c = 0; c < m.cols(); c++)
+        {
+            mat.at<float>(cv::Point(r, c)) = m(r, c);
+        }
+    }
+    return mat;
+}
+
+QDebug &operator<<(QDebug out, const cv::Mat &m)
+{
+    for (int i = 0; i < m.rows; i++)
+    {
+        for (int j = 0; j < m.cols; j++)
+        {
+            switch (m.type())
+            {
+            case CV_32F:
+                out << fixed << qSetRealNumberPrecision(2) << qSetFieldWidth(6) << m.at<float>(cv::Point(j, i));
+                break;
+            case CV_16U:
+                out << fixed << qSetRealNumberPrecision(2) << qSetFieldWidth(6) << m.at<ushort>(cv::Point(j, i));
+                break;
+            }
+        }
+        out << endl;
+    }
+    return out;
 }

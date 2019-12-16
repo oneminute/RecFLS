@@ -65,7 +65,7 @@
    </property>
    <property name="maximumSize">
     <size>
-     <width>400</width>
+     <width>524287</width>
      <height>524287</height>
     </size>
    </property>
@@ -87,7 +87,7 @@
    <property name="minimumSize">
     <size>
      <width>200</width>
-     <height>38</height>
+     <height>40</height>
     </size>
    </property>
    <property name="windowTitle">
@@ -96,7 +96,9 @@
    <attribute name="dockWidgetArea">
     <number>8</number>
    </attribute>
-   <widget class="QWidget" name="dockWidgetContents_4"/>
+   <widget class="QWidget" name="dockWidgetContentsFilters">
+    <layout class="QHBoxLayout" name="layoutFilters"/>
+   </widget>
   </widget>
   <widget class="QDockWidget" name="dockWidgetDepthImage">
    <property name="minimumSize">
@@ -107,7 +109,7 @@
    </property>
    <property name="maximumSize">
     <size>
-     <width>400</width>
+     <width>524287</width>
      <height>524287</height>
     </size>
    </property>

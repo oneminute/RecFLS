@@ -134,6 +134,8 @@ bool SensorReaderDevice::open()
     qDebug() << "[SensorReaderDevice::open()]" << "depth extrinsic =";
     qDebug() << m_depthExtrinsic;
 
+    initRectifyMap();
+
     m_currentIndex = 0;
     return true;
 }

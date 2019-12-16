@@ -30,6 +30,22 @@ public:
 
     virtual void fetchNext() = 0;
 
+    void initRectifyMap();
+
+    cv::Mat undistortImage(const cv::Mat &in);
+
+    cv::Mat alignDepthToColor(const cv::Mat &depthMat, const cv::Mat &colorMat);
+
+    float fx() const;
+
+    float fy() const;
+
+    float cx() const;
+
+    float cy() const;
+
+    float depthShift() const;
+
 signals:
     void frameFetched(Frame& frame);
     void reachEnd();
@@ -42,10 +58,15 @@ protected:
     Eigen::Matrix4f m_depthIntrinsic;
     Eigen::Matrix4f m_depthExtrinsic;
 
+    Eigen::VectorXf m_distCoeffs;
+    Eigen::Matrix3f m_R;
 
     QSize m_colorSize;
     QSize m_depthSize;
     float m_depthShift;
+
+    cv::Mat m_rectifyMap1;
+    cv::Mat m_rectifyMap2;
 };
 
 #endif // DEVICE_H
