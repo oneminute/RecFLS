@@ -326,6 +326,8 @@ namespace pcl
         int f_index_[3];
         float d_pi_;
 
+        Eigen::Matrix3f intrinsic_;
+
         //pcl::PointCloud<PointInT>::Ptr downloadSampledCloud_;
         pcl::PointCloud<pcl::PointXYZI>::Ptr boundary_;
         std::vector<EDLine3D> lines_;

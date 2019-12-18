@@ -6,3 +6,7 @@ build/
 *.user
 
 *.autosave
+
+*.sens
+
+*.png

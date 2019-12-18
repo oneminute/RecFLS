@@ -74,10 +74,14 @@ set(DEVICE_SRCS
 
 set(EXTRACTOR_HEADERS
     src/extractor/EDLine3DExtractor.h
+    src/extractor/LineExtractor.h
+    src/extractor/LineSegment.h
 )
 
 set(EXTRACTOR_SRCS
     src/extractor/EDLine3DExtractor.hpp
+    src/extractor/LineExtractor.hpp
+    src/extractor/LineSegment.cpp
 )
 
 set(UI_HEADERS
@@ -99,10 +103,12 @@ set(UI_SRCS
 
 set(UTIL_HEADERS
     src/util/Utils.h
+    src/util/StopWatch.h
 )
 
 set(UTIL_SRCS
     src/util/Utils.cpp
+    src/util/StopWatch.cpp
 )
 
 set(HEADER_FILES

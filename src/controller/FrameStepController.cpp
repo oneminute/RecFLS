@@ -3,12 +3,18 @@
 #include "opencv2/features2d/features2d.hpp"
 #include <pcl/common/common.h>
 #include <pcl/search/kdtree.h>
+#include <pcl/search/organized.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/features/impl/normal_3d.hpp>
 #include <pcl/features/boundary.h>
 #include <pcl/visualization/cloud_viewer.h>
+#include <pcl/range_image/range_image.h>
+#include <pcl/range_image/range_image_planar.h>
+#include <pcl/features/range_image_border_extractor.h>
+#include <pcl/filters/filter.h>
 
-#include "extractor/EDLine3DExtractor.hpp"
+//#include "extractor/EDLine3DExtractor.hpp"
+#include "extractor/LineExtractor.hpp"
 #include "ui/CloudViewer.h"
 
 #include <QDebug>
@@ -100,12 +106,9 @@ void FrameStepController::onFrameFetched(Frame &frame)
 
             pcl::PointXYZRGBNormal pt;
             float Xw = 0, Yw = 0, Zw = 0;
-            if(zValue > 0 && !qIsNaN(zValue)) {
-                Zw = zValue / m_device->depthShift();
-                Xw = (j - m_device->cx()) *  Zw / m_device->fx();
-                Yw = (i - m_device->cy()) * Zw / m_device->fy();
-                m_cloudIndices->push_back(i * depthMat.cols + j);
-            }
+            Zw = zValue / m_device->depthShift();
+            Xw = (j - m_device->cx()) *  Zw / m_device->fx();
+            Yw = (i - m_device->cy()) * Zw / m_device->fy();
 
             pt.x = Xw;
             pt.y = Yw;
@@ -114,47 +117,133 @@ void FrameStepController::onFrameFetched(Frame &frame)
             pt.g = colorMat.at<cv::Vec3b>(cv::Point(j, i))[1];
             pt.r = colorMat.at<cv::Vec3b>(cv::Point(j, i))[2];
 
+//            if(zValue > 0 && !qIsNaN(zValue)) {
+            if (pt.getVector3fMap().norm() > 0.1f) {
+                m_cloudIndices->push_back(i * depthMat.cols + j);
+            }
+            else
+            {
+                Xw = qQNaN();
+                Yw = qQNaN();
+                Zw = qQNaN();
+                continue;
+            }
+
+
+//            if (pt.getVector3fMap().norm() > 0)
             m_cloud->push_back(pt);
         }
     }
-    m_cloud->resize(m_cloud->points.size());
-    m_cloud->width = static_cast<quint32>(colorMat.cols);
-    m_cloud->height = static_cast<quint32>(colorMat.rows);
+//    m_cloud->resize(m_cloud->points.size());
+//    m_cloud->width = static_cast<quint32>(colorMat.cols);
+//    m_cloud->height = static_cast<quint32>(colorMat.rows);
+    qDebug() << "isOrganized:" << m_cloud->isOrganized() << m_cloudIndices->size();
+    m_cloudViewer->visualizer()->removeAllShapes();
 
-    // boundary estimation and extract lines
-    pcl::search::KdTree<pcl::PointXYZRGBNormal>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGBNormal>());
-    tree->setInputCloud(m_cloud);
-    pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
-    pcl::NormalEstimation<pcl::PointXYZRGBNormal, pcl::Normal> normal_est;
-    normal_est.setSearchMethod(tree);
-    normal_est.setInputCloud(m_cloud);
-    normal_est.setKSearch(5);
-    normal_est.compute(*normals);
+    float angular_resolution = 0.001f;
+    float support_size = 0.2f;
+    pcl::RangeImage::CoordinateFrame coordinate_frame = pcl::RangeImage::CAMERA_FRAME;
+    bool setUnseenToMaxRange = false;
 
-    //calculate boundary_;
-    pcl::PointCloud<pcl::Boundary> boundary;
-    pcl::EDLine3DExtractor<pcl::PointXYZRGBNormal, pcl::Normal, pcl::Boundary> edline3dExtractor;
-    edline3dExtractor.setInputCloud(m_cloud);
-    edline3dExtractor.setInputNormals(normals);
-    edline3dExtractor.setRadiusSearch(0.01);
-    //edline3dExtractor.setAngleThreshold(PI/4);
-    edline3dExtractor.setSearchMethod(tree);
-    edline3dExtractor.compute(boundary);
+    // ------------------------------------------------------------------
+    // -----Read pcd file or create example point cloud if not given-----
+    // ------------------------------------------------------------------
+    pcl::PointCloud<pcl::PointWithViewpoint> far_ranges;
+    Eigen::Affine3f scene_sensor_pose(Eigen::Affine3f::Identity());
+    // -----Create RangeImage from the PointCloud-----
+    // -----------------------------------------------
+    float noise_level = 0.0;
+    float min_range = 0.0f;
+    int border_size = 1;
+    pcl::RangeImage::Ptr range_image_ptr(new pcl::RangeImage);
+    pcl::RangeImage& range_image = *range_image_ptr;
 
-    m_result = edline3dExtractor.getBoundary();
+    std::vector<int> mapping;
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr tmpCloud(new pcl::PointCloud<pcl::PointXYZRGBNormal>());
+    pcl::removeNaNFromPointCloud(*m_cloud, *tmpCloud, mapping);
+
+    range_image.createFromPointCloud(*tmpCloud, angular_resolution, pcl::deg2rad(360.0f), pcl::deg2rad(360.0f),
+        scene_sensor_pose, coordinate_frame, noise_level, min_range, border_size);
+    range_image.integrateFarRanges(far_ranges);
+    if (setUnseenToMaxRange)
+        range_image.setUnseenToMaxRange();
+    qDebug() << "width:" << range_image.width << ", height:" << range_image.height;
+
+    //calculate RangeImageBorder;
+    pcl::RangeImageBorderExtractor border_extractor(&range_image);//定义边界提取对对象，形参为一个RangeImage类型的指针
+    border_extractor.setRadiusSearch(0.01);
+    pcl::PointCloud<pcl::BorderDescription> border_descriptions;
+    border_extractor.compute(border_descriptions);//将边界信息存放到board_description
+
+    pcl::PointCloud<pcl::PointWithRange>::Ptr border_points_ptr(new pcl::PointCloud<pcl::PointWithRange>),
+            veil_points_ptr(new pcl::PointCloud<pcl::PointWithRange>),
+            shadow_points_ptr(new pcl::PointCloud<pcl::PointWithRange>);
+    pcl::PointCloud<pcl::PointWithRange>& border_points = *border_points_ptr, & veil_points = * veil_points_ptr, & shadow_points = *shadow_points_ptr;//创建指针，类模板是PointCloud<pcl::PointCloud>类
+    for (int y=0; y< (int)range_image.height; ++y)
+    {
+        for (int x=0; x< (int)range_image.width; ++x)//遍历深度图像中的每一个点
+        {
+            if (border_descriptions.points[y*range_image.width + x].traits[pcl::BORDER_TRAIT__OBSTACLE_BORDER])
+                border_points.points.push_back (range_image.points[y*range_image.width + x]);
+            if (border_descriptions.points[y*range_image.width + x].traits[pcl::BORDER_TRAIT__VEIL_POINT])
+                veil_points.points.push_back (range_image.points[y*range_image.width + x]);
+            if (border_descriptions.points[y*range_image.width + x].traits[pcl::BORDER_TRAIT__SHADOW_BORDER])
+                shadow_points.points.push_back (range_image.points[y*range_image.width + x]);
+        }
+    }
+    qDebug() << "boundary size:" << border_points.size() << ", veil size:" << veil_points.size() << ", shadow size:" << shadow_points.size() << ", cloud size:" << m_cloud->points.size();
+    //可视化三组边界到statical滤波之后的点云
+//    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointWithRange> veil_points_color_handler (veil_points_ptr, 0, 255, 0);
+//    m_cloudViewer->visualizer()->addPointCloud<pcl::PointWithRange> (veil_points_ptr, veil_points_color_handler, "veil points");
+//    m_cloudViewer->visualizer()->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "veil points");
+//    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointWithRange> border_points_color_handler (border_points_ptr, 255, 0, 0);
+//    m_cloudViewer->visualizer()->addPointCloud<pcl::PointWithRange> (border_points_ptr, border_points_color_handler, "border points");
+//    m_cloudViewer->visualizer()->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "border points");
+//    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointWithRange> shadow_points_color_handler (shadow_points_ptr, 0, 0, 255);
+//    m_cloudViewer->visualizer()->addPointCloud<pcl::PointWithRange> (shadow_points_ptr, shadow_points_color_handler, "shadow points");
+//    m_cloudViewer->visualizer()->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "shadow points");
+
+    LineExtractor<pcl::PointWithRange, pcl::PointXYZI> le;
+    pcl::PointCloud<pcl::PointXYZI> leCloud;
+    le.compute(border_points, leCloud);
+
+//    m_cloudViewer->visualizer()->addPointCloud(cloud_temp, keypoints_color_handler, "keypoints");
+//    m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "keypoints");
+
+//    // boundary estimation and extract lines
+//    pcl::search::OrganizedNeighbor<pcl::PointXYZRGBNormal>::Ptr tree(new pcl::search::OrganizedNeighbor<pcl::PointXYZRGBNormal>());
+//    tree->setInputCloud(m_cloud);
+//    pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+//    pcl::NormalEstimation<pcl::PointXYZRGBNormal, pcl::Normal> normal_est;
+//    normal_est.setSearchMethod(tree);
+//    normal_est.setInputCloud(m_cloud);
+//    normal_est.setKSearch(5);
+//    normal_est.compute(*normals);
+
+//    //calculate boundary_;
+//    pcl::PointCloud<pcl::Boundary> boundary;
+//    pcl::EDLine3DExtractor<pcl::PointXYZRGBNormal, pcl::Normal, pcl::Boundary> edline3dExtractor;
+//    edline3dExtractor.setInputCloud(m_cloud);
+//    edline3dExtractor.setInputNormals(normals);
+//    edline3dExtractor.setRadiusSearch(0.01);
+//    //edline3dExtractor.setAngleThreshold(PI/4);
+//    edline3dExtractor.setSearchMethod(tree);
+//    edline3dExtractor.compute(boundary);
+
+    m_result = le.getBoundary();
 
     qDebug() << "boundary size:" << m_result->size();
     m_result->width = m_result->points.size();
     m_result->height = 1;
     m_result->is_dense = true;
 
-    std::vector<pcl::EDLine3D> lines = edline3dExtractor.getLines();
-    std::vector<pcl::EDLine3D> mergedLines = edline3dExtractor.getMergedLines();
+    std::vector<LineSegment> lines = le.getLines();
+    std::vector<LineSegment> mergedLines = le.getMergedLines();
     qDebug() << "size of lines: " << lines.size() << ", size of merged lines: " << mergedLines.size();
 
     m_cloudViewer->visualizer()->removeAllShapes();
     srand(0);
-    for (int i = 0; i < mergedLines.size(); i++)
+    for (int i = 0; i < lines.size(); i++)
     {
         std::string lineNo = "merged_line_" + std::to_string(i);
 
@@ -164,8 +253,9 @@ void FrameStepController::onFrameFetched(Frame &frame)
 
         qDebug() << QString::fromStdString(lineNo) << r << g << b;
 
-        pcl::PointXYZI start = mergedLines[i].start;
-        pcl::PointXYZI end = mergedLines[i].end;
+        pcl::PointXYZI start, end;
+        start.getVector3fMap() = lines[i].start();
+        end.getVector3fMap() = lines[i].end();
         m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
         m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
     }
@@ -212,8 +302,8 @@ void FrameStepController::onFrameFetched(Frame &frame)
 //        }
 //    }
 
-    m_lastMergedLines = mergedLines;
-    m_lastLineCloud = edline3dExtractor.getLineCloud();
+//    m_lastMergedLines = mergedLines;
+//    m_lastLineCloud = edline3dExtractor.getLineCloud();
 
 //    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> redColor(result, 255, 0, 0);
 //    pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(result, "intensity");
