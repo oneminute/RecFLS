@@ -8,9 +8,15 @@
 #include "device/SensorReaderDevice.h"
 #include "util/Utils.h"
 
+#include <pcl/gpu/containers/initialization.h>
+
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
+
+    pcl::gpu::setDevice(0);
+    pcl::gpu::printShortCudaDeviceInfo(0);
+//    pcl::gpu::printCudaDeviceInfo(0);
 
     Utils::registerTypes();
 

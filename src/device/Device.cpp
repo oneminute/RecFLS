@@ -40,12 +40,12 @@ void Device::initRectifyMap()
         R = cvMatFrom(m_R);
     }
     cv::initUndistortRectifyMap(cameraMatrix, distCoeffs, R, newCameraMatrix, imgSize, CV_32F, m_rectifyMap1, m_rectifyMap2);
-    qDebug() << cameraMatrix;
-    qDebug() << distCoeffs;
-    qDebug() << newCameraMatrix;
-    qDebug() << R;
-    qDebug() << m_rectifyMap1;
-    qDebug() << m_rectifyMap2;
+    //qDebug() << cameraMatrix;
+    //qDebug() << distCoeffs;
+    //qDebug() << newCameraMatrix;
+    //qDebug() << R;
+    //qDebug() << m_rectifyMap1;
+    //qDebug() << m_rectifyMap2;
 }
 
 cv::Mat Device::undistortImage(const cv::Mat &in)

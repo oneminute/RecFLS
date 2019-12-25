@@ -38,6 +38,7 @@ public slots:
 
 private:
     QSettings *m_settings;
+
 };
 
 #endif // PARAMETERS_H

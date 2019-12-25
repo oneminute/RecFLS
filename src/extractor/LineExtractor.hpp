@@ -5,7 +5,7 @@
 
 bool LineCompare(const LineSegment& l1, const LineSegment& l2)
 {
-    return l1.length() < l2.length();
+    return l1.length() > l2.length();
 }
 
 template <typename PointInT, typename PointOutT>
@@ -30,17 +30,17 @@ void LineExtractor<PointInT, PointOutT>::compute(const pcl::PointCloud<PointInT>
 
     mergeCollinearLines();
 
-    std::sort(mergedLines_.begin(), mergedLines_.end(), LineCompare);
+    linesSortingByLength(lines_);
 
-    float minLength = mergedLines_.begin()->length();
-    float maxLength = minLength;
+    createLinesTree(lines_);
+
+    linesSortingByLength(mergedLines_);
+
+//    float minLength = mergedLines_.begin()->length();
+//    float maxLength = mergedLines_.end()->length();
     for (std::vector<LineSegment>::iterator i = mergedLines_.begin(); i != mergedLines_.end(); i++)
     {
-        float length = i->length();
-        if (minLength > length)
-            minLength = length;
-        if (maxLength < length)
-            maxLength = length;
+        qDebug() << i->length();
     }
 
     // 重新为每一个线段的端点的intensity设值，值为线段在集合中的索引下标
@@ -48,56 +48,11 @@ void LineExtractor<PointInT, PointOutT>::compute(const pcl::PointCloud<PointInT>
     std::vector<LineSegment> tmpLines;
     for (std::vector<LineSegment>::iterator i = mergedLines_.begin(); i != mergedLines_.end(); i++)
     {
-        if (i->length() > 0.05f)
+        if (i->length() > line_length_threshold_)
         {
             i->setSegmentNo(number);
 
-            // 统一线段方向
-            Eigen::Vector3f dir = i->direction().normalized();
-            float xProj = std::abs(dir.x());
-            float yProj = std::abs(dir.y());
-            float zProj = std::abs(dir.z());
-
-            //std::cout << xProj << ", " << yProj << ", " << zProj << std::endl;
-            //std::cout << dir.eigenvalues() << std::endl;
-
-            int maxAxis = 0;
-            if (xProj > yProj)
-            {
-                if (xProj > zProj)
-                {
-                    maxAxis = 0;
-                }
-                else if (zProj > yProj)
-                {
-                    maxAxis = 2;
-                }
-            }
-            else
-            {
-                if (yProj > zProj)
-                {
-                    maxAxis = 1;
-                }
-                else
-                {
-                    maxAxis = 2;
-                }
-            }
-
-            bool inverse = false;
-            if (maxAxis == 0 && i->start().x() > i->end().x())
-                inverse = true;
-            if (maxAxis == 1 && i->start().y() > i->end().y())
-                inverse = true;
-            if (maxAxis == 2 && i->start().z() > i->end().z())
-                inverse = true;
-
-            if (inverse)
-            {
-                i->reverse();
-            }
-            // 统一线段方向结束
+            unifyLineDirection(*i);
 
 //            i->start.intensity = i->end.intensity = number;
             //i->generateSimpleDescriptor(minLength, maxLength);
@@ -112,11 +67,11 @@ void LineExtractor<PointInT, PointOutT>::compute(const pcl::PointCloud<PointInT>
     pcl::PointXYZI minPoint, maxPoint;
     pcl::getMinMax3D<pcl::PointXYZI>(*lineCloud_, minPoint, maxPoint);
     pcl::Vector3fMap minValue = minPoint.getVector3fMap(), maxValue = maxPoint.getVector3fMap();
-    for (std::vector<LineSegment>::iterator i = mergedLines_.begin(); i != mergedLines_.end(); i++)
-    {
-        i->generateShotDescriptor(minLength, maxLength, minValue, maxValue);
+//    for (std::vector<LineSegment>::iterator i = mergedLines_.begin(); i != mergedLines_.end(); i++)
+//    {
+//        i->generateShotDescriptor(minLength, maxLength, minValue, maxValue);
 //        computeDescriptorFeature(*i);
-    }
+//    }
 
 }
 
@@ -136,7 +91,7 @@ std::map<int, int> LineExtractor<PointInT, PointOutT>::linesCompare(const std::v
 
     for (int i = 0; i < mergedLines_.size(); i++)
     {
-        mDesc2.row(i) = mergedLines_[i].shotDescriptor;
+        mDesc2.row(i) = mergedLines_[i].shortDescriptor();
     }
 
     Eigen::MatrixXf m = mDesc1 * mDesc2.transpose();
@@ -270,7 +225,8 @@ void LineExtractor<PointInT, PointOutT>::joinSortedPoints()
         {
             std::vector<int> neighbourIndices;
             std::vector<float> neighbourDistants;
-            tree.nearestKSearch(pointIndex, 5, neighbourIndices, neighbourDistants);
+//            tree.nearestKSearch(pointIndex, segment_k_search_, neighbourIndices, neighbourDistants);
+            tree.radiusSearch(pointIndex, segment_distance_threshold_, neighbourIndices, neighbourDistants);
 
             std::vector<int> availableNeighbourIndices;
             for (int ni = 1; ni < neighbourIndices.size(); ni++)
@@ -367,7 +323,8 @@ void LineExtractor<PointInT, PointOutT>::joinSortedPoints()
         {
             std::vector<int> neighbourIndices;
             std::vector<float> neighbourDistants;
-            tree.nearestKSearch(pointIndex, 5, neighbourIndices, neighbourDistants);
+//            tree.nearestKSearch(pointIndex, segment_k_search_, neighbourIndices, neighbourDistants);
+            tree.radiusSearch(pointIndex, segment_distance_threshold_, neighbourIndices, neighbourDistants);
 
             std::vector<int> availableNeighbourIndices;
             for (int ni = 1; ni < neighbourIndices.size(); ni++)
@@ -449,6 +406,21 @@ void LineExtractor<PointInT, PointOutT>::joinSortedPoints()
 
     std::cout << "segment size: " << segments_.size() << std::endl;
     std::cout << "edge points size: " << boundary_->size() << std::endl;
+
+    size_t maxLength = 0;
+    int maxIndex = 0;
+    for (int s = 0; s < segments_.size(); s++)
+    {
+        if (maxLength < segments_[s].size())
+        {
+            maxLength = segments_[s].size();
+            maxIndex = s;
+        }
+    }
+    qDebug().noquote().nospace() << "max segment length is " << maxLength << ", index is " << maxIndex;
+//    std::vector<int> maxSegment = segments_[maxIndex];
+//    segments_.clear();
+//    segments_.push_back(maxSegment);
 
 //    for (int s = 0; s < segments_.size(); s++)
 //    {
@@ -553,18 +525,19 @@ void LineExtractor<PointInT, PointOutT>::extractLinesFromSegment(const std::vect
                 endIndex = linePointIndex;
                 Eigen::Vector3f endPoint = closedPointOnLine(boundary_->points[segment[endIndex]], dir, meanPoint);
 
-                std::cout << "segment " << segmentNo << ": "
-                    << "["
-                    << boundary_->points[segment[startIndex]].x << ", "
-                    << boundary_->points[segment[startIndex]].y << ", "
-                    << boundary_->points[segment[startIndex]].z << "] "
-                    << startPoint.transpose() << ",\t"
-                    << "["
-                    << boundary_->points[segment[endIndex]].x << ", "
-                    << boundary_->points[segment[endIndex]].y << ", "
-                    << boundary_->points[segment[endIndex]].z << "] "
-                    << endPoint.transpose() << ", " << (endPoint - startPoint).norm() << std::endl;
+//                std::cout << "segment " << segmentNo << ": "
+//                    << "["
+//                    << boundary_->points[segment[startIndex]].x << ", "
+//                    << boundary_->points[segment[startIndex]].y << ", "
+//                    << boundary_->points[segment[startIndex]].z << "] "
+//                    << startPoint.transpose() << ",\t"
+//                    << "["
+//                    << boundary_->points[segment[endIndex]].x << ", "
+//                    << boundary_->points[segment[endIndex]].y << ", "
+//                    << boundary_->points[segment[endIndex]].z << "] "
+//                    << endPoint.transpose() << ", " << (endPoint - startPoint).norm() << std::endl;
                 LineSegment line(startPoint, endPoint, segmentNo);
+                unifyLineDirection(line);
                 lines_.push_back(line);
 
                 index = endIndex + 1;
@@ -613,7 +586,7 @@ void LineExtractor<PointInT, PointOutT>::mergeCollinearLines()
                 continue;
             }
 
-            if (!isLinesCollinear(lastMergedLine, currentLine)) // 不共线就直接下一条
+            if (!isLinesCollinear2(lastMergedLine, currentLine)) // 不共线就直接下一条
             {
                 lines2->push_back(currentLine);
                 continue;
@@ -861,4 +834,110 @@ void LineExtractor<PointInT, PointOutT>::generateLineCloud()
         lineCloud_->push_back(middle);
         lineCloud_->push_back(end);
     }
+}
+
+template<typename PointInT, typename PointOutT>
+void LineExtractor<PointInT, PointOutT>::unifyLineDirection(LineSegment &line)
+{
+    // 统一线段方向
+    Eigen::Vector3f dir = line.direction().normalized();
+    float xProj = std::abs(dir.x());
+    float yProj = std::abs(dir.y());
+    float zProj = std::abs(dir.z());
+
+    //std::cout << xProj << ", " << yProj << ", " << zProj << std::endl;
+    //std::cout << dir.eigenvalues() << std::endl;
+
+    int maxAxis = 0;
+    if (xProj > yProj)
+    {
+        if (xProj > zProj)
+        {
+            maxAxis = 0;
+        }
+        else if (zProj > yProj)
+        {
+            maxAxis = 2;
+        }
+    }
+    else
+    {
+        if (yProj > zProj)
+        {
+            maxAxis = 1;
+        }
+        else
+        {
+            maxAxis = 2;
+        }
+    }
+
+    bool inverse = false;
+    if (maxAxis == 0 && dir.x() < 0)
+        inverse = true;
+    if (maxAxis == 1 && dir.y() < 0)
+        inverse = true;
+    if (maxAxis == 2 && dir.z() < 0)
+        inverse = true;
+
+    if (inverse)
+    {
+        line.reverse();
+    }
+    // 统一线段方向结束
+}
+
+template<typename PointInT, typename PointOutT>
+void LineExtractor<PointInT, PointOutT>::linesSortingByLength(std::vector<LineSegment> &lines)
+{
+    std::sort(lines.begin(), lines.end(), LineCompare);
+}
+
+template<typename PointInT, typename PointOutT>
+void LineExtractor<PointInT, PointOutT>::createLinesTree(const std::vector<LineSegment> &lines)
+{
+    if (lines.empty())
+        return;
+
+    for (std::vector<LineSegment>::const_iterator i = lines.begin(); i != lines.end(); i++)
+    {
+        LineTreeNode *node = new LineTreeNode(*i);
+        if (root_ == nullptr)
+        {
+            root_ = node;
+            continue;
+        }
+
+        LineTreeNode *curr = root_;
+
+    }
+}
+
+template<typename PointInT, typename PointOutT>
+void LineExtractor<PointInT, PointOutT>::compareLineTreeNodes(const LineTreeNode &node1, const LineTreeNode &node2, float &distance, LINE_RELATIONSHIP &lineRel)
+{
+    distance = 0;
+    lineRel = LR_NONE;
+
+    if (!node1.valid() || !node2.valid())
+        return;
+
+    Eigen::Vector3f endPointLine = node2.line().start() - node1.line().start();
+    if (endPointLine.isZero())
+        return;
+
+    Eigen::Vector3f vertDir = node1.line().direction().cross(node2.line().direction());
+    if (vertDir.isZero())
+        return;
+
+    vertDir.normalize();
+
+    distance = endPointLine.dot(vertDir);
+    if (distance == 0)
+        return;
+
+    Eigen::Vector3f vertLine = vertDir * distance;
+    Eigen::Vector3f s2ProjOnS1Plane = node2.line().start() - vertLine;
+    Eigen::Vector3f s1ToS2Proj = s2ProjOnS1Plane - node1.line().start();
+    float cosa = node1.line().direction().normalized().dot(s1ToS2Proj.normalized());
 }

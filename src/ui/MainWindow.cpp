@@ -162,8 +162,7 @@ void MainWindow::onFrameFetched(Frame &frame)
 //    pcl::copyPointCloud(*m_controller->result(), *result);
 //    m_cloudViewer->addCloud("boundary points", result, Eigen::Matrix4f::Identity(), QColor(255, 0, 0, 255));
 
-//    m_cloudViewer->update(m_cloudViewer->geometry());
-    m_cloudViewer->updateGeometry();
+    m_cloudViewer->update();
 }
 
 MainWindow::~MainWindow()

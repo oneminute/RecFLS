@@ -10,14 +10,19 @@ set(CMAKE_AUTOUIC ON)
 
 add_definitions(-DSTB_IMAGE_IMPLEMENTATION)
 
+include(FindCUDA)
+
 # Find the QtWidgets library
 #find_package(Boost REQUIRED QUIET)
 find_package(Qt5 COMPONENTS Widgets Charts CONFIG REQUIRED)
 find_package(OpenCV REQUIRED QUIET)
-find_package(PCL REQUIRED QUIET COMPONENTS common features io kdtree search surface filters registration sample_consensus segmentation visualization)
+find_package(PCL REQUIRED QUIET COMPONENTS common features io kdtree search surface filters registration sample_consensus segmentation visualization gpu_features)
 find_package(OpenMP REQUIRED QUIET)
 find_package(FLANN REQUIRED QUIET)
 find_package(VTK REQUIRED QUIET)
+find_package(CUDA)
+
+set(__cuda_arch_bin "3.0 3.5 5.0 5.2 5.3 6.0 6.1")
 
 set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)
@@ -76,12 +81,14 @@ set(EXTRACTOR_HEADERS
     src/extractor/EDLine3DExtractor.h
     src/extractor/LineExtractor.h
     src/extractor/LineSegment.h
+    src/extractor/LineTreeNode.h
 )
 
 set(EXTRACTOR_SRCS
     src/extractor/EDLine3DExtractor.hpp
     src/extractor/LineExtractor.hpp
     src/extractor/LineSegment.cpp
+    src/extractor/LineTreeNode.cpp
 )
 
 set(UI_HEADERS
@@ -143,7 +150,7 @@ include_directories(${INCLUDE_DIRS})
 add_executable(recfls ${SRC_FILES})
 
 # Use the Widgets module from Qt 5.
-target_link_libraries(recfls Qt5::Widgets Qt5::Charts ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${FLANN_LIBRARIES} ${VTK_LIBRARIES})
+target_link_libraries(recfls Qt5::Widgets Qt5::Charts ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${FLANN_LIBRARIES} ${VTK_LIBRARIES} ${CUDA_blas_LIBRARY} ${CUDA_CUDART_LIBRARY} ${CUDA_curand_LIBRARY})
 
 # Install the executable
 install(TARGETS recfls DESTINATION bin)

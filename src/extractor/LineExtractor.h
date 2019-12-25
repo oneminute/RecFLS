@@ -2,6 +2,7 @@
 #define LINEEXTRACTOR_H
 
 #include "LineSegment.h"
+#include "LineTreeNode.h"
 
 #include <QObject>
 
@@ -47,21 +48,39 @@ class LineExtractor
         LO_EE
     };
 
-
+    enum LINE_RELATIONSHIP
+    {
+        LR_NONE = 0,
+        LR_SIDE,
+        LR_CHAIN_FW,
+        LR_CHAIN_BW
+    };
 
 public:
     LineExtractor()
-        : segment_distance_threshold_(0.05), min_line_len_(9)
-        , pca_error_threshold_(0.008f)
+        : segment_k_search_(20)
+        , segment_distance_threshold_(0.1)
+        , min_line_len_(9)
+        , pca_error_threshold_(0.005f)
         , max_distance_between_two_lines_(0.05f)
         , max_error_(0.05f)
         , max_angle_error_(M_PI / 18)
+        , line_length_threshold_(0.05f)
         , nr_subdiv_(5)
         , pfh_tuple_()
         , d_pi_ (1.0f / (2.0f * static_cast<float> (M_PI)))
         , boundary_(new pcl::PointCloud<pcl::PointXYZI>)
         , lineCloud_(new pcl::PointCloud<pcl::PointXYZI>())
+        , root_(nullptr)
     {}
+
+    ~LineExtractor()
+    {
+        if (root_)
+        {
+            root_->deleteLater();
+        }
+    }
 
     void compute(const pcl::PointCloud<PointInT>& cloudIn, pcl::PointCloud<PointOutT>& cloudOut);
 
@@ -92,6 +111,11 @@ public:
         return lineCloud_;
     }
 
+    std::vector<std::vector<int>> getSegments() const
+    {
+        return segments_;
+    }
+
 private:
 //    void addPointToSortedIndices(const PointInT &pt);
 
@@ -119,15 +143,25 @@ private:
 
     void generateLineCloud();
 
+    void unifyLineDirection(LineSegment &line);
+
+    void linesSortingByLength(std::vector<LineSegment> &lines);
+
+    void createLinesTree(const std::vector<LineSegment> &lines);
+
+    void compareLineTreeNodes(const LineTreeNode &node1, const LineTreeNode &node2, float &distance, LINE_RELATIONSHIP &lineRel);
+
 private:
     std::vector<std::vector<int>> segments_;
 
+    int segment_k_search_;
     double segment_distance_threshold_;
     int min_line_len_;
     float pca_error_threshold_;
     float max_distance_between_two_lines_;
     float max_error_;
     float max_angle_error_;
+    float line_length_threshold_;
 
     int nr_subdiv_;
     Eigen::Vector4f pfh_tuple_;
@@ -143,6 +177,11 @@ private:
 
     std::map<pcl::PointXYZI, LineSegment, PointComparator<pcl::PointXYZI>> pointsLineMap_;
     pcl::PointCloud<pcl::PointXYZI>::Ptr lineCloud_;
+
+    LineTreeNode *root_;
 };
 
 #endif // LINEEXTRACTOR_H
+
+
+

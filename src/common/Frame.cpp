@@ -21,6 +21,8 @@ public:
         , depthCompressionType(Frame::TYPE_DEPTH_UNKNOWN)
     {}
 
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     qint64 deviceFrameIndex;
     qint64 frameIndex;
     qint64 keyFrameIndex;
@@ -37,6 +39,7 @@ public:
     cv::Mat depthMat;
     Frame::COMPRESSION_TYPE_COLOR colorCompressionType;
     Frame::COMPRESSION_TYPE_DEPTH depthCompressionType;
+    QList<QPair<QString, qreal>> durations;
 };
 
 Frame::Frame(QObject *parent) : QObject(parent), data(new FrameData)
