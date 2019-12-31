@@ -34,6 +34,8 @@ QDebug &operator<<(QDebug out, const Eigen::Matrix4f &m);
 
 QDebug &operator<<(QDebug out, const cv::Mat &m);
 
+QDebug &operator<<(QDebug out, const Eigen::Vector3f &v);
+
 QDataStream &operator>>(QDataStream &in, Eigen::Matrix4f &m);
 
 QImage cvMat2QImage(const cv::Mat & image, bool isBgr = true, uCvQtDepthColorMap colorMap = uCvQtDepthWhiteToBlack);
@@ -108,4 +110,7 @@ void findMinMax(const T *v, quint32 size, T &min, T &max)
     quint32 maxIndex = 0;
     findMinMax(v, size, min, max, minIndex, maxIndex);
 }
+
+Eigen::Vector3f closedPointOnLine(const Eigen::Vector3f &point, const Eigen::Vector3f &dir, const Eigen::Vector3f &meanPoint);
+
 #endif // UTILS_H

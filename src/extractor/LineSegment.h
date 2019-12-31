@@ -44,10 +44,21 @@ public:
 
     void reverse();
 
+    bool applyAnotherLineDirection(const LineSegment &other, float &angle, float threshold);
+
+    bool similarDirection(const LineSegment &other, float threshold);
+
+    float angleToAnotherLine(const LineSegment &other);
+
     Eigen::VectorXf shortDescriptor() const;
 
     Eigen::VectorXf longDescriptor() const;
 
+    float averageDistance(const LineSegment &other);
+
+    float pointDistance(const Eigen::Vector3f &point);
+
+    Eigen::Vector3f closedPointOnLine(const Eigen::Vector3f &point);
 signals:
 
 

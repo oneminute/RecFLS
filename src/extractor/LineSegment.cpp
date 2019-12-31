@@ -1,6 +1,6 @@
 #include "LineSegment.h"
 
-
+#include <QtMath>
 
 class LineSegmentData : public QSharedData
 {
@@ -127,6 +127,34 @@ void LineSegment::reverse()
     data->end = tmp;
 }
 
+bool LineSegment::applyAnotherLineDirection(const LineSegment &other, float &angle, float threshold)
+{
+    angle = angleToAnotherLine(other);
+    if (angle < threshold)
+        return true;
+    if (angle > (M_PI - threshold))
+    {
+        angle = M_PI - angle;
+        reverse();
+        return true;
+    }
+
+    return false;
+}
+
+bool LineSegment::similarDirection(const LineSegment &other, float threshold)
+{
+    float angle = angleToAnotherLine(other);
+    if (angle < threshold || angle > (M_PI - threshold))
+        return true;
+    return false;
+}
+
+float LineSegment::angleToAnotherLine(const LineSegment &other)
+{
+    return qAcos(direction().normalized().dot(other.direction().normalized()));
+}
+
 Eigen::VectorXf LineSegment::shortDescriptor() const
 {
     return data->shotDescriptor;
@@ -135,4 +163,29 @@ Eigen::VectorXf LineSegment::shortDescriptor() const
 Eigen::VectorXf LineSegment::longDescriptor() const
 {
     return data->longDescriptor;
+}
+
+float LineSegment::averageDistance(const LineSegment &other)
+{
+    float distS = pointDistance(other.start());
+    float distM = pointDistance(other.middle());
+    float distE = pointDistance(other.end());
+    return (distS + distM + distE) / 3;
+}
+
+float LineSegment::pointDistance(const Eigen::Vector3f &point)
+{
+    Eigen::Vector3f line = point - data->start;
+    Eigen::Vector3f dir = direction().normalized();
+    Eigen::Vector3f pointProj = data->start + dir * (line.dot(dir));
+    float distance = qAbs((point - pointProj).norm());
+    return distance;
+}
+
+Eigen::Vector3f LineSegment::closedPointOnLine(const Eigen::Vector3f &point)
+{
+    Eigen::Vector3f dir = direction().normalized();
+    Eigen::Vector3f ev = point - middle();
+    Eigen::Vector3f closedPoint = middle() + dir * (ev.dot(dir));
+    return closedPoint;
 }

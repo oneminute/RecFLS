@@ -9,6 +9,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 
 add_definitions(-DSTB_IMAGE_IMPLEMENTATION)
+add_definitions(-DEIGEN_DONT_ALIGN)
 
 include(FindCUDA)
 
@@ -82,6 +83,7 @@ set(EXTRACTOR_HEADERS
     src/extractor/LineExtractor.h
     src/extractor/LineSegment.h
     src/extractor/LineTreeNode.h
+    src/extractor/LineCluster.h
 )
 
 set(EXTRACTOR_SRCS
@@ -89,6 +91,7 @@ set(EXTRACTOR_SRCS
     src/extractor/LineExtractor.hpp
     src/extractor/LineSegment.cpp
     src/extractor/LineTreeNode.cpp
+    src/extractor/LineCluster.cpp
 )
 
 set(UI_HEADERS

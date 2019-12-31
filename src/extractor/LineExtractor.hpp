@@ -1,6 +1,9 @@
 #include "LineExtractor.h"
+#include "util/Utils.h"
 
 #include <QDebug>
+#include <QtMath>
+#include <QQueue>
 #include <pcl/common/pca.h>
 
 bool LineCompare(const LineSegment& l1, const LineSegment& l2)
@@ -33,40 +36,41 @@ void LineExtractor<PointInT, PointOutT>::compute(const pcl::PointCloud<PointInT>
     linesSortingByLength(lines_);
 
     createLinesTree(lines_);
+    extracLinesClusters();
 
     linesSortingByLength(mergedLines_);
 
 //    float minLength = mergedLines_.begin()->length();
 //    float maxLength = mergedLines_.end()->length();
-    for (std::vector<LineSegment>::iterator i = mergedLines_.begin(); i != mergedLines_.end(); i++)
-    {
-        qDebug() << i->length();
-    }
+//    for (std::vector<LineSegment>::iterator i = mergedLines_.begin(); i != mergedLines_.end(); i++)
+//    {
+//        qDebug() << i->length();
+//    }
 
     // 重新为每一个线段的端点的intensity设值，值为线段在集合中的索引下标
-    int number = 0;
-    std::vector<LineSegment> tmpLines;
-    for (std::vector<LineSegment>::iterator i = mergedLines_.begin(); i != mergedLines_.end(); i++)
-    {
-        if (i->length() > line_length_threshold_)
-        {
-            i->setSegmentNo(number);
+//    int number = 0;
+//    std::vector<LineSegment> tmpLines;
+//    for (std::vector<LineSegment>::iterator i = mergedLines_.begin(); i != mergedLines_.end(); i++)
+//    {
+//        if (i->length() > line_length_threshold_)
+//        {
+//            i->setSegmentNo(number);
 
-            unifyLineDirection(*i);
+//            unifyLineDirection(*i);
 
 //            i->start.intensity = i->end.intensity = number;
             //i->generateSimpleDescriptor(minLength, maxLength);
-            tmpLines.push_back(*i);
-            number++;
-        }
-    }
-    mergedLines_ = tmpLines;
+//            tmpLines.push_back(*i);
+//            number++;
+//        }
+//    }
+//    mergedLines_ = tmpLines;
 
-    generateLineCloud();
+//    generateLineCloud();
 
-    pcl::PointXYZI minPoint, maxPoint;
-    pcl::getMinMax3D<pcl::PointXYZI>(*lineCloud_, minPoint, maxPoint);
-    pcl::Vector3fMap minValue = minPoint.getVector3fMap(), maxValue = maxPoint.getVector3fMap();
+//    pcl::PointXYZI minPoint, maxPoint;
+//    pcl::getMinMax3D<pcl::PointXYZI>(*lineCloud_, minPoint, maxPoint);
+//    pcl::Vector3fMap minValue = minPoint.getVector3fMap(), maxValue = maxPoint.getVector3fMap();
 //    for (std::vector<LineSegment>::iterator i = mergedLines_.begin(); i != mergedLines_.end(); i++)
 //    {
 //        i->generateShotDescriptor(minLength, maxLength, minValue, maxValue);
@@ -899,45 +903,345 @@ void LineExtractor<PointInT, PointOutT>::createLinesTree(const std::vector<LineS
     if (lines.empty())
         return;
 
+    mergedLines_.clear();
+    int count = 0;
     for (std::vector<LineSegment>::const_iterator i = lines.begin(); i != lines.end(); i++)
     {
         LineTreeNode *node = new LineTreeNode(*i);
         if (root_ == nullptr)
         {
             root_ = node;
+            mergedLines_.push_back(*i);
             continue;
         }
 
-        LineTreeNode *curr = root_;
-
+        qDebug() << count++ << "add node:" << node;
+        addLineTreeNode(node);
     }
 }
 
 template<typename PointInT, typename PointOutT>
-void LineExtractor<PointInT, PointOutT>::compareLineTreeNodes(const LineTreeNode &node1, const LineTreeNode &node2, float &distance, LINE_RELATIONSHIP &lineRel)
+void LineExtractor<PointInT, PointOutT>::extracLinesClusters()
+{
+    LineTreeNode *curr = root_;
+//    LineTreeNode *prev = nullptr;
+
+    LineCluster *cluster = nullptr;
+
+    // move to chain leaf node
+    while (curr->hasLeftChild())
+    {
+        curr = curr->leftChild();
+    }
+
+    int count = 0;
+    while (curr)
+    {
+        qDebug() << "line address:" << curr;
+
+        if (curr->accessed())
+            break;
+
+        if (!cluster)
+            cluster = new LineCluster;
+        cluster->addLine(curr->line());
+        for (int i = 0; i < curr->sideLines().size(); i++)
+        {
+            cluster->addLine(curr->sideLines()[i]->line());
+        }
+        curr->setAccessed();
+        count++;
+
+        if (curr->isLeftChild())
+        {
+            if (curr->chainDistance() > lines_chain_distance_threshold_)
+            {
+                // 一个聚集搜索完毕
+                lineClusters_.append(cluster);
+                cluster = nullptr;
+            }
+            curr = curr->parent();
+        }
+        else if (curr->isRightRoot())
+        {
+            // 一个聚集搜索完毕
+            lineClusters_.append(cluster);
+            cluster = nullptr;
+
+            if (curr->hasRightChild())
+            {
+                curr = curr->rightChild();
+                // move to chain leaf node
+                while (curr->hasLeftChild())
+                {
+                    curr = curr->leftChild();
+                }
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+    qDebug() << "iterate count " << count;
+    for (int i = 0; i < lineClusters_.size(); i++)
+    {
+        qDebug().noquote() << "cluster" << i << ": cluster size:" << lineClusters_[i]->size();
+    }
+}
+
+template<typename PointInT, typename PointOutT>
+void LineExtractor<PointInT, PointOutT>::addLineTreeNode(LineTreeNode *node)
+{
+    LineTreeNode *curr = root_;
+
+    float distance = 0;
+    float angle = 0;
+    float chainDistance = 0;
+    LINE_RELATIONSHIP lineRel = LR_NONE;
+    while (curr)
+    {
+//        qDebug() << "add line. curr " << curr;
+        LineSegment longLine = curr->line();
+        LineSegment shortLine = node->line();
+        compareLines(longLine, shortLine, distance, angle, chainDistance, lineRel);
+
+        if (lineRel == LR_SIDE)
+        {
+            node->setDistance(distance);
+            node->setChainDistance(chainDistance);
+            curr->addSideChild(node);
+            curr = nullptr;
+        }
+        else if (lineRel == LR_CHAIN_BW)
+        {
+            if (curr->hasLeftChild())
+            {
+                curr = curr->leftChild();
+            }
+            else
+            {
+                curr->addLeftChild(node);
+                curr = nullptr;
+            }
+            node->setDistance(distance);
+            node->setChainDistance(chainDistance);
+        }
+        else if (lineRel == LR_CHAIN_FW)
+        {
+            if (curr->hasParent())
+            {
+                if (curr->isLeftChild())
+                {
+                    curr->parent()->addLeftChild(node);
+                }
+                else if (curr->isRightChild())
+                {
+                    curr->parent()->addRightChild(node);
+                }
+            }
+            else
+            {
+                root_ = node;
+            }
+
+            if (curr->hasRightChild())
+            {
+                node->addRightChild(curr->rightChild());
+                curr->addRightChild(nullptr);
+            }
+            node->addLeftChild(curr);
+            curr->setDistance(distance);
+            curr->setChainDistance(chainDistance);
+            curr = nullptr;
+        }
+        else
+        {
+            curr = findRightRoot(curr);
+            if (curr->hasRightChild())
+            {
+                curr = curr->rightChild();
+            }
+            else
+            {
+                curr->addRightChild(node);
+                curr = nullptr;
+            }
+            node->setDistance(distance);
+            node->setChainDistance(chainDistance);
+        }
+    }
+}
+
+template<typename PointInT, typename PointOutT>
+void LineExtractor<PointInT, PointOutT>::compareLines(LineSegment &longLine, LineSegment &shortLine, float &distance, float &angle, float &chainDistance, LINE_RELATIONSHIP &lineRel)
 {
     distance = 0;
+    angle = 0;
+    chainDistance = 0;
     lineRel = LR_NONE;
 
-    if (!node1.valid() || !node2.valid())
+    Eigen::Vector3f ptS1 = longLine.start();
+    Eigen::Vector3f ptS2 = shortLine.start();
+    Eigen::Vector3f ptE1 = longLine.end();
+    Eigen::Vector3f ptE2 = shortLine.end();
+
+    Eigen::Vector3f line1 = longLine.direction();
+    Eigen::Vector3f line2 = shortLine.direction();
+    Eigen::Vector3f line1Dir = line1.normalized();
+    Eigen::Vector3f line2Dir = line2.normalized();
+
+    float theta;
+    bool sameDirection = shortLine.applyAnotherLineDirection(longLine, theta, lines_cluster_angle_threshold_);
+    angle = theta;
+    if (!sameDirection)
+    {
+        lineRel = LR_NONE;
+        return;
+    }
+
+    Eigen::Vector3f lineS1S2 = ptS2 - ptS1;
+    Eigen::Vector3f lineE1E2 = ptE2 - ptE1;
+
+    Eigen::Vector3f pt1 = ptS1;
+    Eigen::Vector3f pt2 = ptS2;
+    Eigen::Vector3f lineEndPoints = lineS1S2;
+    if (lineS1S2.isZero())
+    {
+        if (lineE1E2.isZero())
+        {
+            angle = 0;
+            distance = 0;
+            lineRel = LR_SIDE;
+            qDebug().nospace().noquote() << "distance: " << distance << ", theta = " << qRadiansToDegrees(theta);
+            return;
+        }
+        else
+        {
+            pt1 = ptE1;
+            pt2 = ptE2;
+            line1 = -line1;
+            line2 = -line2;
+            line1Dir = -line1Dir;
+            line2Dir = -line2Dir;
+            lineEndPoints = lineE1E2;
+        }
+    }
+
+//    Eigen::Vector3f lineM1M2Dir = line1Dir.cross(line2Dir);
+//    lineM1M2Dir.normalize();
+//    if (lineM1M2Dir.isZero())
+//    {
+//        distance = 0;
+//    }
+//    distance = qAbs(lineEndPoints.dot(lineM1M2Dir));
+
+    distance = longLine.averageDistance(shortLine);
+
+//    qDebug().nospace().noquote() << "distance: " << distance;
+    if (distance >= lines_distance_threshold_)
+    {
+        lineRel = LR_NONE;
+        return;
+    }
+
+    Eigen::Vector3f ptS2ProjOnLine1 = ptS1 + line1Dir * lineS1S2.dot(line1Dir);
+    Eigen::Vector3f ptE2ProjOnLine1 = ptE1 + line1Dir * lineE1E2.dot(line1Dir);
+    Eigen::Vector3f lineLine2ProjOnLine1 = ptE2ProjOnLine1 - ptS2ProjOnLine1;
+    float lengthLine2ProjOnLine1 = lineLine2ProjOnLine1.norm();
+    float lengthLongLine = longLine.length();
+    float lengthUnionS1E2 = (ptE2ProjOnLine1 - ptS1).norm();
+    float lengthUnionS2E1 = (ptS2ProjOnLine1 - ptE1).norm();
+    float lengthUnion = lengthUnionS1E2 > lengthUnionS2E1 ? lengthUnionS1E2 : lengthUnionS2E1;
+
+    if (lengthUnion <= (lengthLongLine + lengthLine2ProjOnLine1))
+    {
+        lineRel = LR_SIDE;
+    }
+    else
+    {
+        if (lengthUnionS1E2 > lengthUnionS2E1)
+        {
+            lineRel = LR_CHAIN_FW;
+        }
+        else
+        {
+            lineRel = LR_CHAIN_BW;
+        }
+        chainDistance = lengthUnion - (lengthLongLine + lengthLine2ProjOnLine1);
+    }
+    qDebug().nospace().noquote() << "theta = " << qRadiansToDegrees(theta) << ", chain distance = " << chainDistance << ", order = " << lineRel;
+
+//    float sinTheta = qSin(theta);
+
+//    Eigen::Vector3f lineM1M2 = lineM1M2Dir * distance;
+//    Eigen::Vector3f pt2B = pt2 - lineM1M2;
+//    Eigen::Vector3f line12B = pt2B - pt1;
+//    Eigen::Vector3f line12BDir = line12B.normalized();
+//    float lengthLine12B = line12B.norm();
+//    float cosAlpha = line12BDir.dot(line1Dir);
+//    float alpha = qAcos(cosAlpha);
+//    float beta = M_PI - theta - alpha;
+//    float length1M1 = qSin(beta) * lengthLine12B / sinTheta;
+//    float length2M2 = qSin(alpha) * lengthLine12B / sinTheta;
+//    Eigen::Vector3f ptM1 = pt1 + line1Dir * length1M1;
+//    Eigen::Vector3f ptM2 = pt2 + line2Dir * length2M2;
+
+//    qDebug().nospace().noquote() << "distance: " << distance << ", alpha = " << qRadiansToDegrees(alpha) << ", beta = " << qRadiansToDegrees(beta) << ", theta = " << qRadiansToDegrees(theta);
+//    qDebug().nospace().noquote() << "  line1 length: " << line1.norm() << ", " << (ptM1 - ptS1).norm() << ", " << (ptM1 - ptE1).norm();
+//    qDebug().nospace().noquote() << "  line2 length: " << line2.norm() << ", " << (ptM2 - ptS2).norm() << ", " << (ptM2 - ptE2).norm();
+}
+
+template<typename PointInT, typename PointOutT>
+void LineExtractor<PointInT, PointOutT>::fetchSideNodes(LineTreeNode *node, std::vector<LineSegment> &cluster)
+{
+    QQueue<LineTreeNode *> nodes;
+
+    if (!node)
         return;
 
-    Eigen::Vector3f endPointLine = node2.line().start() - node1.line().start();
-    if (endPointLine.isZero())
-        return;
+    nodes.enqueue(node);
+    while (!nodes.empty())
+    {
+        LineTreeNode *node = nodes.dequeue();
+        cluster.push_back(node->line());
 
-    Eigen::Vector3f vertDir = node1.line().direction().cross(node2.line().direction());
-    if (vertDir.isZero())
-        return;
+        if (node->hasLeftChild())
+        {
+            nodes.enqueue(node->leftChild());
+        }
 
-    vertDir.normalize();
+        if (node->hasRightChild())
+        {
+            nodes.enqueue(node->rightChild());
+        }
+    }
+}
 
-    distance = endPointLine.dot(vertDir);
-    if (distance == 0)
-        return;
+template<typename PointInT, typename PointOutT>
+LineTreeNode *LineExtractor<PointInT, PointOutT>::findRightRoot(LineTreeNode *node)
+{
+    if (node == nullptr)
+        return nullptr;
 
-    Eigen::Vector3f vertLine = vertDir * distance;
-    Eigen::Vector3f s2ProjOnS1Plane = node2.line().start() - vertLine;
-    Eigen::Vector3f s1ToS2Proj = s2ProjOnS1Plane - node1.line().start();
-    float cosa = node1.line().direction().normalized().dot(s1ToS2Proj.normalized());
+    LineTreeNode *curr = node;
+    while (!curr->isRightRoot())
+    {
+        curr = curr->parent();
+    }
+    return curr;
+}
+
+template<typename PointInT, typename PointOutT>
+LineTreeNode *LineExtractor<PointInT, PointOutT>::findLeftLeaf(LineTreeNode *node)
+{
+    if (node == nullptr)
+        return nullptr;
+
+    LineTreeNode *curr = node;
+    while (curr->hasLeftChild())
+    {
+        curr = curr->leftChild();
+    }
+    return curr;
 }

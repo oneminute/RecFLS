@@ -226,7 +226,7 @@ void FrameStepController::onFrameFetched(Frame &frame)
 
     m_cloudViewer->visualizer()->removeAllShapes();
     srand(0);
-    for (size_t i = 0; i < lines.size() && true; i++)
+    for (size_t i = 0; i < lines.size() && false; i++)
     {
         std::string lineNo = "line_" + std::to_string(i);
 
@@ -237,7 +237,7 @@ void FrameStepController::onFrameFetched(Frame &frame)
 //        double g = 0;
 //        double b = 0;
 
-        qDebug().noquote().nospace() << QString::fromStdString(lineNo) << " length is " << lines[i].length() << "m";
+//        qDebug().noquote().nospace() << QString::fromStdString(lineNo) << " length is " << lines[i].length() << "m";
 
         if (lines[i].length() > 0.1f)
         {
@@ -272,21 +272,50 @@ void FrameStepController::onFrameFetched(Frame &frame)
         m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
     }
 
-    pcl::PointCloud<pcl::PointXYZI>::Ptr segmentsCloud(new pcl::PointCloud<pcl::PointXYZI>);
-    std::vector<std::vector<int>> segments = le.getSegments();
-    srand(QDateTime::currentMSecsSinceEpoch());
-    for (int s = 0; s < segments.size(); s++)
+    QList<LineCluster*> clusters = le.getLineClusters();
+    for (int i = 0; i < clusters.size() && true; i++)
     {
         double r = rand() * 1.0 / RAND_MAX;
-        for (int i = 0; i < segments[s].size(); i++)
-        {
-            pcl::PointXYZI pt = m_result->points[segments[s][i]];
-            pt.intensity = r;
-            segmentsCloud->push_back(pt);
-        }
+        double g = rand() * 1.0 / RAND_MAX;
+        double b = rand() * 1.0 / RAND_MAX;
+
+        LineSegment line = clusters[i]->merge();
+        if (line.length() < 0.1f)
+            continue;
+        std::string lineNo = "cluster_line_" + std::to_string(i);
+        pcl::PointXYZI start, end;
+        start.getVector3fMap() = line.start();
+        end.getVector3fMap() = line.end();
+        m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
+        m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
+
+//        for (int j = 0; clusters[i]->size() > 3 && j < clusters[i].size(); j++)
+//        {
+//            std::string lineNo = "cluster_line_" + std::to_string(i) + "_" + std::to_string(j);
+//            pcl::PointXYZI start, end;
+//            start.getVector3fMap() = clusters[i][j].start();
+//            end.getVector3fMap() = clusters[i][j].end();
+//    //        m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
+//            m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
+//            m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
+//        }
     }
-    pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(segmentsCloud, "intensity");
-    m_cloudViewer->visualizer()->addPointCloud(segmentsCloud, iColor, "result");
+
+//    pcl::PointCloud<pcl::PointXYZI>::Ptr segmentsCloud(new pcl::PointCloud<pcl::PointXYZI>);
+//    std::vector<std::vector<int>> segments = le.getSegments();
+//    srand(QDateTime::currentMSecsSinceEpoch());
+//    for (int s = 0; s < segments.size(); s++)
+//    {
+//        double r = rand() * 1.0 / RAND_MAX;
+//        for (int i = 0; i < segments[s].size(); i++)
+//        {
+//            pcl::PointXYZI pt = m_result->points[segments[s][i]];
+//            pt.intensity = r;
+//            segmentsCloud->push_back(pt);
+//        }
+//    }
+//    pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(segmentsCloud, "intensity");
+//    m_cloudViewer->visualizer()->addPointCloud(segmentsCloud, iColor, "result");
 
 //    m_cloudViewer->visualizer()->removeAllShapes();
 //    if (m_lastMergedLines.size() > 0)

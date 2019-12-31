@@ -1,6 +1,7 @@
 #ifndef LINEEXTRACTOR_H
 #define LINEEXTRACTOR_H
 
+#include "LineCluster.h"
 #include "LineSegment.h"
 #include "LineTreeNode.h"
 
@@ -66,6 +67,9 @@ public:
         , max_error_(0.05f)
         , max_angle_error_(M_PI / 18)
         , line_length_threshold_(0.05f)
+        , lines_cluster_angle_threshold_(M_PI / 12)
+        , lines_distance_threshold_(0.05f)
+        , lines_chain_distance_threshold_(0.1f)
         , nr_subdiv_(5)
         , pfh_tuple_()
         , d_pi_ (1.0f / (2.0f * static_cast<float> (M_PI)))
@@ -116,8 +120,13 @@ public:
         return segments_;
     }
 
+    QList<LineCluster*> getLineClusters() const
+    {
+        return lineClusters_;
+    }
+
 private:
-//    void addPointToSortedIndices(const PointInT &pt);
+    //    void addPointToSortedIndices(const PointInT &pt);
 
     void joinSortedPoints();
 
@@ -149,7 +158,17 @@ private:
 
     void createLinesTree(const std::vector<LineSegment> &lines);
 
-    void compareLineTreeNodes(const LineTreeNode &node1, const LineTreeNode &node2, float &distance, LINE_RELATIONSHIP &lineRel);
+    void extracLinesClusters();
+
+    void addLineTreeNode(LineTreeNode *node);
+
+    void compareLines(LineSegment &longLine, LineSegment &shortLine, float &distance, float &angle, float &chainDistance, LINE_RELATIONSHIP &lineRel);
+
+    void fetchSideNodes(LineTreeNode *node, std::vector<LineSegment> &cluster);
+
+    LineTreeNode *findRightRoot(LineTreeNode *node);
+
+    LineTreeNode *findLeftLeaf(LineTreeNode *node);
 
 private:
     std::vector<std::vector<int>> segments_;
@@ -162,6 +181,9 @@ private:
     float max_error_;
     float max_angle_error_;
     float line_length_threshold_;
+    float lines_cluster_angle_threshold_;
+    float lines_distance_threshold_;
+    float lines_chain_distance_threshold_;
 
     int nr_subdiv_;
     Eigen::Vector4f pfh_tuple_;
@@ -174,6 +196,7 @@ private:
     pcl::PointCloud<pcl::PointXYZI>::Ptr boundary_;
     std::vector<LineSegment> lines_;
     std::vector<LineSegment> mergedLines_;
+    QList<LineCluster*> lineClusters_;
 
     std::map<pcl::PointXYZI, LineSegment, PointComparator<pcl::PointXYZI>> pointsLineMap_;
     pcl::PointCloud<pcl::PointXYZI>::Ptr lineCloud_;
@@ -182,6 +205,3 @@ private:
 };
 
 #endif // LINEEXTRACTOR_H
-
-
-

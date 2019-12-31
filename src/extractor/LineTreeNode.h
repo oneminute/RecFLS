@@ -1,11 +1,10 @@
-#ifndef LINETREENODE_H
+﻿#ifndef LINETREENODE_H
 #define LINETREENODE_H
 
 #include <QObject>
 #include <QSharedDataPointer>
 
 #include "LineSegment.h"
-
 
 class LineTreeNodeData;
 
@@ -14,27 +13,19 @@ class LineTreeNode : public QObject
     Q_OBJECT
 public:
     explicit LineTreeNode(const LineSegment &line = LineSegment(), QObject *parent = nullptr);
-    LineTreeNode(const LineTreeNode &rhs);
-    LineTreeNode &operator=(const LineTreeNode &rhs);
     ~LineTreeNode();
 
     void setLine(const LineSegment &line);
 
     LineSegment line() const;
 
-    LineTreeNode *chainChild() const;
-
-    LineTreeNode *sideChild() const;
-
-    LineTreeNode *farChild() const;
+    LineTreeNode *leftChild() const;
 
     LineTreeNode *rightChild() const;
 
-    void addChainChild(LineTreeNode *node);
+    void addLeftChild(LineTreeNode *node);
 
     void addSideChild(LineTreeNode *node);
-
-    void addFarChild(LineTreeNode *node);
 
     void addRightChild(LineTreeNode *node);
 
@@ -42,20 +33,43 @@ public:
 
     bool isLeaf() const;
 
-    bool hasChainChild() const;
+    bool hasParent() const;
+
+    bool hasLeftChild() const;
 
     bool hasSideChild() const;
 
-    bool hasFarChild() const;
-
     bool hasRightChild() const;
+
+    float distance() const;
+    void setDistance(float distance);
+
+    float chainDistance() const;
+    void setChainDistance(float chainDistance);
+
+    LineTreeNode *parent() const;
+    void setParent(LineTreeNode *parent);
+
+    QList<LineTreeNode *>& sideLines();
+
+    bool isRightRoot() const;
+
+    bool isLeftChild() const;
+
+    bool isRightChild() const;
+
+    bool accessed() const;
+    void setAccessed(bool accessed = true);
 
 private:
     LineSegment m_line;
-    LineTreeNode *m_chainChild;
-    LineTreeNode *m_sideChild;
-    LineTreeNode *m_farChild;
+    LineTreeNode *m_parent;
+    LineTreeNode *m_leftChild;
     LineTreeNode *m_rightChild;
+    float m_distance;
+    float m_chainDistance;
+    QList<LineTreeNode*> m_sideLines;
+    bool m_accessed;
 };
 
 #endif // LINETREENODE_H

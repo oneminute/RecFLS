@@ -51,6 +51,11 @@ QDataStream &operator>>(QDataStream &in, Eigen::Matrix4f &m)
     return streamInMatrix(in, m);
 }
 
+QDebug &operator<<(QDebug out, const Eigen::Vector3f &v)
+{
+    return qDebugMatrix(out, v);
+}
+
 QImage cvMat2QImage(const cv::Mat &image, bool isBgr, uCvQtDepthColorMap colorMap)
 {
     QImage qtemp;
@@ -314,4 +319,11 @@ QDebug &operator<<(QDebug out, const cv::Mat &m)
         out << endl;
     }
     return out;
+}
+
+Eigen::Vector3f closedPointOnLine(const Eigen::Vector3f &point, const Eigen::Vector3f &dir, const Eigen::Vector3f &meanPoint)
+{
+    Eigen::Vector3f ev = point - meanPoint;
+    Eigen::Vector3f closedPoint = meanPoint + dir * (ev.dot(dir));
+    return closedPoint;
 }
