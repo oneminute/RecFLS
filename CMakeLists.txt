@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.0)
 project(RecFLS)
+#string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_LOWER)
+#message(STATUS "lower case project name is "${PROJECT_NAME_LOWER})
+message(STATUS ++++${CMAKE_BUILD_TOOL})
 
 cmake_policy(SET CMP0074 NEW)
 # Find includes in corresponding build directories
@@ -28,8 +31,6 @@ find_package(CUDA)
 
 set(__cuda_arch_bin "3.0 3.5 5.0 5.2 5.3 6.0 6.1")
 
-
-
 set(INCLUDE_DIRS
     ${INCLUDE_DIRS}
     ./src
@@ -42,87 +43,43 @@ set(INCLUDE_DIRS
     ./third/uplinksimple
 )
 
-set(BASE_SRCS
-    src/main.cpp
+FILE(GLOB BASE_HEADERS src/*.h ./*.hpp)
+FILE(GLOB BASE_SRCS src/*.cpp)
+
+FILE(GLOB COMMON_HEADERS src/common/*.h)
+FILE(GLOB COMMON_SRCS src/common/*.cpp)
+
+FILE(GLOB CONTROLLER_HEADERS src/controller/*.h)
+FILE(GLOB CONTROLLER_SRCS src/controller/*.cpp)
+
+FILE(GLOB DEVICE_HEADERS src/device/*.h)
+FILE(GLOB DEVICE_SRCS src/device/*.cpp)
+
+FILE(GLOB EXTRACTOR_HEADERS src/extractor/*.h)
+FILE(GLOB EXTRACTOR_SRCS src/extractor/*.hpp src/extractor/*.cpp)
+
+FILE(GLOB UI_HEADERS src/ui/*.h)
+FILE(GLOB UI_SRCS src/ui/*.cpp)
+FILE(GLOB UIS src/ui/*.ui)
+
+FILE(GLOB UTIL_HEADERS src/util/*.h)
+FILE(GLOB UTIL_SRCS src/util/*.cpp)
+
+FILE(GLOB MOCS ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_autogen/*.cpp)
+
+set(OTHER_FILES
+    config.ini
+    README
+    .gitignore
 )
 
-set(COMMON_HEADERS
-    src/common/Parameters.h
-    src/common/Frame.h
-    src/common/ImuFrame.h
-)
 
-set(COMMON_SRCS
-    src/common/Parameters.cpp
-    src/common/Frame.cpp
-    src/common/ImuFrame.cpp
-)
-
-set(CONTROLLER_HEADERS
-    src/controller/Controller.h
-    src/controller/FrameStepController.h
-)
-
-set(CONTROLLER_SRCS
-    src/controller/Controller.cpp
-    src/controller/FrameStepController.cpp
-)
-
-set(DEVICE_HEADERS
-    src/device/Device.h
-    src/device/SensorReaderDevice.h
-)
-
-set(DEVICE_SRCS
-    src/device/Device.cpp
-    src/device/SensorReaderDevice.cpp
-)
-
-set(EXTRACTOR_HEADERS
-    src/extractor/EDLine3DExtractor.h
-    src/extractor/LineExtractor.h
-    src/extractor/LineSegment.h
-    src/extractor/LineTreeNode.h
-    src/extractor/LineCluster.h
-)
-
-set(EXTRACTOR_SRCS
-    src/extractor/EDLine3DExtractor.hpp
-    src/extractor/LineExtractor.hpp
-    src/extractor/LineSegment.cpp
-    src/extractor/LineTreeNode.cpp
-    src/extractor/LineCluster.cpp
-)
-
-set(UI_HEADERS
-    src/ui/MainWindow.h
-    src/ui/ImageViewer.h
-    src/ui/CloudViewer.h
-    src/ui/CloudViewerCellPicker.h
-    src/ui/vtkImageMatSource.h
-)
-
-set(UI_SRCS
-    src/ui/MainWindow.ui
-    src/ui/MainWindow.cpp
-    src/ui/ImageViewer.cpp
-    src/ui/CloudViewer.cpp
-    src/ui/CloudViewerCellPicker.cpp
-    src/ui/vtkImageMatSource.cpp
-)
-
-set(UTIL_HEADERS
-    src/util/Utils.h
-    src/util/StopWatch.h
-)
-
-set(UTIL_SRCS
-    src/util/Utils.cpp
-    src/util/StopWatch.cpp
-)
+source_group("ui" FILES ${UIS})
+source_group("others" FILES ${OTHER_FILES})
 
 set(HEADER_FILES
     ${HEADER_FILES}
+    ${BASE_HEADERS}
     ${COMMON_HEADERS}
     ${CONTROLLER_HEADERS}
     ${DEVICE_HEADERS}
@@ -139,21 +96,37 @@ set(SRC_FILES
     ${DEVICE_SRCS}
     ${EXTRACTOR_SRCS}
     ${UI_SRCS}
+    ${UIS}
     ${UTIL_SRCS}
+    
 )
 
 IF(MSVC)
-    FILE(GLOB HEADERS ${HEADER_FILES})
-    set(SRC_FILES ${SRC_FILES} ${HEADER_FILES})
+    source_group("source\\common" FILES ${COMMON_SRCS})
+    source_group("header\\common" FILES ${COMMON_HEADERS})
+    source_group("source\\controller" FILES ${CONTROLLER_SRCS})
+    source_group("header\\controller" FILES ${CONTROLLER_HEADERS})
+    source_group("source\\device" FILES ${DEVICE_SRCS})
+    source_group("header\\device" FILES ${DEVICE_HEADERS})
+    source_group("source\\extractor" FILES ${EXTRACTOR_SRCS})
+    source_group("header\\extractor" FILES ${EXTRACTOR_HEADERS})
+    source_group("source\\ui" FILES ${UI_SRCS})
+    source_group("header\\ui" FILES ${UI_HEADERS})
+    source_group("source\\util" FILES ${UTIL_SRCS})
+    source_group("header\\util" FILES ${UTIL_HEADERS})
+    source_group("source\\mocs" FILES ${MOCS})
+    source_group("source" FILES ${BASE_SRCS})
+    set(SRC_FILES ${SRC_FILES} ${HEADER_FILES} ${OTHER_FILES})
 ENDIF(MSVC)
 
 include_directories(${INCLUDE_DIRS})
 
 # Tell CMake to create the helloworld executable
-add_executable(recfls ${SRC_FILES})
+add_executable(${PROJECT_NAME} ${SRC_FILES})
 
 # Use the Widgets module from Qt 5.
-target_link_libraries(recfls Qt5::Widgets Qt5::Charts ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${FLANN_LIBRARIES} ${VTK_LIBRARIES} ${CUDA_blas_LIBRARY} ${CUDA_CUDART_LIBRARY} ${CUDA_curand_LIBRARY})
+target_link_libraries(${PROJECT_NAME} Qt5::Widgets Qt5::Charts ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${FLANN_LIBRARIES} ${VTK_LIBRARIES} ${CUDA_blas_LIBRARY} ${CUDA_CUDART_LIBRARY} ${CUDA_curand_LIBRARY})
+
 
 # Install the executable
-install(TARGETS recfls DESTINATION bin)
+install(TARGETS ${PROJECT_NAME} DESTINATION bin)
