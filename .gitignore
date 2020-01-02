@@ -5,6 +5,8 @@ build/
 
 *.user
 
+*.user.*
+
 *.autosave
 
 *.sens

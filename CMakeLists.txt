@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 project(RecFLS)
 
+cmake_policy(SET CMP0074 NEW)
 # Find includes in corresponding build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 # Instruct CMake to run moc automatically when needed.
@@ -14,7 +15,9 @@ add_definitions(-DEIGEN_DONT_ALIGN)
 include(FindCUDA)
 
 # Find the QtWidgets library
-#find_package(Boost REQUIRED QUIET)
+set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_MULTITHREADED ON)
+find_package(Boost REQUIRED REQUIRED)
 find_package(Qt5 COMPONENTS Widgets Charts CONFIG REQUIRED)
 find_package(OpenCV REQUIRED QUIET)
 find_package(PCL REQUIRED QUIET COMPONENTS common features io kdtree search surface filters registration sample_consensus segmentation visualization gpu_features)
@@ -25,10 +28,7 @@ find_package(CUDA)
 
 set(__cuda_arch_bin "3.0 3.5 5.0 5.2 5.3 6.0 6.1")
 
-set(Boost_USE_STATIC_LIBS OFF)
-set(Boost_USE_MULTITHREADED ON)
-set(Boost_USE_STATIC_RUNTIME OFF)
-find_package(Boost REQUIRED QUIET)
+
 
 set(INCLUDE_DIRS
     ${INCLUDE_DIRS}
