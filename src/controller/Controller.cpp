@@ -1,6 +1,6 @@
 #include "Controller.h"
 #include "common/Parameters.h"
-#include "FrameStepController.h"
+#include "DefaultController.h"
 
 Controller::Controller(Device *device, QObject *parent)
     : QObject(parent)

@@ -1,4 +1,4 @@
-#include "FrameStepController.h"
+#include "DefaultController.h"
 #include "opencv2/opencv.hpp"
 #include "opencv2/features2d/features2d.hpp"
 
@@ -24,51 +24,51 @@
 #include <QDebug>
 #include <QDateTime>
 
-FrameStepController::FrameStepController(Device *device, QObject *parent)
+DefaultController::DefaultController(Device *device, QObject *parent)
     : Controller(device, parent)
 {
-    connect(m_device, &Device::frameFetched, this, &FrameStepController::onFrameFetched);
+    connect(m_device, &Device::frameFetched, this, &DefaultController::onFrameFetched);
 }
 
-QString FrameStepController::name() const
+QString DefaultController::name() const
 {
     return "FrameStepController";
 }
 
-bool FrameStepController::open()
+bool DefaultController::open()
 {
     return m_device->open();
 }
 
-void FrameStepController::close()
+void DefaultController::close()
 {
     m_device->close();
 }
 
-void FrameStepController::fetchNext()
+void DefaultController::fetchNext()
 {
     m_device->fetchNext();
 }
 
-void FrameStepController::moveTo(int frameIndex)
+void DefaultController::moveTo(int frameIndex)
 {
 }
 
-void FrameStepController::skip(int frameNumbers)
+void DefaultController::skip(int frameNumbers)
 {
 }
 
-void FrameStepController::reset()
+void DefaultController::reset()
 {
 }
 
-Frame FrameStepController::getFrame(int frameIndex)
+Frame DefaultController::getFrame(int frameIndex)
 {
     Frame frame;
     return frame;
 }
 
-void FrameStepController::onFrameFetched(Frame &frame)
+void DefaultController::onFrameFetched(Frame &frame)
 {
     m_filteredMats.clear();
 

@@ -1,16 +1,15 @@
 #ifndef FRAMESTEPCONTROLLER_H
-#define FRAMESTEPCONTROLLER_H
+#define DEFAULTCONTROLLER_H
 
 #include <QObject>
 #include "Controller.h"
-#include "extractor/EDLine3DExtractor.h"
 
-class FrameStepController : public Controller
+class DefaultController : public Controller
 {
     Q_OBJECT
 
 public:
-    FrameStepController(Device *device, QObject *parent = nullptr);
+    DefaultController(Device *device, QObject *parent = nullptr);
 
     // Controller interface
 public:
@@ -27,7 +26,7 @@ private slots:
     void onFrameFetched(Frame &frame);
 
 private:
-    std::vector<pcl::EDLine3D> m_lastMergedLines;
+    //std::vector<pcl::EDLine3D> m_lastMergedLines;
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_lastLineCloud;
 
 };

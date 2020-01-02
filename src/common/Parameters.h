@@ -1,10 +1,51 @@
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
+#include <QMap>
 #include <QObject>
+#include <QScopedPointer>
 #include <QSettings>
+#include <QThread>
+#include <QMutex>
 
 #define DEFAULT_SETTINGS_GROUP "General"
+
+class ParameterWriter : public QObject
+{
+    Q_OBJECT
+public:
+    explicit ParameterWriter(QObject* parent = nullptr)
+        : QObject(parent)
+        , m_settings(nullptr)
+    {}
+
+public slots:
+    void setValue(const QString& key, const QVariant& value)
+    {
+        Q_ASSERT(m_settings);
+        QMutexLocker locker(&m_writerMutex);
+        m_settings->setValue(key, value.toString());
+    }
+
+    void setValues(const QMap<QString, QVariant> values)
+    {
+        Q_ASSERT(m_settings);
+        QMutexLocker locker(&m_writerMutex);
+        for (QMap<QString, QVariant>::const_iterator i = values.begin(); i != values.end(); i++)
+        {
+            m_settings->setValue(i.key(), i.value().toString());
+        }
+    }
+
+    void setSettings(QSettings* settings)
+    {
+        m_settings = settings;
+    }
+
+private:
+    QSettings* m_settings;
+    QMutex m_writerMutex;
+};
 
 class Parameters : public QObject
 {
@@ -19,10 +60,12 @@ public:
     void load(const QString &path = "config.ini");
 
     QString stringValue(const QString &key, const QString &defaultValue="", const QString &group = "General");
-    void setValue(const QString &key, const QString &value, const QString &group = "General");
 
     bool boolValue(const QString &key, const QString &defaultValue="", const QString &group = "General");
-    void setValue(const QString &key, bool value, const QString &group = "General");
+
+    void setValue(const QString& key, const QVariant& value, const QString &group = "General");
+
+    void save();
 
     // [General] settings
     bool debugMode();
@@ -33,12 +76,20 @@ public:
     // End [General] settings
 
 signals:
+    void setValueSignal(const QString& key, const QVariant& value);
+    void setValuesSignal(const QMap<QString, QVariant> &values);
 
 public slots:
 
 private:
-    QSettings *m_settings;
+    QString getFullKey(const QString& key, const QString& group);
 
+private:
+    QScopedPointer<QSettings> m_settings;
+    QMap<QString, QVariant> m_cache;
+    ParameterWriter* m_writer;
+    QThread m_writerThread;
+    QMutex m_cacheMutex;
 };
 
 #endif // PARAMETERS_H
