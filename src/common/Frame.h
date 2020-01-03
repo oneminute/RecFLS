@@ -10,6 +10,7 @@
 #include <opencv2/opencv.hpp>
 
 class FrameData;
+class Device;
 
 class Frame : public QObject
 {
@@ -83,6 +84,9 @@ public:
     int getDepthHeight() const;
     void setDepthHeight(int value);
 
+    Device* getDevice() const;
+    void setDevice(Device* device);
+
     QDataStream& load(QDataStream &in);
 
     void showInfo() const;
@@ -96,6 +100,10 @@ public:
     void clearUncompressedData();
 
     bool isAvailable() const;
+
+    cv::Mat undistortRGBImage();
+
+    cv::Mat alignDepthToColor();
 
 signals:
 

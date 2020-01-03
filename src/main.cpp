@@ -7,6 +7,7 @@
 #include "device/Device.h"
 #include "device/SensorReaderDevice.h"
 #include "util/Utils.h"
+#include "util/StopWatch.h"
 
 #include <pcl/gpu/containers/initialization.h>
 
@@ -33,6 +34,8 @@ int main(int argc, char *argv[])
     Parameters::Global().setVersion("0.1.01");
     qDebug() << "version:" << Parameters::Global().version();
 
+    StopWatch::instance().start();
+
     Device *device = new SensorReaderDevice;
     Controller *controller = new  DefaultController(device);
 
@@ -42,6 +45,7 @@ int main(int argc, char *argv[])
 
     int result = app.exec();
 
+    StopWatch::instance().debugPrint();
     //Parameters::Global().save();
     delete device;
 

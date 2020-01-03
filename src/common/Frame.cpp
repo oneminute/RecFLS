@@ -2,6 +2,7 @@
 #include "util/Utils.h"
 
 #include "stb_image.h"
+#include "device/Device.h"
 
 class FrameData : public QSharedData
 {
@@ -19,6 +20,7 @@ public:
         , depthCompressed()
         , colorCompressionType(Frame::TYPE_COLOR_UNKNOWN)
         , depthCompressionType(Frame::TYPE_DEPTH_UNKNOWN)
+        , device(nullptr)
     {}
 
 public:
@@ -40,6 +42,7 @@ public:
     Frame::COMPRESSION_TYPE_COLOR colorCompressionType;
     Frame::COMPRESSION_TYPE_DEPTH depthCompressionType;
     QList<QPair<QString, qreal>> durations;
+    Device* device;
 };
 
 Frame::Frame(QObject *parent) : QObject(parent), data(new FrameData)
@@ -248,6 +251,16 @@ void Frame::setDepthHeight(int value)
     data->depthHeight = value;
 }
 
+Device* Frame::getDevice() const
+{
+    return data->device;
+}
+
+void Frame::setDevice(Device* device)
+{
+    data->device = device;
+}
+
 int Frame::getDepthWidth() const
 {
     return data->depthWidth;
@@ -318,6 +331,16 @@ void Frame::clearUncompressedData()
 bool Frame::isAvailable() const
 {
     return data->frameIndex >= 0;
+}
+
+cv::Mat Frame::undistortRGBImage()
+{
+    return data->device->undistortImage(data->colorMat);
+}
+
+cv::Mat Frame::alignDepthToColor()
+{
+    return data->device->alignDepthToColor(data->depthMat, data->colorMat);
 }
 
 QDataStream &operator>>(QDataStream &in, Frame &frame)

@@ -16,3 +16,8 @@ void Odometry::process(Frame& frame)
 
     afterProcessing(frame);
 }
+
+void Odometry::setCloudViewer(CloudViewer* viewer)
+{
+    m_cloudViewer = viewer;
+}

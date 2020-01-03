@@ -1,5 +1,9 @@
 #include "linematchcudaodometry.h"
 
+#include <opencv2/core.hpp>
+#include <opencv2/core/utility.hpp>
+//#include <opencv2/cudaimgproc.hpp>
+
 LineMatchCudaOdometry::LineMatchCudaOdometry(QObject *parent)
     : Odometry(parent)
 {

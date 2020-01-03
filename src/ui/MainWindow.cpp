@@ -154,13 +154,7 @@ void MainWindow::onFrameFetched(Frame &frame)
     }
 
     pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud = m_controller->cloud();
-//    std::vector<int> mapping;
-//    pcl::removeNaNFromPointCloud(*cloud, *cloud, mapping);
     m_cloudViewer->addCloud("main scene", cloud);
-
-//    pcl::PointCloud<pcl::PointXYZ>::Ptr result(new pcl::PointCloud<pcl::PointXYZ>);
-//    pcl::copyPointCloud(*m_controller->result(), *result);
-//    m_cloudViewer->addCloud("boundary points", result, Eigen::Matrix4f::Identity(), QColor(255, 0, 0, 255));
 
     m_cloudViewer->update();
 }

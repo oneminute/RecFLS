@@ -1,5 +1,6 @@
 #include "LineExtractor.h"
 #include "util/Utils.h"
+#include "util/StopWatch.h"
 
 #include <QDebug>
 #include <QtMath>
@@ -14,6 +15,7 @@ bool LineCompare(const LineSegment& l1, const LineSegment& l2)
 template <typename PointInT, typename PointOutT>
 void LineExtractor<PointInT, PointOutT>::compute(const pcl::PointCloud<PointInT> &cloudIn, pcl::PointCloud<PointOutT> &cloudOut)
 {
+    TICK("le_join_sorted_points");
     for (int i = 0; i < cloudIn.points.size(); i++)
     {
         pcl::PointXYZI pt;
@@ -25,20 +27,31 @@ void LineExtractor<PointInT, PointOutT>::compute(const pcl::PointCloud<PointInT>
     }
 
     joinSortedPoints();
+    TOCK("le_join_sorted_points");
 
+    TICK("le_extract_lines_from_segment");
     for (int i = 0; i < segments_.size(); i++)
     {
         extractLinesFromSegment(segments_[i], i);
     }
+    TOCK("le_extract_lines_from_segment");
 
+    TICK("le_merge_collinear_lines");
     mergeCollinearLines();
+    TOCK("le_merge_collinear_lines");
 
+    TICK("le_create_lines_tree");
     linesSortingByLength(lines_);
-
     createLinesTree(lines_);
-    extracLinesClusters();
+    TOCK("le_create_lines_tree");
 
+    TICK("le_extract_lines_clusters");
+    extracLinesClusters();
+    TOCK("le_extract_lines_clusters");
+
+    TICK("le_sorting_merged_lines");
     linesSortingByLength(mergedLines_);
+    TOCK("le_sorting_merged_lines");
 
 //    float minLength = mergedLines_.begin()->length();
 //    float maxLength = mergedLines_.end()->length();
@@ -915,7 +928,7 @@ void LineExtractor<PointInT, PointOutT>::createLinesTree(const std::vector<LineS
             continue;
         }
 
-        qDebug() << count++ << "add node:" << node;
+        //qDebug() << count++ << "add node:" << node;
         addLineTreeNode(node);
     }
 }
@@ -937,7 +950,7 @@ void LineExtractor<PointInT, PointOutT>::extracLinesClusters()
     int count = 0;
     while (curr)
     {
-        qDebug() << "line address:" << curr;
+        //qDebug() << "line address:" << curr;
 
         if (curr->accessed())
             break;
@@ -983,11 +996,11 @@ void LineExtractor<PointInT, PointOutT>::extracLinesClusters()
             }
         }
     }
-    qDebug() << "iterate count " << count;
-    for (int i = 0; i < lineClusters_.size(); i++)
-    {
-        qDebug().noquote() << "cluster" << i << ": cluster size:" << lineClusters_[i]->size();
-    }
+    //qDebug() << "iterate count " << count;
+    //for (int i = 0; i < lineClusters_.size(); i++)
+    //{
+        //qDebug().noquote() << "cluster" << i << ": cluster size:" << lineClusters_[i]->size();
+    //}
 }
 
 template<typename PointInT, typename PointOutT>
@@ -1113,7 +1126,7 @@ void LineExtractor<PointInT, PointOutT>::compareLines(LineSegment &longLine, Lin
             angle = 0;
             distance = 0;
             lineRel = LR_SIDE;
-            qDebug().nospace().noquote() << "distance: " << distance << ", theta = " << qRadiansToDegrees(theta);
+            //qDebug().nospace().noquote() << "distance: " << distance << ", theta = " << qRadiansToDegrees(theta);
             return;
         }
         else
@@ -1170,7 +1183,7 @@ void LineExtractor<PointInT, PointOutT>::compareLines(LineSegment &longLine, Lin
         }
         chainDistance = lengthUnion - (lengthLongLine + lengthLine2ProjOnLine1);
     }
-    qDebug().nospace().noquote() << "theta = " << qRadiansToDegrees(theta) << ", chain distance = " << chainDistance << ", order = " << lineRel;
+    //qDebug().nospace().noquote() << "theta = " << qRadiansToDegrees(theta) << ", chain distance = " << chainDistance << ", order = " << lineRel;
 
 //    float sinTheta = qSin(theta);
 

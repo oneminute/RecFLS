@@ -2,10 +2,12 @@
 #define CONTROLLER_H
 
 #include <QObject>
+#include <QScopedPointer>
 
 #include "common/Frame.h"
 #include "device/Device.h"
 #include "ui/CloudViewer.h"
+#include "odometry/Odometry.h"
 
 #include <pcl/common/common.h>
 
@@ -34,25 +36,20 @@ public:
     virtual Frame getFrame(int frameIndex) = 0;
 
     QList<QPair<QString, cv::Mat>>& filteredMats() {
-        return m_filteredMats;
+        return m_odometry->filteredMats();
     }
 
     pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud() {
-        return m_cloud;
+        return m_odometry->cloud();
     }
 
     pcl::IndicesPtr cloudIndices() {
-        return m_cloudIndices;
+        return m_odometry->cloudIndices();
     }
 
     void setCloudViewer(CloudViewer *cloudViewer)
     {
         m_cloudViewer = cloudViewer;
-    }
-
-    pcl::PointCloud<pcl::PointXYZI>::Ptr result()
-    {
-        return m_result;
     }
 
 signals:
@@ -62,11 +59,8 @@ public slots:
 
 protected:
     Device *m_device;
-    QList<QPair<QString, cv::Mat>> m_filteredMats;
-    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr m_cloud;
-    pcl::IndicesPtr m_cloudIndices;
     CloudViewer *m_cloudViewer;
-    pcl::PointCloud<pcl::PointXYZI>::Ptr m_result;
+    QScopedPointer<Odometry> m_odometry;
 };
 
 #endif // CONTROLLER_H

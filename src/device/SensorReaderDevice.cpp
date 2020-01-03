@@ -106,6 +106,7 @@ bool SensorReaderDevice::open()
         frame.setDepthHeight(depthHeight);
         frame.setColorCompressionType(static_cast<Frame::COMPRESSION_TYPE_COLOR>(colorCompressType));
         frame.setDepthCompressionType(static_cast<Frame::COMPRESSION_TYPE_DEPTH>(depthCompressType));
+        frame.setDevice(this);
         m_frames.append(frame);
     }
 
