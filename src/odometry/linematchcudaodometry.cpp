@@ -7,8 +7,9 @@
 
 LineMatchCudaOdometry::LineMatchCudaOdometry(QObject *parent)
     : Odometry(parent)
+    , m_colorMatGpu(480, 640, CV_8UC3)
+    , m_depthMatGpu(480, 640, CV_16U)
 {
-
 }
 
 bool LineMatchCudaOdometry::beforeProcessing(Frame& frame)
@@ -19,17 +20,17 @@ bool LineMatchCudaOdometry::beforeProcessing(Frame& frame)
 void LineMatchCudaOdometry::doProcessing(Frame& frame)
 {
     TICK("odometry_uploading");
-    cv::cuda::GpuMat colorMatGpu(frame.colorMat());
-    cv::cuda::GpuMat depthMatGpu(frame.depthMat());
+    m_colorMatGpu.upload(frame.colorMat());
+    m_depthMatGpu.upload(frame.depthMat());
     TOCK("odometry_uploading");
 
     TICK("odometry_bilateral_filter");
-    cv::cuda::bilateralFilter(depthMatGpu, depthMatGpu, 5, 100, 100);
+    cv::cuda::bilateralFilter(m_depthMatGpu, m_depthMatGpu, 5, 100, 100);
     TOCK("odometry_bilateral_filter");
 
     TICK("odometry_downloading");
     cv::Mat depthMatCpu;
-    depthMatGpu.download(depthMatCpu);
+    m_depthMatGpu.download(depthMatCpu);
     TOCK("odometry_downloading");
 
     cv::Mat colorMat = frame.colorMat();

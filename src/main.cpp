@@ -12,11 +12,12 @@
 #include <pcl/gpu/containers/initialization.h>
 
 #ifdef _MSC_VER
-#    ifdef NDEBUG
-#        pragma comment(linker, "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
-#    else
-#        pragma comment(linker, "/SUBSYSTEM:CONSOLE")
-#    endif
+//#    ifdef NDEBUG
+//#        pragma comment(linker, "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
+//#    else
+//#        pragma comment(linker, "/SUBSYSTEM:CONSOLE")
+//#    endif
+#    pragma comment(linker, "/SUBSYSTEM:CONSOLE")
 #endif
 
 int main(int argc, char *argv[])

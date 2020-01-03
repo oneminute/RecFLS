@@ -15,6 +15,10 @@ public:
     virtual void doProcessing(Frame& frame) override;
     virtual void afterProcessing(Frame& frame) override;
     virtual bool beforeProcessing(Frame& frame);
+
+private:
+    cv::cuda::GpuMat m_colorMatGpu;
+    cv::cuda::GpuMat m_depthMatGpu;
 };
 
 #endif // LINEMATCHCUDAODOMETRY_H
