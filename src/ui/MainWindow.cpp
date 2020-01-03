@@ -154,7 +154,8 @@ void MainWindow::onFrameFetched(Frame &frame)
     }
 
     pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud = m_controller->cloud();
-    m_cloudViewer->addCloud("main scene", cloud);
+    if (cloud && !cloud->empty())
+        m_cloudViewer->addCloud("main scene", cloud);
 
     m_cloudViewer->update();
 }

@@ -8,13 +8,14 @@
 #include <QDateTime>
 
 #include "odometry/LineMatchOdometry.h"
+#include "odometry/LineMatchCudaOdometry.h"
 
 DefaultController::DefaultController(Device *device, QObject *parent)
     : Controller(device, parent)
 {
     connect(m_device, &Device::frameFetched, this, &DefaultController::onFrameFetched);
 
-    m_odometry.reset(new LineMatchOdometry);
+    m_odometry.reset(new LineMatchCudaOdometry);
 }
 
 QString DefaultController::name() const
