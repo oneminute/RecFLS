@@ -36,7 +36,7 @@ void StopWatch::tock(const QString& key)
 
 void StopWatch::debugPrint()
 {
-    QStringList keys = m_logs.keys();
+    QStringList keys = m_pairs.keys();
     for (QStringList::iterator i = keys.begin(); i != keys.end(); i++)
     {
         QList<QPair<qint64, qint64>> records = m_logs.values(*i);
