@@ -58,6 +58,9 @@ FILE(GLOB DEVICE_SRCS src/device/*.cpp)
 FILE(GLOB EXTRACTOR_HEADERS src/extractor/*.h)
 FILE(GLOB EXTRACTOR_SRCS src/extractor/*.hpp src/extractor/*.cpp)
 
+FILE(GLOB ODOMETRY_HEADERS src/odometry/*.h)
+FILE(GLOB ODOMETRY_SRCS src/odometry/*.cpp)
+
 FILE(GLOB UI_HEADERS src/ui/*.h)
 FILE(GLOB UI_SRCS src/ui/*.cpp)
 FILE(GLOB UIS src/ui/*.ui)
@@ -84,6 +87,7 @@ set(HEADER_FILES
     ${CONTROLLER_HEADERS}
     ${DEVICE_HEADERS}
     ${EXTRACTOR_HEADERS}
+    ${ODOMETRY_HEADERS}
     ${UI_HEADERS}
     ${UTIL_HEADERS}
 )
@@ -95,6 +99,7 @@ set(SRC_FILES
     ${CONTROLLER_SRCS}
     ${DEVICE_SRCS}
     ${EXTRACTOR_SRCS}
+    ${ODOMETRY_SRCS}
     ${UI_SRCS}
     ${UIS}
     ${UTIL_SRCS}
@@ -110,6 +115,8 @@ IF(MSVC)
     source_group("header\\device" FILES ${DEVICE_HEADERS})
     source_group("source\\extractor" FILES ${EXTRACTOR_SRCS})
     source_group("header\\extractor" FILES ${EXTRACTOR_HEADERS})
+    source_group("source\\odometry" FILES ${ODOMETRY_SRCS})
+    source_group("header\\odometry" FILES ${ODOMETRY_HEADERS})
     source_group("source\\ui" FILES ${UI_SRCS})
     source_group("header\\ui" FILES ${UI_HEADERS})
     source_group("source\\util" FILES ${UTIL_SRCS})
