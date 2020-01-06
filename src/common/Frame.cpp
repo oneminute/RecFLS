@@ -160,7 +160,7 @@ cv::Mat Frame::colorMat()
         {
             if (data->colorCompressionType == TYPE_RAW)
             {
-                data->colorMat = cv::Mat(data->colorHeight, data->colorWidth, CV_8U, const_cast<char*>(data->colorCompressed.data()));
+                data->colorMat = cv::Mat(data->colorHeight, data->colorWidth, CV_8UC3, const_cast<char*>(data->colorCompressed.data()));
             }
             else
             {

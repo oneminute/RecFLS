@@ -72,7 +72,7 @@ void LineMatchOdometry::doProcessing(Frame& frame)
             pcl::PointXYZRGBNormal pt;
             float Xw = 0, Yw = 0, Zw = 0;
             Zw = zValue / frame.getDevice()->depthShift();
-            Xw = (j - frame.getDevice()->cx()) *  Zw / frame.getDevice()->fx();
+            Xw = (j - frame.getDevice()->cx()) * Zw / frame.getDevice()->fx();
             Yw = (i - frame.getDevice()->cy()) * Zw / frame.getDevice()->fy();
 
             pt.x = Xw;

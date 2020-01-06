@@ -11,9 +11,12 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 # Instruct CMake to create code from Qt designer ui files
 set(CMAKE_AUTOUIC ON)
+set(CMAKE_CXX_STANDARD 14)
 
 add_definitions(-DSTB_IMAGE_IMPLEMENTATION)
 add_definitions(-DEIGEN_DONT_ALIGN)
+add_definitions(-DPCL_ONLY_CORE_POINT_TYPES)
+
 
 include(FindCUDA)
 
@@ -30,6 +33,7 @@ find_package(VTK REQUIRED QUIET)
 find_package(CUDA)
 
 set(__cuda_arch_bin "3.0 3.5 5.0 5.2 5.3 6.0 6.1")
+set(CUDA_NVCC_FLAGS "-Xcompiler \"/wd 4819\" --ftz=true;--prec-div=false;--prec-sqrt=false;--expt-relaxed-constexpr")
 
 set(INCLUDE_DIRS
     ${INCLUDE_DIRS}
@@ -51,6 +55,9 @@ FILE(GLOB COMMON_SRCS src/common/*.cpp)
 
 FILE(GLOB CONTROLLER_HEADERS src/controller/*.h)
 FILE(GLOB CONTROLLER_SRCS src/controller/*.cpp)
+
+FILE(GLOB CUDA_HEADERS src/cuda/*.h)
+FILE(GLOB CUDA_SRCS src/cuda/*.cu)
 
 FILE(GLOB DEVICE_HEADERS src/device/*.h)
 FILE(GLOB DEVICE_SRCS src/device/*.cpp)
@@ -85,6 +92,7 @@ set(HEADER_FILES
     ${BASE_HEADERS}
     ${COMMON_HEADERS}
     ${CONTROLLER_HEADERS}
+    ${CUDA_HEADERS}
     ${DEVICE_HEADERS}
     ${EXTRACTOR_HEADERS}
     ${ODOMETRY_HEADERS}
@@ -97,6 +105,7 @@ set(SRC_FILES
     ${BASE_SRCS}
     ${COMMON_SRCS}
     ${CONTROLLER_SRCS}
+    ${CUDA_SRCS}
     ${DEVICE_SRCS}
     ${EXTRACTOR_SRCS}
     ${ODOMETRY_SRCS}
@@ -111,6 +120,8 @@ IF(MSVC)
     source_group("header\\common" FILES ${COMMON_HEADERS})
     source_group("source\\controller" FILES ${CONTROLLER_SRCS})
     source_group("header\\controller" FILES ${CONTROLLER_HEADERS})
+    source_group("source\\cuda" FILES ${CUDA_SRCS})
+    source_group("header\\cuda" FILES ${CUDA_HEADERS})
     source_group("source\\device" FILES ${DEVICE_SRCS})
     source_group("header\\device" FILES ${DEVICE_HEADERS})
     source_group("source\\extractor" FILES ${EXTRACTOR_SRCS})
@@ -129,7 +140,7 @@ ENDIF(MSVC)
 include_directories(${INCLUDE_DIRS})
 
 # Tell CMake to create the helloworld executable
-add_executable(${PROJECT_NAME} ${SRC_FILES})
+cuda_add_executable(${PROJECT_NAME} ${SRC_FILES})
 
 # Use the Widgets module from Qt 5.
 target_link_libraries(${PROJECT_NAME} Qt5::Widgets Qt5::Charts ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${FLANN_LIBRARIES} ${VTK_LIBRARIES} ${CUDA_blas_LIBRARY} ${CUDA_CUDART_LIBRARY} ${CUDA_curand_LIBRARY})

@@ -80,12 +80,12 @@ float Device::fy() const
 
 float Device::cx() const
 {
-    return m_colorIntrinsic(0, 2);
+    return m_colorIntrinsic(2, 0);
 }
 
 float Device::cy() const
 {
-    return m_colorIntrinsic(1, 2);
+    return m_colorIntrinsic(2, 1);
 }
 
 float Device::depthShift() const
