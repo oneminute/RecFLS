@@ -62,7 +62,7 @@ void LineMatchOdometry::doProcessing(Frame& frame)
 
     StopWatch::instance().tick("generate_cloud");
     // generate organized point cloud
-    m_cloud = pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr(new pcl::PointCloud<pcl::PointXYZRGBNormal>());
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud = pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr(new pcl::PointCloud<pcl::PointXYZRGBNormal>());
     m_cloudIndices.reset(new std::vector<int>);
 
     for(int i = 0; i < depthMat.rows; i++) {
@@ -99,7 +99,7 @@ void LineMatchOdometry::doProcessing(Frame& frame)
             //qDebug() << QString("[%1,%2]").arg(i).arg(j) << pt.x << pt.y << pt.z;
 
 //            if (pt.getVector3fMap().norm() > 0)
-            m_cloud->push_back(pt);
+            cloud->push_back(pt);
         }
     }
     StopWatch::instance().tock("generate_cloud");
@@ -148,12 +148,12 @@ void LineMatchOdometry::doProcessing(Frame& frame)
     StopWatch::instance().tick("boundary_estimation");
 //    // boundary estimation and extract lines
     pcl::search::KdTree<pcl::PointXYZRGBNormal>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGBNormal>());
-    tree->setInputCloud(m_cloud);
+    tree->setInputCloud(cloud);
 
      //calculate boundary_;
     pcl::PointCloud<pcl::Boundary> boundary;
     pcl::BoundaryEstimation<pcl::PointXYZRGBNormal, pcl::Normal, pcl::Boundary> be;
-    be.setInputCloud(m_cloud);
+    be.setInputCloud(cloud);
 //    be.setIndices(m_cloudIndices);
     be.setInputNormals(normals);
     be.setRadiusSearch(0.01);

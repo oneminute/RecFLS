@@ -39,8 +39,12 @@ public:
         return m_odometry->filteredMats();
     }
 
-    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud() {
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud() {
         return m_odometry->cloud();
+    }
+
+    pcl::PointCloud<pcl::Normal>::Ptr normals() {
+        return m_odometry->normals();
     }
 
     pcl::IndicesPtr cloudIndices() {

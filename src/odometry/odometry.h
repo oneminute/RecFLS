@@ -20,8 +20,12 @@ public:
         return m_filteredMats;
     }
 
-    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud() {
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud() {
         return m_cloud;
+    }
+
+    pcl::PointCloud<pcl::Normal>::Ptr normals() {
+        return m_normals;
     }
 
     pcl::IndicesPtr cloudIndices() {
@@ -37,7 +41,8 @@ protected:
 
 protected:
     CloudViewer *m_cloudViewer;
-    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr m_cloud;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_cloud;
+    pcl::PointCloud<pcl::Normal>::Ptr m_normals;
     pcl::IndicesPtr m_cloudIndices;
     QList<QPair<QString, cv::Mat>> m_filteredMats;
 };

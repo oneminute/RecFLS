@@ -30,7 +30,7 @@ Parameters::Parameters(QObject *parent)
 
 Parameters::~Parameters()
 {
-    save();
+    m_writer->setValues(m_cache);
     m_writerThread.quit();
     m_writerThread.wait();
 }
@@ -64,13 +64,25 @@ void Parameters::load(const QString &path)
 QString Parameters::stringValue(const QString &key, const QString &defaultValue, const QString &group)
 {
     QString fullKey = getFullKey(key, group);
-    return m_cache.value(fullKey, defaultValue).toString();
+    return value(fullKey, defaultValue).toString();
 }
 
-bool Parameters::boolValue(const QString &key, const QString &defaultValue, const QString &group)
+bool Parameters::boolValue(const QString &key, bool defaultValue, const QString &group)
 {
     QString fullKey = getFullKey(key, group);
-    return m_cache.value(fullKey, defaultValue).toBool();
+    return value(fullKey, defaultValue).toBool();
+}
+
+int Parameters::intValue(const QString& key, int defaultValue, const QString& group)
+{
+    QString fullKey = getFullKey(key, group);
+    return value(fullKey, defaultValue).toInt();
+}
+
+float Parameters::floatValue(const QString& key, float defaultValue, const QString& group)
+{
+    QString fullKey = getFullKey(key, group);
+    return value(fullKey, defaultValue).toFloat();
 }
 
 void Parameters::setValue(const QString& key, const QVariant& value, const QString &group)
@@ -78,6 +90,16 @@ void Parameters::setValue(const QString& key, const QVariant& value, const QStri
     QString fullKey = getFullKey(key, group);
     m_cache[fullKey] = value;
     emit setValueSignal(key, value);
+}
+
+QVariant Parameters::value(const QString& key, const QVariant& value)
+{
+    if (!m_cache.contains(key))
+    {
+        m_cache.insert(key, value);
+        emit setValueSignal(key, value);
+    }
+    return m_cache[key];
 }
 
 void Parameters::save()
@@ -110,11 +132,11 @@ QString Parameters::getFullKey(const QString& key, const QString& group)
     QString fullKey;
     if (group == DEFAULT_SETTINGS_GROUP)
     {
-        fullKey = QString("%1/%2").arg(group).arg(key);
+        fullKey = key;
     }
     else
     {
-        fullKey = key;
+        fullKey = QString("%1/%2").arg(group).arg(key);
     }
     return fullKey;
 }

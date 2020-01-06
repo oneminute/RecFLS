@@ -153,10 +153,14 @@ void MainWindow::onFrameFetched(Frame &frame)
         }
     }
 
-    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud = m_controller->cloud();
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = m_controller->cloud();
     if (cloud && !cloud->empty())
-        m_cloudViewer->addCloud("main scene", cloud);
+        m_cloudViewer->addCloud("main_scene", cloud);
 
+    /*pcl::PointCloud<pcl::Normal>::Ptr normals = m_controller->normals();
+    if (normals && !normals->empty())
+        m_cloudViewer->addCloud("main_scene-normals", normals);
+*/
     m_cloudViewer->update();
 }
 

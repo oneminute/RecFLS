@@ -61,9 +61,15 @@ public:
 
     QString stringValue(const QString &key, const QString &defaultValue="", const QString &group = "General");
 
-    bool boolValue(const QString &key, const QString &defaultValue="", const QString &group = "General");
+    bool boolValue(const QString &key, bool defaultValue = false, const QString &group = "General");
+
+    int intValue(const QString &key, int defaultValue = 0, const QString &group = "General");
+
+    float floatValue(const QString &key, float defaultValue = 0.0f, const QString &group = "General");
 
     void setValue(const QString& key, const QVariant& value, const QString &group = "General");
+
+    QVariant value(const QString& key, const QVariant& value);
 
     void save();
 

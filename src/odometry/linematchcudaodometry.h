@@ -14,7 +14,13 @@ class LineMatchCudaOdometry : public Odometry
 {
     Q_OBJECT
 public:
-    explicit LineMatchCudaOdometry(QObject* parent = nullptr);
+    explicit LineMatchCudaOdometry(int bilateralFilterKernelSize = 5, float bilateralSigmaColor = 100, float bilateralSigmaSpatial = 100, QObject* parent = nullptr)
+        : Odometry(parent)
+        , m_bilateralFilterKernelSize(bilateralFilterKernelSize)
+        , m_bilateralFilterSigmaColor(bilateralSigmaColor)
+        , m_bilateralFilterSigmaSpatial(bilateralSigmaSpatial)
+        , m_init(false)
+    {}
 
     // Inherited via Odometry
     virtual void doProcessing(Frame& frame) override;
@@ -24,7 +30,8 @@ public:
 private:
     cv::cuda::GpuMat m_colorMatGpu;
     cv::cuda::GpuMat m_depthMatGpu;
-    pcl::gpu::DeviceArray<float4> m_pointCloudGpu;
+    pcl::gpu::DeviceArray<float3> m_pointCloudGpu;
+    pcl::gpu::DeviceArray<float3> m_pointCloudNormalsGpu;
     pcl::gpu::DeviceArray2D<uchar3> m_colorBuffer;
     pcl::gpu::DeviceArray2D<ushort> m_depthBuffer;
 
@@ -32,6 +39,10 @@ private:
     cuda::Frame m_frameGpu;
 
     bool m_init;
+
+    int m_bilateralFilterKernelSize;
+    float m_bilateralFilterSigmaColor;
+    float m_bilateralFilterSigmaSpatial;
 };
 
 #endif // LINEMATCHCUDAODOMETRY_H
