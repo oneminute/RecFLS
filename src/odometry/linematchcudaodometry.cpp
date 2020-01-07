@@ -3,15 +3,24 @@
 #include "cuda/CudaInternal.h"
 #include "device/Device.h"
 #include "ui/CloudViewer.h"
+#include "extractor/LineExtractor.h"
 
 #include <QDebug>
 
 #include <pcl/common/common.h>
+#include <pcl/features/boundary.h>
+#include <pcl/features/impl/normal_3d.hpp>
+#include <pcl/features/normal_3d.h>
+#include <pcl/features/range_image_border_extractor.h>
+#include <pcl/filters/filter.h>
+#include <pcl/keypoints/sift_keypoint.h>
+#include <pcl/search/kdtree.h>
 #include <pcl/gpu/containers/device_array.h>
+#include <pcl/visualization/cloud_viewer.h>
+
 #include <opencv2/core.hpp>
 #include <opencv2/core/utility.hpp>
 #include <opencv2/cudaimgproc.hpp>
-#include <pcl/visualization/cloud_viewer.h>
 
 bool LineMatchCudaOdometry::beforeProcessing(Frame& frame)
 {
@@ -75,7 +84,6 @@ void LineMatchCudaOdometry::doProcessing(Frame& frame)
     m_frameGpu.pointCloud.download(points);
     std::vector<float3> normals;
     m_frameGpu.pointCloudNormals.download(normals);
-    TOCK("odometry_downloading");
 
     for(int i = 0; i < frame.getDepthHeight(); i++) {
         for(int j = 0; j < frame.getDepthWidth(); j++) {
@@ -99,10 +107,12 @@ void LineMatchCudaOdometry::doProcessing(Frame& frame)
                 qDebug() << normal.normal_x << normal.normal_y << normal.normal_z;
             }*/
 
-            //if (pt.getVector3fMap().norm() > 0.001f) {
-            if (qIsNaN(pt.x) || qIsNaN(pt.y) || qIsNaN(pt.y)) {
+            if (pt.z > 0.4f && pt.z <= 8.0f) {
+            //if (qIsNaN(pt.x) || qIsNaN(pt.y) || qIsNaN(pt.y)) {
                 m_cloudIndices->push_back(index);
                 //qDebug() << pt.x << pt.y << pt.z;
+                m_cloud->push_back(pt);
+                m_normals->push_back(normal);
             }
             //else
             //{
@@ -111,15 +121,16 @@ void LineMatchCudaOdometry::doProcessing(Frame& frame)
                 //pt.z = qQNaN();
             //}
 
-            m_cloud->push_back(pt);
-            m_normals->push_back(normal);
+            //m_cloud->push_back(pt);
+            //m_normals->push_back(normal);
         }
     }
 
-    m_cloud->width = frame.depthMat().cols;
-    m_cloud->height = frame.depthMat().rows;
-    m_normals->width = frame.depthMat().cols;
-    m_normals->height = frame.depthMat().rows;
+    //m_cloud->width = frame.depthMat().cols;
+    //m_cloud->height = frame.depthMat().rows;
+    //m_normals->width = frame.depthMat().cols;
+    //m_normals->height = frame.depthMat().rows;
+    TOCK("odometry_downloading");
 
     qDebug().nospace().noquote()
         << "[LineMatchCudaOdometry::doProcessing] "
@@ -133,7 +144,88 @@ void LineMatchCudaOdometry::doProcessing(Frame& frame)
     cv::Mat diff = frame.depthMat() - depthMatCpu;
     m_filteredMats.append(QPair<QString, cv::Mat>("diff depth image", diff.clone()));
 
-    m_cloudViewer->visualizer()->addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal>(m_cloud, m_normals, 100, 0.03f, "normals");
+    //m_cloudViewer->visualizer()->addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal>(m_cloud, m_normals, 100, 0.03f, "normals");
+
+    TICK("boundary_estimation");
+    // boundary estimation and extract lines
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud = pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr(new pcl::PointCloud<pcl::PointXYZRGBNormal>());
+    pcl::concatenateFields<pcl::PointXYZRGB, pcl::Normal, pcl::PointXYZRGBNormal>(*m_cloud, *m_normals, *cloud);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloudXYZ(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::copyPointCloud(*m_cloud, *cloudXYZ);
+    pcl::search::KdTree<pcl::PointXYZRGBNormal>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGBNormal>());
+    tree->setInputCloud(cloud);
+
+     //calculate boundary_;
+    pcl::PointCloud<pcl::Boundary> boundary;
+    pcl::BoundaryEstimation<pcl::PointXYZRGBNormal, pcl::Normal, pcl::Boundary> be;
+    be.setInputCloud(cloud);
+    //be.setIndices(m_cloudIndices);
+    be.setInputNormals(m_normals);
+    be.setRadiusSearch(0.01);
+    be.setAngleThreshold(M_PI_4);
+    be.setSearchMethod(tree);
+    be.compute(boundary);
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr boundaryCloud(new pcl::PointCloud<pcl::PointXYZ>);
+    for (int i = 0; i < boundary.points.size(); i++)
+    {
+        if (boundary[i].boundary_point == 1)
+        {
+            boundaryCloud->points.push_back(cloudXYZ->points[i]);
+        }
+    }
+    boundaryCloud->width = boundaryCloud->points.size();
+    boundaryCloud->height = 1;
+    boundaryCloud->is_dense = true;
+    std::cout << "boundary size:" << boundary.size() << ", cloud size:" << m_cloud->points.size() << std::endl;
+    StopWatch::instance().tock("boundary_estimation");
+
+    StopWatch::instance().tick("line_extract");
+    LineExtractor<pcl::PointXYZ, pcl::PointXYZI> le;
+    pcl::PointCloud<pcl::PointXYZI> leCloud;
+    le.compute(*boundaryCloud, leCloud);
+
+    pcl::PointCloud<pcl::PointXYZI>::Ptr result;
+    result = le.getBoundary();
+
+    qDebug() << "boundary size:" << result->size();
+    result->width = result->points.size();
+    result->height = 1;
+    result->is_dense = true;
+    StopWatch::instance().tock("line_extract");
+
+    StopWatch::instance().tick("show_result");
+    
+    QList<LineCluster*> clusters = le.getLineClusters();
+    for (int i = 0; i < clusters.size() && true; i++)
+    {
+        double r = rand() * 1.0 / RAND_MAX;
+        double g = rand() * 1.0 / RAND_MAX;
+        double b = rand() * 1.0 / RAND_MAX;
+
+        LineSegment line = clusters[i]->merge();
+        if (line.length() < 0.1f)
+            continue;
+        std::string lineNo = "cluster_line_" + std::to_string(i);
+        pcl::PointXYZI start, end;
+        start.getVector3fMap() = line.start();
+        end.getVector3fMap() = line.end();
+        m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
+        m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo);
+
+    //    for (int j = 0; clusters[i]->size() > 3 && j < clusters[i]->size(); j++)
+    //    {
+    //        std::string lineNo = "cluster_line_" + std::to_string(i) + "_" + std::to_string(j);
+    //        pcl::PointXYZI start, end;
+    //        start.getVector3fMap() = clusters[i]->lines()[j].start();
+    //        end.getVector3fMap() = clusters[i]->lines()[j].end();
+    ////        m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
+    //        m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
+    //        m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
+    //    }
+    }
+    StopWatch::instance().tock("show_result");
+
 }
 
 void LineMatchCudaOdometry::afterProcessing(Frame& frame)

@@ -1001,6 +1001,7 @@ void LineExtractor<PointInT, PointOutT>::extracLinesClusters()
     //{
         //qDebug().noquote() << "cluster" << i << ": cluster size:" << lineClusters_[i]->size();
     //}
+    lineClusters_.pop_back();
 }
 
 template<typename PointInT, typename PointOutT>
