@@ -528,7 +528,7 @@ void CloudViewer::createMenu()
     freeCamera->setChecked(false);
     _aLockViewZ = new QAction("Lock view Z", this);
     _aLockViewZ->setCheckable(true);
-    _aLockViewZ->setChecked(true);
+    _aLockViewZ->setChecked(false);
     _aCameraOrtho = new QAction("Ortho mode", this);
     _aCameraOrtho->setCheckable(true);
     _aCameraOrtho->setChecked(false);
