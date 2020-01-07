@@ -644,8 +644,8 @@ namespace cuda
         pcl::gpu::PtrSz<float3> normals;
         pcl::gpu::PtrStepSz<uchar3> colorImage;
         pcl::gpu::PtrStepSz<ushort> depthImage;
-        int neighbourSize;
-        float neighbourRadius;
+        int neighbourRadius;
+        float neighbourDistance;
 
         __device__ __forceinline__ void extracPointCloud()
         {
@@ -712,12 +712,12 @@ namespace cuda
 
             int nN = 0;
 
-            for (int j = max(0, iy - neighbourSize); j < min(iy + neighbourSize + 1, parameters.depthHeight); j++) {
-                for (int i = max(0, ix - neighbourSize); i < min(ix + neighbourSize + 1, parameters.depthWidth); i++) {
+            for (int j = max(0, iy - neighbourRadius); j < min(iy + neighbourRadius + 1, parameters.depthHeight); j++) {
+                for (int i = max(0, ix - neighbourRadius); i < min(ix + neighbourRadius + 1, parameters.depthWidth); i++) {
                     size_t neighbourIndex = j * parameters.depthWidth + i;
                     float3 diff3 = points[neighbourIndex] - points[index];
                     float norm = sqrt(dot(diff3, diff3));
-                    if (norm < neighbourRadius) {
+                    if (norm < neighbourDistance) {
                         nN++;
                         m += points[neighbourIndex];
                         outerAdd(points[neighbourIndex], C); //note: instead of pts[ind]-m, we demean afterwards
@@ -770,8 +770,8 @@ namespace cuda
         epc.normals = frame.pointCloudNormals;
         epc.colorImage = frame.colorImage;
         epc.depthImage = frame.depthImage;
-        epc.neighbourSize = 5;
-        epc.neighbourRadius = 0.05f;
+        epc.neighbourRadius = 5;
+        epc.neighbourDistance = 0.05f;
 
         extractPointCloud<<<grid, block>>>(epc);
         safeCall(cudaDeviceSynchronize());

@@ -44,9 +44,11 @@ public:
 
     void reverse();
 
-    bool applyAnotherLineDirection(const LineSegment &other, float &angle, float threshold);
+    bool similarDirection(const LineSegment &other, float &angle, float threshold);
 
     bool similarDirection(const LineSegment &other, float threshold);
+
+    void applyAnotherLineDirection(const LineSegment& other);
 
     float angleToAnotherLine(const LineSegment &other);
 

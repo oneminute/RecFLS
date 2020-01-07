@@ -2,6 +2,7 @@
 #include "util/StopWatch.h"
 
 Odometry::Odometry(QObject *parent) : QObject(parent)
+    , m_cloud(new pcl::PointCloud<pcl::PointXYZRGB>)
 {
 
 }

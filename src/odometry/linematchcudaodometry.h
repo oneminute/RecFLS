@@ -14,11 +14,19 @@ class LineMatchCudaOdometry : public Odometry
 {
     Q_OBJECT
 public:
-    explicit LineMatchCudaOdometry(int bilateralFilterKernelSize = 5, float bilateralSigmaColor = 100, float bilateralSigmaSpatial = 100, QObject* parent = nullptr)
+    explicit LineMatchCudaOdometry(
+        int bilateralFilterKernelSize = 5, 
+        float bilateralSigmaColor = 100, 
+        float bilateralSigmaSpatial = 100, 
+        int normalEstimationKernelHalfSize = 9,
+        float normalEstimationMaxDistance = 0.05f,
+        QObject* parent = nullptr)
         : Odometry(parent)
         , m_bilateralFilterKernelSize(bilateralFilterKernelSize)
         , m_bilateralFilterSigmaColor(bilateralSigmaColor)
         , m_bilateralFilterSigmaSpatial(bilateralSigmaSpatial)
+        , m_normalEstimationKernelHalfSize(normalEstimationKernelHalfSize)
+        , m_normalEstimationMaxDistance(normalEstimationMaxDistance)
         , m_init(false)
     {}
 
@@ -43,6 +51,8 @@ private:
     int m_bilateralFilterKernelSize;
     float m_bilateralFilterSigmaColor;
     float m_bilateralFilterSigmaSpatial;
+    float m_normalEstimationMaxDistance;
+    float m_normalEstimationKernelHalfSize;
 };
 
 #endif // LINEMATCHCUDAODOMETRY_H

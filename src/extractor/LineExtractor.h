@@ -58,31 +58,32 @@ class LineExtractor
     };
 
 public:
-    LineExtractor()
-        : segment_k_search_(20)
-        , segment_distance_threshold_(0.1)
-        , min_line_len_(9)
-        , pca_error_threshold_(0.005f)
-        , max_distance_between_two_lines_(0.05f)
-        , max_error_(0.05f)
-        , max_angle_error_(M_PI / 18)
-        , line_length_threshold_(0.05f)
-        , lines_cluster_angle_threshold_(M_PI / 10)
-        , lines_distance_threshold_(0.06f)
-        , lines_chain_distance_threshold_(0.06f)
+    LineExtractor(
+        float segmentDistanceThreshold = 0.1f,
+        int minLinePoints = 9,
+        float pcaErrorThreshold = 0.005f,
+        float lineClusterAngleThreshold = 20.0f,
+        float linesDistanceThreshold = 0.06f,
+        float linesChainDistanceThreshold = 0.06f)
+        : m_segmentDistanceThreshold(segmentDistanceThreshold)
+        , m_minLinePoints(minLinePoints)
+        , m_pcaErrorThreshold(pcaErrorThreshold)
+        , m_lineClusterAngleThreshold(lineClusterAngleThreshold)
+        , m_linesDistanceThreshold(linesDistanceThreshold)
+        , m_linesChainDistanceThreshold(linesChainDistanceThreshold)
         , nr_subdiv_(5)
         , pfh_tuple_()
         , d_pi_ (1.0f / (2.0f * static_cast<float> (M_PI)))
-        , boundary_(new pcl::PointCloud<pcl::PointXYZI>)
-        , lineCloud_(new pcl::PointCloud<pcl::PointXYZI>())
-        , root_(nullptr)
+        , m_boundary(new pcl::PointCloud<pcl::PointXYZI>)
+        , m_lineCloud(new pcl::PointCloud<pcl::PointXYZI>())
+        , m_root(nullptr)
     {}
 
     ~LineExtractor()
     {
-        if (root_)
+        if (m_root)
         {
-            root_->deleteLater();
+            m_root->deleteLater();
         }
     }
 
@@ -92,37 +93,32 @@ public:
 
     std::vector<std::vector<int>> segments()
     {
-        return segments_;
+        return m_segments;
     }
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr getBoundary()
     {
-        return boundary_;
+        return m_boundary;
     }
 
     std::vector<LineSegment> getLines()
     {
-        return lines_;
-    }
-
-    std::vector<LineSegment> getMergedLines()
-    {
-        return mergedLines_;
+        return m_lines;
     }
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr getLineCloud()
     {
-        return lineCloud_;
+        return m_lineCloud;
     }
 
     std::vector<std::vector<int>> getSegments() const
     {
-        return segments_;
+        return m_segments;
     }
 
     QList<LineCluster*> getLineClusters() const
     {
-        return lineClusters_;
+        return m_lineClusters;
     }
 
 private:
@@ -131,16 +127,6 @@ private:
     void joinSortedPoints();
 
     void extractLinesFromSegment(const std::vector<int>& segment, int segmentNo);
-
-    void mergeCollinearLines();
-
-    void mergeCollinearLines2();
-
-    bool isLinesCollinear(const LineSegment &line1, const LineSegment &line2);
-
-    bool isLinesCollinear2(const LineSegment &line1, const LineSegment &line2);
-
-    float linesDistance(const LineSegment &line1, const LineSegment &line2, LINE_ORDER& order);
 
     float lineFit(const std::vector<int>& segment, int index, int length, Eigen::Vector3f& dir, Eigen::Vector3f& meanPoint);
 
@@ -171,37 +157,29 @@ private:
     LineTreeNode *findLeftLeaf(LineTreeNode *node);
 
 private:
-    std::vector<std::vector<int>> segments_;
+    std::vector<std::vector<int>> m_segments;
 
-    int segment_k_search_;
-    double segment_distance_threshold_;
-    int min_line_len_;
-    float pca_error_threshold_;
-    float max_distance_between_two_lines_;
-    float max_error_;
-    float max_angle_error_;
-    float line_length_threshold_;
-    float lines_cluster_angle_threshold_;
-    float lines_distance_threshold_;
-    float lines_chain_distance_threshold_;
+    float m_segmentDistanceThreshold;
+    int m_minLinePoints;
+    float m_pcaErrorThreshold;
+    float m_lineClusterAngleThreshold;
+    float m_linesDistanceThreshold;
+    float m_linesChainDistanceThreshold;
 
     int nr_subdiv_;
     Eigen::Vector4f pfh_tuple_;
     int f_index_[3];
     float d_pi_;
 
-    Eigen::Matrix3f intrinsic_;
-
     //pcl::PointCloud<PointInT>::Ptr downloadSampledCloud_;
-    pcl::PointCloud<pcl::PointXYZI>::Ptr boundary_;
-    std::vector<LineSegment> lines_;
-    std::vector<LineSegment> mergedLines_;
-    QList<LineCluster*> lineClusters_;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr m_boundary;
+    std::vector<LineSegment> m_lines;
+    QList<LineCluster*> m_lineClusters;
 
-    std::map<pcl::PointXYZI, LineSegment, PointComparator<pcl::PointXYZI>> pointsLineMap_;
-    pcl::PointCloud<pcl::PointXYZI>::Ptr lineCloud_;
+    std::map<pcl::PointXYZI, LineSegment, PointComparator<pcl::PointXYZI>> m_pointsLineMap;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr m_lineCloud;
 
-    LineTreeNode *root_;
+    LineTreeNode *m_root;
 };
 
 #endif // LINEEXTRACTOR_H

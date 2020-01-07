@@ -23,35 +23,27 @@ void LineExtractor<PointInT, PointOutT>::compute(const pcl::PointCloud<PointInT>
         pt.y = cloudIn.points[i].y;
         pt.z = cloudIn.points[i].z;
         pt.intensity = 0;
-        boundary_->push_back(pt);
+        m_boundary->push_back(pt);
     }
 
     joinSortedPoints();
     TOCK("le_join_sorted_points");
 
     TICK("le_extract_lines_from_segment");
-    for (int i = 0; i < segments_.size(); i++)
+    for (int i = 0; i < m_segments.size(); i++)
     {
-        extractLinesFromSegment(segments_[i], i);
+        extractLinesFromSegment(m_segments[i], i);
     }
     TOCK("le_extract_lines_from_segment");
 
-    TICK("le_merge_collinear_lines");
-    mergeCollinearLines();
-    TOCK("le_merge_collinear_lines");
-
     TICK("le_create_lines_tree");
-    linesSortingByLength(lines_);
-    createLinesTree(lines_);
+    linesSortingByLength(m_lines);
+    createLinesTree(m_lines);
     TOCK("le_create_lines_tree");
 
     TICK("le_extract_lines_clusters");
     extracLinesClusters();
     TOCK("le_extract_lines_clusters");
-
-    TICK("le_sorting_merged_lines");
-    linesSortingByLength(mergedLines_);
-    TOCK("le_sorting_merged_lines");
 
 //    float minLength = mergedLines_.begin()->length();
 //    float maxLength = mergedLines_.end()->length();
@@ -224,16 +216,16 @@ template<typename PointInT, typename PointOutT>
 void LineExtractor<PointInT, PointOutT>::joinSortedPoints()
 {
     pcl::search::KdTree<pcl::PointXYZI> tree;
-    tree.setInputCloud(boundary_);
+    tree.setInputCloud(m_boundary);
 
-    for (int i = boundary_->points.size() - 1; i >= 0; i--)
+    for (int i = m_boundary->points.size() - 1; i >= 0; i--)
     {
-        if (boundary_->points[i].intensity != 0)
+        if (m_boundary->points[i].intensity != 0)
             continue;
 
         std::vector<int> segment;
         segment.push_back(i);
-        boundary_->points[i].intensity = segments_.size() + 1;
+        m_boundary->points[i].intensity = m_segments.size() + 1;
 
         Eigen::Vector3f lastVector;
         int pointIndex = i;
@@ -243,17 +235,17 @@ void LineExtractor<PointInT, PointOutT>::joinSortedPoints()
             std::vector<int> neighbourIndices;
             std::vector<float> neighbourDistants;
 //            tree.nearestKSearch(pointIndex, segment_k_search_, neighbourIndices, neighbourDistants);
-            tree.radiusSearch(pointIndex, segment_distance_threshold_, neighbourIndices, neighbourDistants);
+            tree.radiusSearch(pointIndex, m_segmentDistanceThreshold, neighbourIndices, neighbourDistants);
 
             std::vector<int> availableNeighbourIndices;
             for (int ni = 1; ni < neighbourIndices.size(); ni++)
             {
-                pcl::PointXYZI nP = boundary_->points[neighbourIndices[ni]];
+                pcl::PointXYZI nP = m_boundary->points[neighbourIndices[ni]];
                 if (nP.intensity != 0)
                 {
                     continue;
                 }
-                if (neighbourDistants[ni] > segment_distance_threshold_)
+                if (neighbourDistants[ni] > m_segmentDistanceThreshold)
                 {
                     continue;
                 }
@@ -265,8 +257,8 @@ void LineExtractor<PointInT, PointOutT>::joinSortedPoints()
                 break;
             }
 
-            pcl::PointXYZI p0 = boundary_->points[pointIndex];
-            pcl::PointXYZI p1 = boundary_->points[availableNeighbourIndices[0]];
+            pcl::PointXYZI p0 = m_boundary->points[pointIndex];
+            pcl::PointXYZI p1 = m_boundary->points[availableNeighbourIndices[0]];
 
             pcl::Vector3fMap ep0 = p0.getVector3fMap();
             pcl::Vector3fMap ep1 = p1.getVector3fMap();
@@ -279,7 +271,7 @@ void LineExtractor<PointInT, PointOutT>::joinSortedPoints()
             int minAngleIndex = -1;
             for (int ai = 0; ai < availableNeighbourIndices.size(); ai++)
             {
-                pcl::PointXYZI pn = boundary_->points[availableNeighbourIndices[ai]];
+                pcl::PointXYZI pn = m_boundary->points[availableNeighbourIndices[ai]];
                 pcl::Vector3fMap epn = pn.getVector3fMap();
                 Eigen::Vector3f vn = epn - ep0;
                 vn.normalize();
@@ -316,7 +308,7 @@ void LineExtractor<PointInT, PointOutT>::joinSortedPoints()
                 pointIndex = availableNeighbourIndices[minAngleIndex];
             else*/
             pointIndex = availableNeighbourIndices[0];
-            boundary_->points[pointIndex].intensity = segments_.size() + 1;
+            m_boundary->points[pointIndex].intensity = m_segments.size() + 1;
             segment.push_back(pointIndex);
         }
 
@@ -326,8 +318,8 @@ void LineExtractor<PointInT, PointOutT>::joinSortedPoints()
         {
             pointIndex = stackedPointIndex;
 
-            pcl::PointXYZI p0 = boundary_->points[i];
-            pcl::PointXYZI p1 = boundary_->points[pointIndex];
+            pcl::PointXYZI p0 = m_boundary->points[i];
+            pcl::PointXYZI p1 = m_boundary->points[pointIndex];
             pcl::Vector3fMap ep0 = p0.getVector3fMap();
             pcl::Vector3fMap ep1 = p1.getVector3fMap();
             Eigen::Vector3f v1 = ep1 - ep0;
@@ -341,17 +333,17 @@ void LineExtractor<PointInT, PointOutT>::joinSortedPoints()
             std::vector<int> neighbourIndices;
             std::vector<float> neighbourDistants;
 //            tree.nearestKSearch(pointIndex, segment_k_search_, neighbourIndices, neighbourDistants);
-            tree.radiusSearch(pointIndex, segment_distance_threshold_, neighbourIndices, neighbourDistants);
+            tree.radiusSearch(pointIndex, m_segmentDistanceThreshold, neighbourIndices, neighbourDistants);
 
             std::vector<int> availableNeighbourIndices;
             for (int ni = 1; ni < neighbourIndices.size(); ni++)
             {
-                pcl::PointXYZI nP = boundary_->points[neighbourIndices[ni]];
+                pcl::PointXYZI nP = m_boundary->points[neighbourIndices[ni]];
                 if (nP.intensity != 0)
                 {
                     continue;
                 }
-                if (neighbourDistants[ni] > segment_distance_threshold_)
+                if (neighbourDistants[ni] > m_segmentDistanceThreshold)
                 {
                     continue;
                 }
@@ -363,8 +355,8 @@ void LineExtractor<PointInT, PointOutT>::joinSortedPoints()
                 break;
             }
 
-            pcl::PointXYZI p0 = boundary_->points[pointIndex];
-            pcl::PointXYZI p1 = boundary_->points[availableNeighbourIndices[0]];
+            pcl::PointXYZI p0 = m_boundary->points[pointIndex];
+            pcl::PointXYZI p1 = m_boundary->points[availableNeighbourIndices[0]];
 
             pcl::Vector3fMap ep0 = p0.getVector3fMap();
             pcl::Vector3fMap ep1 = p1.getVector3fMap();
@@ -377,7 +369,7 @@ void LineExtractor<PointInT, PointOutT>::joinSortedPoints()
             int minAngleIndex = -1;
             for (int ai = 0; ai < availableNeighbourIndices.size(); ai++)
             {
-                pcl::PointXYZI pn = boundary_->points[availableNeighbourIndices[ai]];
+                pcl::PointXYZI pn = m_boundary->points[availableNeighbourIndices[ai]];
                 pcl::Vector3fMap epn = pn.getVector3fMap();
                 Eigen::Vector3f vn = epn - ep0;
                 vn.normalize();
@@ -406,13 +398,13 @@ void LineExtractor<PointInT, PointOutT>::joinSortedPoints()
                 pointIndex = availableNeighbourIndices[minAngleIndex];
             else*/
             pointIndex = availableNeighbourIndices[0];
-            boundary_->points[pointIndex].intensity = segments_.size() + 1;
+            m_boundary->points[pointIndex].intensity = m_segments.size() + 1;
             segment.insert(segment.begin(), pointIndex);
         }
 
-        if (segment.size() > min_line_len_)
+        if (segment.size() > m_minLinePoints)
         {
-            segments_.push_back(segment);
+            m_segments.push_back(segment);
             //std::cout << std::setw(10) << "segment " << std::setw(4) << segments_.size() - 1 << ": " << segment.size() << "\t" << boundary_->points[i].x << ", " << boundary_->points[i].y << ", " << boundary_->points[i].z << std::endl;
             /*for (int j = 0; j < segment.size(); j++)
             {
@@ -421,16 +413,16 @@ void LineExtractor<PointInT, PointOutT>::joinSortedPoints()
         }
     }
 
-    std::cout << "segment size: " << segments_.size() << std::endl;
-    std::cout << "edge points size: " << boundary_->size() << std::endl;
+    std::cout << "segment size: " << m_segments.size() << std::endl;
+    std::cout << "edge points size: " << m_boundary->size() << std::endl;
 
     size_t maxLength = 0;
     int maxIndex = 0;
-    for (int s = 0; s < segments_.size(); s++)
+    for (int s = 0; s < m_segments.size(); s++)
     {
-        if (maxLength < segments_[s].size())
+        if (maxLength < m_segments[s].size())
         {
-            maxLength = segments_[s].size();
+            maxLength = m_segments[s].size();
             maxIndex = s;
         }
     }
@@ -465,7 +457,7 @@ void LineExtractor<PointInT, PointOutT>::extractLinesFromSegment(const std::vect
     //int length = segments_[i].size();
     int index = 0;
 
-    while (index < segment.size() - min_line_len_)
+    while (index < segment.size() - m_minLinePoints)
     {
         bool valid = false;
         Eigen::Vector3f dir;
@@ -473,10 +465,10 @@ void LineExtractor<PointInT, PointOutT>::extractLinesFromSegment(const std::vect
         dir.fill(0);
         meanPoint.fill(0);
 
-        while (index < segment.size() - min_line_len_)
+        while (index < segment.size() - m_minLinePoints)
         {
-            float error = lineFit(segment, index, min_line_len_, dir, meanPoint);
-            if (error <= pca_error_threshold_)
+            float error = lineFit(segment, index, m_minLinePoints, dir, meanPoint);
+            if (error <= m_pcaErrorThreshold)
             {
                 valid = true;
                 break;
@@ -489,7 +481,7 @@ void LineExtractor<PointInT, PointOutT>::extractLinesFromSegment(const std::vect
             continue;
 
         int startIndex = index;
-        int endIndex = startIndex + min_line_len_;
+        int endIndex = startIndex + m_minLinePoints;
 
         while (endIndex < segment.size())
         {
@@ -499,8 +491,8 @@ void LineExtractor<PointInT, PointOutT>::extractLinesFromSegment(const std::vect
 
             while (endIndex < segment.size() && currentIndex < segment.size())
             {
-                float distance = distanceToLine(boundary_->points[segment[currentIndex]], dir, meanPoint);
-                if (distance <= pca_error_threshold_)
+                float distance = distanceToLine(m_boundary->points[segment[currentIndex]], dir, meanPoint);
+                if (distance <= m_pcaErrorThreshold)
                 {
                     endIndex++;
                     goodPointCount++;
@@ -534,13 +526,13 @@ void LineExtractor<PointInT, PointOutT>::extractLinesFromSegment(const std::vect
                 /*while (linePointIndex < segment.size() && distanceToLine(boundary_->points[segment[linePointIndex]], dir, meanPoint) > pca_error_threshold_)
                     linePointIndex++;*/
                 startIndex = linePointIndex;
-                Eigen::Vector3f startPoint = closedPointOnLine(boundary_->points[segment[startIndex]], dir, meanPoint);
+                Eigen::Vector3f startPoint = closedPointOnLine(m_boundary->points[segment[startIndex]], dir, meanPoint);
 
                 linePointIndex = endIndex;
                 /*while (linePointIndex >= 0 && distanceToLine(boundary_->points[segment[linePointIndex]], dir, meanPoint) > pca_error_threshold_)
                     linePointIndex--;*/
                 endIndex = linePointIndex;
-                Eigen::Vector3f endPoint = closedPointOnLine(boundary_->points[segment[endIndex]], dir, meanPoint);
+                Eigen::Vector3f endPoint = closedPointOnLine(m_boundary->points[segment[endIndex]], dir, meanPoint);
 
 //                std::cout << "segment " << segmentNo << ": "
 //                    << "["
@@ -554,232 +546,14 @@ void LineExtractor<PointInT, PointOutT>::extractLinesFromSegment(const std::vect
 //                    << boundary_->points[segment[endIndex]].z << "] "
 //                    << endPoint.transpose() << ", " << (endPoint - startPoint).norm() << std::endl;
                 LineSegment line(startPoint, endPoint, segmentNo);
-                unifyLineDirection(line);
-                lines_.push_back(line);
+                //unifyLineDirection(line);
+                m_lines.push_back(line);
 
                 index = endIndex + 1;
                 break;
             }
         }
     }
-}
-
-template<typename PointInT, typename PointOutT>
-void LineExtractor<PointInT, PointOutT>::mergeCollinearLines()
-{
-    if (lines_.empty())
-        return;
-
-    std::vector<LineSegment> src = lines_;
-    std::vector<LineSegment> dst;
-
-    std::vector<LineSegment>* lines1 = &src;
-    std::vector<LineSegment>* lines2 = &dst;
-
-    int srcSize = static_cast<int>(lines1->size());
-    int dstSize = 0;
-    while (srcSize != dstSize)
-    {
-        lines2->clear();
-        lines2->push_back((*lines1)[0]);
-
-        for (int i = 1; i < lines1->size(); i++)
-        {
-            LineSegment currentLine = (*lines1)[i];
-            LineSegment lastMergedLine = lines2->back();
-
-            // 进入了下一个segment
-            if (currentLine.segmentNo() != lastMergedLine.segmentNo())
-            {
-                lines2->push_back(currentLine);
-                continue;
-            }
-
-            LINE_ORDER order;
-            float lineDistance = linesDistance(lastMergedLine, currentLine, order);
-            if (lineDistance >= max_distance_between_two_lines_)    // 两条线之间的距离太大，不考虑
-            {
-                lines2->push_back(currentLine);
-                continue;
-            }
-
-            if (!isLinesCollinear2(lastMergedLine, currentLine)) // 不共线就直接下一条
-            {
-                lines2->push_back(currentLine);
-                continue;
-            }
-
-            switch (order)
-            {
-            case LO_SS:
-                lastMergedLine.setStart(currentLine.end());
-                break;
-            case LO_SE:
-                lastMergedLine.setStart(currentLine.start());
-                break;
-            case LO_ES:
-                lastMergedLine.setEnd(currentLine.end());
-                break;
-            case LO_EE:
-                lastMergedLine.setEnd(currentLine.start());
-                break;
-            }
-            (*lines2)[lines2->size() - 1] = lastMergedLine;
-        }
-
-        srcSize = lines1->size();
-        dstSize = lines2->size();
-
-        std::vector<LineSegment>* tmp = lines1;
-        lines1 = lines2;
-        lines2 = tmp;
-    }
-
-    mergedLines_ = dst;
-}
-
-template<typename PointInT, typename PointOutT>
-void LineExtractor<PointInT, PointOutT>::mergeCollinearLines2()
-{
-    if (lines_.empty())
-        return;
-
-    std::vector<LineSegment> src = lines_;
-    std::vector<LineSegment> dst;
-
-    //std::vector<LineSegment>* pSrc = &src;
-    //std::vector<LineSegment>* pDst = &dst;
-
-    //int srcSize = pSrc->size();
-    int lastSize = -1;
-    while (lastSize != dst.size())
-    {
-        lastSize = dst.size();
-        dst.clear();
-
-        while (!src.empty())
-        {
-            LineSegment currentLine = src.back();
-            src.pop_back();
-
-            int index = 0;
-            while (index < src.size())
-            {
-                LineSegment candidateLine = src[index];
-
-                LINE_ORDER order;
-                float lineDistance = linesDistance(currentLine, candidateLine, order);
-                if (lineDistance >= max_distance_between_two_lines_)    // 两条线之间的距离太大，不考虑
-                {
-                    index++;
-                    continue;
-                }
-
-                if (!isLinesCollinear(currentLine, candidateLine)) // 不共线就直接下一条
-                {
-                    index++;
-                    continue;
-                }
-
-                switch (order)
-                {
-                case LO_SS:
-                    currentLine.setStart(candidateLine.end());
-                    break;
-                case LO_SE:
-                    currentLine.setStart(candidateLine.start());
-                    break;
-                case LO_ES:
-                    currentLine.setEnd(candidateLine.end());
-                    break;
-                case LO_EE:
-                    currentLine.setEnd(candidateLine.start());
-                    break;
-                }
-
-                src.erase(src.begin() + index);
-            }
-            //(*pDst)[pDst->size() - 1] = lastMergedLine;
-
-            dst.push_back(currentLine);
-        }
-        src = dst;
-    }
-
-    mergedLines_ = dst;
-}
-
-template<typename PointInT, typename PointOutT>
-bool LineExtractor<PointInT, PointOutT>::isLinesCollinear(const LineSegment &line1, const LineSegment &line2)
-{
-    const LineSegment* longer = &line1;
-    const LineSegment* shorter = &line2;
-
-    if (line1.length() < line2.length())
-    {
-        longer = &line2;
-        shorter = &line1;
-    }
-
-    float distance = distanceToLine(shorter->start(), longer->direction(), longer->middle());
-    distance += distanceToLine(shorter->middle(), longer->direction(), longer->middle());
-    distance += distanceToLine(shorter->end(), longer->direction(), longer->middle());
-
-    distance /= 3.0f;
-
-    if (distance >= max_error_)
-        return false;
-
-    return true;
-}
-
-template<typename PointInT, typename PointOutT>
-bool LineExtractor<PointInT, PointOutT>::isLinesCollinear2(const LineSegment &line1, const LineSegment &line2)
-{
-    double angle = std::abs(std::acos(line1.direction().normalized().dot(line2.direction().normalized())));
-    //std::cout << angle << ", " << line1.length() << ", " << line2.length() << std::endl;
-
-    if (angle <= 90 && angle >= max_angle_error_)
-        return false;
-    else if (angle > 90 && (M_PI - angle) >= max_angle_error_)
-        return false;
-
-    return true;
-}
-
-template<typename PointInT, typename PointOutT>
-float LineExtractor<PointInT, PointOutT>::linesDistance(const LineSegment &line1, const LineSegment &line2, LineExtractor::LINE_ORDER &order)
-{
-    // 计算头之间的距离
-    float distance = (line1.start() - line2.start()).norm();
-    float minDistance = distance;
-    order = LO_SS;
-
-    // 计算头尾之间的距离
-    distance = (line1.start() - line2.end()).norm();
-    if (distance < minDistance)
-    {
-        minDistance = distance;
-        order = LO_SE;
-    }
-
-    // 计算尾头之间的距离
-    distance = (line1.end() - line2.start()).norm();
-    if (distance < minDistance)
-    {
-        minDistance = distance;
-        order = LO_ES;
-    }
-
-    // 计算尾尾之间的距离
-    distance = (line1.end() - line2.end()).norm();
-    if (distance < minDistance)
-    {
-        minDistance = distance;
-        order = LO_EE;
-    }
-
-    return minDistance;
 }
 
 template<typename PointInT, typename PointOutT>
@@ -793,7 +567,7 @@ float LineExtractor<PointInT, PointOutT>::lineFit(const std::vector<int> &segmen
     }
 
     pcl::PCA<pcl::PointXYZI> pca;
-    pca.setInputCloud(boundary_);
+    pca.setInputCloud(m_boundary);
     pca.setIndices(pcl::IndicesPtr(new std::vector<int>(indices)));
     Eigen::Vector3f eigenValue = pca.getEigenVectors().col(0).normalized();
     Eigen::Vector4f mean4f = pca.getMean();
@@ -804,7 +578,7 @@ float LineExtractor<PointInT, PointOutT>::lineFit(const std::vector<int> &segmen
     float sumDistance = 0;
     for (int i = index; i < index + length; i++)
     {
-        float distance = distanceToLine(boundary_->points[segment[i]], dir, meanPoint);
+        float distance = distanceToLine(m_boundary->points[segment[i]], dir, meanPoint);
         sumDistance += distance;
         //std::cout << distance << std::endl;
     }
@@ -847,9 +621,9 @@ void LineExtractor<PointInT, PointOutT>::generateLineCloud()
         start.getVector3fMap() = i->start();
         middle.getVector3fMap() = i->middle();
         end.getVector3fMap() = i->end();
-        lineCloud_->push_back(start);
-        lineCloud_->push_back(middle);
-        lineCloud_->push_back(end);
+        m_lineCloud->push_back(start);
+        m_lineCloud->push_back(middle);
+        m_lineCloud->push_back(end);
     }
 }
 
@@ -916,15 +690,13 @@ void LineExtractor<PointInT, PointOutT>::createLinesTree(const std::vector<LineS
     if (lines.empty())
         return;
 
-    mergedLines_.clear();
     int count = 0;
     for (std::vector<LineSegment>::const_iterator i = lines.begin(); i != lines.end(); i++)
     {
         LineTreeNode *node = new LineTreeNode(*i);
-        if (root_ == nullptr)
+        if (m_root == nullptr)
         {
-            root_ = node;
-            mergedLines_.push_back(*i);
+            m_root = node;
             continue;
         }
 
@@ -936,7 +708,7 @@ void LineExtractor<PointInT, PointOutT>::createLinesTree(const std::vector<LineS
 template<typename PointInT, typename PointOutT>
 void LineExtractor<PointInT, PointOutT>::extracLinesClusters()
 {
-    LineTreeNode *curr = root_;
+    LineTreeNode *curr = m_root;
 //    LineTreeNode *prev = nullptr;
 
     LineCluster *cluster = nullptr;
@@ -967,10 +739,10 @@ void LineExtractor<PointInT, PointOutT>::extracLinesClusters()
 
         if (curr->isLeftChild())
         {
-            if (curr->chainDistance() > lines_chain_distance_threshold_)
+            if (curr->chainDistance() > m_linesChainDistanceThreshold)
             {
                 // 一个聚集搜索完毕
-                lineClusters_.append(cluster);
+                m_lineClusters.append(cluster);
                 cluster = nullptr;
             }
             curr = curr->parent();
@@ -978,7 +750,7 @@ void LineExtractor<PointInT, PointOutT>::extracLinesClusters()
         else if (curr->isRightRoot())
         {
             // 一个聚集搜索完毕
-            lineClusters_.append(cluster);
+            m_lineClusters.append(cluster);
             cluster = nullptr;
 
             if (curr->hasRightChild())
@@ -1001,13 +773,13 @@ void LineExtractor<PointInT, PointOutT>::extracLinesClusters()
     //{
         //qDebug().noquote() << "cluster" << i << ": cluster size:" << lineClusters_[i]->size();
     //}
-    lineClusters_.pop_back();
+    m_lineClusters.pop_back();
 }
 
 template<typename PointInT, typename PointOutT>
 void LineExtractor<PointInT, PointOutT>::addLineTreeNode(LineTreeNode *node)
 {
-    LineTreeNode *curr = root_;
+    LineTreeNode *curr = m_root;
 
     float distance = 0;
     float angle = 0;
@@ -1056,7 +828,7 @@ void LineExtractor<PointInT, PointOutT>::addLineTreeNode(LineTreeNode *node)
             }
             else
             {
-                root_ = node;
+                m_root = node;
             }
 
             if (curr->hasRightChild())
@@ -1106,7 +878,7 @@ void LineExtractor<PointInT, PointOutT>::compareLines(LineSegment &longLine, Lin
     Eigen::Vector3f line2Dir = line2.normalized();
 
     float theta;
-    bool sameDirection = shortLine.applyAnotherLineDirection(longLine, theta, lines_cluster_angle_threshold_);
+    bool sameDirection = shortLine.similarDirection(longLine, theta, qDegreesToRadians(m_lineClusterAngleThreshold));
     angle = theta;
     if (!sameDirection)
     {
@@ -1142,22 +914,16 @@ void LineExtractor<PointInT, PointOutT>::compareLines(LineSegment &longLine, Lin
         }
     }
 
-//    Eigen::Vector3f lineM1M2Dir = line1Dir.cross(line2Dir);
-//    lineM1M2Dir.normalize();
-//    if (lineM1M2Dir.isZero())
-//    {
-//        distance = 0;
-//    }
-//    distance = qAbs(lineEndPoints.dot(lineM1M2Dir));
-
     distance = longLine.averageDistance(shortLine);
 
 //    qDebug().nospace().noquote() << "distance: " << distance;
-    if (distance >= lines_distance_threshold_)
+    if (distance >= m_linesDistanceThreshold)
     {
         lineRel = LR_NONE;
         return;
     }
+
+    shortLine.applyAnotherLineDirection(longLine);
 
     Eigen::Vector3f ptS2ProjOnLine1 = ptS1 + line1Dir * lineS1S2.dot(line1Dir);
     Eigen::Vector3f ptE2ProjOnLine1 = ptE1 + line1Dir * lineE1E2.dot(line1Dir);

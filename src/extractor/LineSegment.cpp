@@ -127,15 +127,16 @@ void LineSegment::reverse()
     data->end = tmp;
 }
 
-bool LineSegment::applyAnotherLineDirection(const LineSegment &other, float &angle, float threshold)
+bool LineSegment::similarDirection(const LineSegment &other, float &angle, float threshold)
 {
     angle = angleToAnotherLine(other);
     if (angle < threshold)
+    {
         return true;
-    if (angle > (M_PI - threshold))
+    }
+    else if (angle > (M_PI - threshold))
     {
         angle = M_PI - angle;
-        reverse();
         return true;
     }
 
@@ -148,6 +149,14 @@ bool LineSegment::similarDirection(const LineSegment &other, float threshold)
     if (angle < threshold || angle > (M_PI - threshold))
         return true;
     return false;
+}
+
+void LineSegment::applyAnotherLineDirection(const LineSegment& other)
+{
+    if (direction().dot(other.direction()) < 0)
+    {
+        reverse();
+    }
 }
 
 float LineSegment::angleToAnotherLine(const LineSegment &other)
@@ -167,10 +176,8 @@ Eigen::VectorXf LineSegment::longDescriptor() const
 
 float LineSegment::averageDistance(const LineSegment &other)
 {
-    float distS = pointDistance(other.start());
     float distM = pointDistance(other.middle());
-    float distE = pointDistance(other.end());
-    return (distS + distM + distE) / 3;
+    return distM;
 }
 
 float LineSegment::pointDistance(const Eigen::Vector3f &point)

@@ -106,6 +106,7 @@ void LineMatchOdometry::doProcessing(Frame& frame)
 //    m_cloud->resize(m_cloud->points.size());
 //    m_cloud->width = static_cast<quint32>(colorMat.cols);
 //    m_cloud->height = static_cast<quint32>(colorMat.rows);
+    pcl::copyPointCloud(*cloud, *m_cloud);
 
     StopWatch::instance().tick("normal_estimation");
     qDebug() << "isOrganized:" << m_cloud->isOrganized() << m_cloudIndices->size();
@@ -191,8 +192,7 @@ void LineMatchOdometry::doProcessing(Frame& frame)
 
     StopWatch::instance().tick("show_result");
     std::vector<LineSegment> lines = le.getLines();
-    std::vector<LineSegment> mergedLines = le.getMergedLines();
-    qDebug() << "size of lines: " << lines.size() << ", size of merged lines: " << mergedLines.size();
+    qDebug() << "size of lines: " << lines.size();
 
     m_cloudViewer->visualizer()->removeAllShapes();
     srand(0);
@@ -219,27 +219,6 @@ void LineMatchOdometry::doProcessing(Frame& frame)
             m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
             m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo);
         }
-    }
-
-    for (int i = 0; i < mergedLines.size() && false; i++)
-    {
-        std::string lineNo = "merged_line_" + std::to_string(i);
-
-        double r = rand() * 1.0 / RAND_MAX;
-        double g = rand() * 1.0 / RAND_MAX;
-        double b = rand() * 1.0 / RAND_MAX;
-//        double r = 1;
-//        double g = 0;
-//        double b = 0;
-
-//        qDebug().noquote().nospace() << QString::fromStdString(lineNo) << " length is " << mergedLines[i].length() << "m";
-
-        pcl::PointXYZI start, end;
-        start.getVector3fMap() = mergedLines[i].start();
-        end.getVector3fMap() = mergedLines[i].end();
-//        m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
-        m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
-        m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
     }
 
     QList<LineCluster*> clusters = le.getLineClusters();
