@@ -67,7 +67,7 @@ public:
         , max_error_(0.05f)
         , max_angle_error_(M_PI / 18)
         , line_length_threshold_(0.05f)
-        , lines_cluster_angle_threshold_(M_PI / 12)
+        , lines_cluster_angle_threshold_(M_PI / 10)
         , lines_distance_threshold_(0.075f)
         , lines_chain_distance_threshold_(0.1f)
         , nr_subdiv_(5)
