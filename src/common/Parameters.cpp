@@ -30,7 +30,7 @@ Parameters::Parameters(QObject *parent)
 
 Parameters::~Parameters()
 {
-    m_writer->setValues(m_cache);
+    //m_writer->setValues(m_cache);
     m_writerThread.quit();
     m_writerThread.wait();
 }

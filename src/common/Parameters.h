@@ -9,6 +9,7 @@
 #include <QMutex>
 
 #define DEFAULT_SETTINGS_GROUP "General"
+#define PARAMETERS Parameters::Global()
 
 class ParameterWriter : public QObject
 {
