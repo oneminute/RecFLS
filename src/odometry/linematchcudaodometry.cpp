@@ -178,6 +178,10 @@ void LineMatchCudaOdometry::doProcessing(Frame& frame)
     boundaryCloud->height = 1;
     boundaryCloud->is_dense = true;
     std::cout << "boundary size:" << boundary.size() << ", cloud size:" << m_cloud->points.size() << std::endl;
+
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> redColor(boundaryCloud, 255, 0, 0);
+    //m_cloudViewer->visualizer()->addPointCloud(boundaryCloud, redColor, "boundary points");
+    //m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "boundary points");
     StopWatch::instance().tock("boundary_estimation");
 
     StopWatch::instance().tick("line_extract");

@@ -11,7 +11,7 @@ class LineCluster : public QObject
 public:
     explicit LineCluster(QObject *parent = nullptr);
 
-    void addLine(const LineSegment &line);
+    void addLine(LineSegment &line);
 
     QList<LineSegment> lines() const
     {
