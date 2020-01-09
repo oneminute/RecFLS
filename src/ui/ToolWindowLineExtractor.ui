@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ToolWindowLineExtractor</class>
+ <widget class="QMainWindow" name="ToolWindowLineExtractor">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>940</width>
+    <height>641</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QSplitter" name="splitter">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <widget class="QWidget" name="containerSecondary" native="true">
+       <layout class="QVBoxLayout" name="layoutSecondary"/>
+      </widget>
+      <widget class="QWidget" name="containerPointCloud" native="true">
+       <layout class="QHBoxLayout" name="layoutPointCloud"/>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>940</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menu_File">
+    <property name="title">
+     <string>&amp;File</string>
+    </property>
+    <addaction name="actionLoad_Point_Cloud"/>
+    <addaction name="actionGenerate_Line_Point_Cloud"/>
+   </widget>
+   <widget class="QMenu" name="menuAction">
+    <property name="title">
+     <string>Action</string>
+    </property>
+    <addaction name="actionAnalysis"/>
+   </widget>
+   <addaction name="menu_File"/>
+   <addaction name="menuAction"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionLoad_Point_Cloud"/>
+   <addaction name="actionGenerate_Line_Point_Cloud"/>
+   <addaction name="actionAnalysis"/>
+  </widget>
+  <action name="actionLoad_Point_Cloud">
+   <property name="text">
+    <string>Load Point Cloud</string>
+   </property>
+  </action>
+  <action name="actionGenerate_Line_Point_Cloud">
+   <property name="text">
+    <string>Generate Line Point Cloud</string>
+   </property>
+  </action>
+  <action name="actionAnalysis">
+   <property name="text">
+    <string>Analysis</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

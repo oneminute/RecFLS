@@ -477,10 +477,10 @@ CloudViewer::CloudViewer(QWidget *parent, CloudViewerInteractorStyle * style) :
                 -1, 0, 0,
                 0, 0, 0,
                 0, 0, 1, 1);
-#ifndef _WIN32
+//#ifndef _WIN32
     // Crash on startup on Windows (vtk issue)
     this->addOrUpdateCoordinate("reference", Eigen::Matrix4f::Identity(), 0.2);
-#endif
+//#endif
 
     //setup menu/actions
     createMenu();

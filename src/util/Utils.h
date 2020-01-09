@@ -113,4 +113,6 @@ void findMinMax(const T *v, quint32 size, T &min, T &max)
 
 Eigen::Vector3f closedPointOnLine(const Eigen::Vector3f &point, const Eigen::Vector3f &dir, const Eigen::Vector3f &meanPoint);
 
+float oneAxisCoord(const Eigen::Vector3f& point, const Eigen::Vector3f& dir);
+
 #endif // UTILS_H

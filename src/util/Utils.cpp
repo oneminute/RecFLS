@@ -327,3 +327,14 @@ Eigen::Vector3f closedPointOnLine(const Eigen::Vector3f &point, const Eigen::Vec
     Eigen::Vector3f closedPoint = meanPoint + dir * (ev.dot(dir));
     return closedPoint;
 }
+
+float oneAxisCoord(const Eigen::Vector3f& point, const Eigen::Vector3f& dir)
+{
+    Eigen::Vector3f projPt = dir * point.dot(dir);
+    float coord = projPt.norm();
+    if (projPt.dot(dir) < 0)
+    {
+        coord = -coord;
+    }
+    return coord;
+}

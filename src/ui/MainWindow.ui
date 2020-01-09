@@ -20,7 +20,7 @@
      <x>0</x>
      <y>0</y>
      <width>878</width>
-     <height>22</height>
+     <height>23</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
@@ -38,9 +38,16 @@
      <string>&amp;Option</string>
     </property>
    </widget>
+   <widget class="QMenu" name="menuTools">
+    <property name="title">
+     <string>Tools</string>
+    </property>
+    <addaction name="actionLine_Extractor"/>
+   </widget>
    <addaction name="menu_File"/>
    <addaction name="menu_Device"/>
    <addaction name="menu_Option"/>
+   <addaction name="menuTools"/>
   </widget>
   <widget class="QToolBar" name="mainToolBar">
    <attribute name="toolBarArea">
@@ -200,6 +207,11 @@
    </property>
    <property name="toolTip">
     <string>Close Device</string>
+   </property>
+  </action>
+  <action name="actionLine_Extractor">
+   <property name="text">
+    <string>Line Extractor</string>
    </property>
   </action>
  </widget>

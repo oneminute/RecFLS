@@ -87,6 +87,8 @@ public:
         }
     }
 
+    bool LineCompare(const LineSegment& l1, const LineSegment& l2);
+
     void compute(const pcl::PointCloud<PointInT>& cloudIn, pcl::PointCloud<PointOutT>& cloudOut);
 
     std::map<int, int> linesCompare(const std::vector<LineSegment>& srcLines);
@@ -120,6 +122,14 @@ public:
     {
         return m_lineClusters;
     }
+
+    pcl::PointCloud<pcl::PointXYZI>::Ptr parameterizedLineMappingCluster();
+
+    pcl::PointCloud<pcl::PointXYZI>::Ptr parameterizedPointMappingCluster(pcl::PointCloud<pcl::PointXYZ>::Ptr& dirCloud);
+
+    QList<QList<int>> lineClusterFromParameterizedPointCloud(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud);
+
+    QList<LineSegment> extractLinesFromClusters(const QList<QList<int>>& clusters, const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud);
 
 private:
     //    void addPointToSortedIndices(const PointInT &pt);
@@ -155,6 +165,9 @@ private:
     LineTreeNode *findRightRoot(LineTreeNode *node);
 
     LineTreeNode *findLeftLeaf(LineTreeNode *node);
+
+    void LineHoughCluster(float alpha, float beta, float distance);
+
 
 private:
     std::vector<std::vector<int>> m_segments;

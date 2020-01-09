@@ -3,7 +3,7 @@
 #include "cuda/CudaInternal.h"
 #include "device/Device.h"
 #include "ui/CloudViewer.h"
-#include "extractor/LineExtractor.h"
+#include "extractor/LineExtractor.hpp"
 #include "common/Parameters.h"
 
 #include <QDebug>
@@ -17,6 +17,7 @@
 #include <pcl/keypoints/sift_keypoint.h>
 #include <pcl/search/kdtree.h>
 #include <pcl/gpu/containers/device_array.h>
+#include <pcl/common/transforms.h>
 #include <pcl/visualization/cloud_viewer.h>
 
 #include <opencv2/core.hpp>
@@ -101,9 +102,12 @@ void LineMatchCudaOdometry::doProcessing(Frame& frame)
             pt.x = value.x;
             pt.y = value.y;
             pt.z = value.z;
-            pt.b = frame.colorMat().at<cv::Vec3b>(cv::Point(j, i))[0];
+            /*pt.b = frame.colorMat().at<cv::Vec3b>(cv::Point(j, i))[0];
             pt.g = frame.colorMat().at<cv::Vec3b>(cv::Point(j, i))[1];
-            pt.r = frame.colorMat().at<cv::Vec3b>(cv::Point(j, i))[2];
+            pt.r = frame.colorMat().at<cv::Vec3b>(cv::Point(j, i))[2];*/
+            pt.b = 0;
+            pt.g = 127;
+            pt.r = 0;
             normal.normal_x = normals[index].x;
             normal.normal_y = normals[index].y;
             normal.normal_z = normals[index].z;
@@ -172,26 +176,27 @@ void LineMatchCudaOdometry::doProcessing(Frame& frame)
     be.setSearchMethod(tree);
     be.compute(boundary);
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr boundaryCloud(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryCloud(new pcl::PointCloud<pcl::PointXYZI>);
     for (int i = 0; i < boundary.points.size(); i++)
     {
         if (boundary[i].boundary_point == 1)
         {
-            boundaryCloud->points.push_back(cloudXYZ->points[i]);
+            pcl::PointXYZI pt;
+            pt.x = cloudXYZ->points[i].x;
+            pt.y = cloudXYZ->points[i].y;
+            pt.z = cloudXYZ->points[i].z;
+            pt.intensity = i;
+            boundaryCloud->points.push_back(pt);
         }
     }
     boundaryCloud->width = boundaryCloud->points.size();
     boundaryCloud->height = 1;
     boundaryCloud->is_dense = true;
     std::cout << "boundary size:" << boundary.size() << ", cloud size:" << m_cloud->points.size() << std::endl;
-
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> redColor(boundaryCloud, 255, 0, 0);
-    //m_cloudViewer->visualizer()->addPointCloud(boundaryCloud, redColor, "boundary points");
-    //m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "boundary points");
     StopWatch::instance().tock("boundary_estimation");
 
     StopWatch::instance().tick("line_extract");
-    LineExtractor<pcl::PointXYZ, pcl::PointXYZI> le(
+    LineExtractor<pcl::PointXYZI, pcl::PointXYZI> le(
         PARAMETERS.floatValue("segment_distance_threshold", 0.1f, "LineExtractor"),
         PARAMETERS.intValue("min_line_points", 9, "LineExtractor"),
         PARAMETERS.floatValue("pca_error_threshold", 0.005f, "LineExtractor"),
@@ -215,61 +220,123 @@ void LineMatchCudaOdometry::doProcessing(Frame& frame)
     std::vector<LineSegment> lines = le.getLines();
     qDebug() << "size of lines: " << lines.size();
 
-    m_cloudViewer->visualizer()->removeAllShapes();
+    pcl::PointCloud<pcl::PointXYZ>::Ptr dirCloud;
+    //pcl::PointCloud<pcl::PointXYZI>::Ptr clusterCloud = le.parameterizedPointMappingCluster(dirCloud);
+    pcl::PointCloud<pcl::PointXYZI>::Ptr clusterCloud = le.parameterizedLineMappingCluster();
+    QList<QList<int>> indicesCluster = le.lineClusterFromParameterizedPointCloud(clusterCloud);
+    QList<LineSegment> clusterLines = le.extractLinesFromClusters(indicesCluster, clusterCloud);
+    qDebug() << "size of cluster lines: " << clusterLines.size();
+    int clusterIndex = 0;
     srand(0);
-    for (size_t i = 0; i < lines.size(); i++)
-    {
-        std::string lineNo = "line_" + std::to_string(i);
+    m_cloudViewer->visualizer()->removeAllShapes();
 
-        double r = rand() * 1.0 / RAND_MAX;
-        double g = rand() * 1.0 / RAND_MAX;
-        double b = rand() * 1.0 / RAND_MAX;
-        //double r = 1;
-        //double g = 0;
-        //double b = 0;
-
-//        qDebug().noquote().nospace() << QString::fromStdString(lineNo) << " length is " << lines[i].length() << "m";
-
-        if (lines[i].length() > 0.f)
-        {
-            pcl::PointXYZI start, end;
-            start.getVector3fMap() = lines[i].start();
-            end.getVector3fMap() = lines[i].end();
-            Eigen::Vector3f dir = lines[i].direction();
-//            m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
-            m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
-            m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo);
-        }
-    }
-
-    QList<LineCluster*> clusters = le.getLineClusters();
-    for (int i = 0; i < clusters.size() && true; i++)
+    for (QList<LineSegment>::iterator i = clusterLines.begin(); i != clusterLines.end(); i++)
     {
         double r = rand() * 1.0 / RAND_MAX;
         double g = rand() * 1.0 / RAND_MAX;
         double b = rand() * 1.0 / RAND_MAX;
 
-        LineSegment line = clusters[i]->merge();
-        if (line.length() < 0.1f)
-            continue;
-        std::string lineNo = "cluster_line_" + std::to_string(i);
+        LineSegment line = *i;
+        std::string lineNo = "line_" + std::to_string(clusterIndex);
         pcl::PointXYZI start, end;
         start.getVector3fMap() = line.start();
         end.getVector3fMap() = line.end();
+        Eigen::Vector3f dir = line.direction();
+        //m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
         m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
-        m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo);
-
-        for (int j = 0; clusters[i]->size() > 1 && j < clusters[i]->size(); j++)
-        {
-            std::string lineNo = "cluster_line_" + std::to_string(i) + "_" + std::to_string(j);
-            pcl::PointXYZI start, end;
-            start.getVector3fMap() = clusters[i]->lines()[j].start();
-            end.getVector3fMap() = clusters[i]->lines()[j].end();
-    //        m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
-            m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
-            m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
-        }
+        m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
+        clusterIndex++;
     }
+    //for (std::vector<pcl::PointIndices>::const_iterator it = indices.begin(); it != indices.end(); ++it, clusterIndex++)
+    //{
+    //    qDebug() << it->indices.size();
+
+    //    double r = rand() * 1.0 / RAND_MAX;
+    //    double g = rand() * 1.0 / RAND_MAX;
+    //    double b = rand() * 1.0 / RAND_MAX;
+
+    //    for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); ++pit)
+    //    {
+    //        int index = *pit;
+    //        std::string lineNo = "line_" + std::to_string(index);
+    //        clusterCloud->points[index].intensity = clusterIndex;
+
+    //        qDebug() << "    " << QString::fromStdString(lineNo);
+
+    //        pcl::PointXYZI start, end;
+    //        start.getVector3fMap() = lines[index].start();
+    //        end.getVector3fMap() = lines[index].end();
+    //        Eigen::Vector3f dir = lines[index].direction();
+    //        //m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
+    //        m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
+    //        m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo);
+
+    //    }
+    //}
+    Eigen::Affine3f t;
+    pcl::getTransformation(-2.0, 0.0, 0.0, 0.0, 0.0, 0.0, t);
+    pcl::transformPointCloud(*clusterCloud, *clusterCloud, t);
+    pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(clusterCloud, "intensity");
+    //pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> redColorCluster(clusterCloud, 255, 0, 0);
+    m_cloudViewer->visualizer()->addPointCloud(clusterCloud, iColor, "cluster points");
+    m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cluster points");
+
+    pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColorB(le.getBoundary(), "intensity");
+    m_cloudViewer->visualizer()->addPointCloud(le.getBoundary(), iColorB, "boundary points");
+
+//    for (size_t i = 0; i < lines.size() && false; i++)
+//    {
+//        std::string lineNo = "line_" + std::to_string(i);
+//
+//        double r = rand() * 1.0 / RAND_MAX;
+//        double g = rand() * 1.0 / RAND_MAX;
+//        double b = rand() * 1.0 / RAND_MAX;
+//        //double r = 1;
+//        //double g = 0;
+//        //double b = 0;
+//
+////        qDebug().noquote().nospace() << QString::fromStdString(lineNo) << " length is " << lines[i].length() << "m";
+//
+//        if (lines[i].length() > 0.f)
+//        {
+//            pcl::PointXYZI start, end;
+//            start.getVector3fMap() = lines[i].start();
+//            end.getVector3fMap() = lines[i].end();
+//            Eigen::Vector3f dir = lines[i].direction();
+////            m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
+//            m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
+//            m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo);
+//        }
+//    }
+//
+//    QList<LineCluster*> clusters = le.getLineClusters();
+//    for (int i = 0; i < clusters.size() && false; i++)
+//    {
+//        double r = rand() * 1.0 / RAND_MAX;
+//        double g = rand() * 1.0 / RAND_MAX;
+//        double b = rand() * 1.0 / RAND_MAX;
+//
+//        LineSegment line = clusters[i]->merge();
+//        if (line.length() < 0.1f)
+//            continue;
+//        std::string lineNo = "cluster_line_" + std::to_string(i);
+//        pcl::PointXYZI start, end;
+//        start.getVector3fMap() = line.start();
+//        end.getVector3fMap() = line.end();
+//        m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
+//        m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo);
+//
+//        for (int j = 0; clusters[i]->size() > 1 && j < clusters[i]->size(); j++)
+//        {
+//            std::string lineNo = "cluster_line_" + std::to_string(i) + "_" + std::to_string(j);
+//            pcl::PointXYZI start, end;
+//            start.getVector3fMap() = clusters[i]->lines()[j].start();
+//            end.getVector3fMap() = clusters[i]->lines()[j].end();
+//    //        m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
+//            m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
+//            m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
+//        }
+//    }
     StopWatch::instance().tock("show_result");
 
 }

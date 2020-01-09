@@ -83,7 +83,6 @@ set(OTHER_FILES
     .gitignore
 )
 
-
 source_group("ui" FILES ${UIS})
 source_group("others" FILES ${OTHER_FILES})
 

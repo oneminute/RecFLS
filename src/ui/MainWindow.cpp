@@ -50,6 +50,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_ui->centralWidget->setVisible(false);
 
     connect(m_ui->actionOpen_Device, &QAction::triggered, this, &MainWindow::onActionOpenDevice);
+    connect(m_ui->actionLine_Extractor, &QAction::triggered, this, &MainWindow::onActionToolWindowLineExtractor);
     connect(m_ui->actionNext_Frame, &QAction::triggered, this, &MainWindow::onActionNextFrame);
 }
 
@@ -123,6 +124,16 @@ void MainWindow::onActionPause()
 void MainWindow::onActionCloseDevice()
 {
 
+}
+
+void MainWindow::onActionToolWindowLineExtractor()
+{
+    if (!m_toolWindowLineExtractor)
+    {
+        m_toolWindowLineExtractor.reset(new ToolWindowLineExtractor);
+    }
+    m_toolWindowLineExtractor->setWindowModality(Qt::WindowModality::ApplicationModal);
+    m_toolWindowLineExtractor->show();
 }
 
 void MainWindow::onFrameFetched(Frame &frame)

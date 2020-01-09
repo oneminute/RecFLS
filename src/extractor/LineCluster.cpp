@@ -18,7 +18,7 @@ void LineCluster::addLine(LineSegment &line)
     {
         if (m_lines[0].direction().dot(line.direction()) < 0)
         {
-            qDebug() << "reverse.";
+            //qDebug() << "reverse.";
             line.reverse();
         }
     }

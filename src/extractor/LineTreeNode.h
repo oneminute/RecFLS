@@ -37,8 +37,6 @@ public:
 
     bool hasLeftChild() const;
 
-    bool hasSideChild() const;
-
     bool hasRightChild() const;
 
     float distance() const;

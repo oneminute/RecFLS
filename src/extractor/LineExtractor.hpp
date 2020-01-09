@@ -6,8 +6,13 @@
 #include <QtMath>
 #include <QQueue>
 #include <pcl/common/pca.h>
+#include <pcl/search/search.h>
+#include <pcl/search/kdtree.h>
+#include <pcl/segmentation/region_growing.h>
+#include <pcl/segmentation/extract_clusters.h>
 
-bool LineCompare(const LineSegment& l1, const LineSegment& l2)
+template <typename PointInT, typename PointOutT>
+bool LineExtractor<PointInT, PointOutT>::LineCompare(const LineSegment& l1, const LineSegment& l2)
 {
     return l1.length() > l2.length();
 }
@@ -37,7 +42,7 @@ void LineExtractor<PointInT, PointOutT>::compute(const pcl::PointCloud<PointInT>
     TOCK("le_extract_lines_from_segment");
 
     TICK("le_create_lines_tree");
-    linesSortingByLength(m_lines);
+    //linesSortingByLength(m_lines);
     createLinesTree(m_lines);
     TOCK("le_create_lines_tree");
 
@@ -211,6 +216,361 @@ std::map<int, int> LineExtractor<PointInT, PointOutT>::linesCompare(const std::v
 //        }
 //    }
 //}
+
+template<typename PointInT, typename PointOutT>
+pcl::PointCloud<pcl::PointXYZI>::Ptr LineExtractor<PointInT, PointOutT>::parameterizedLineMappingCluster()
+{
+    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud < pcl::PointXYZI>);
+    Eigen::Vector3f xAxis(1, 0, 0), yAxis(0, 1, 0);
+    int index = 0;
+    float minDist = 10000, maxDist = 0;
+    for (std::vector<LineSegment>::iterator i = m_lines.begin(); i != m_lines.end(); i++, index++)
+    {
+        //if (i->length() < 0.03f)
+            //continue;
+
+        Eigen::Vector3f dir = i->direction();
+        dir.normalize();
+
+        float beta = qAcos(dir.dot(yAxis)) * 2;
+        Eigen::Vector3f dirP = dir - yAxis * dir.dot(yAxis);
+
+        float a = 0;
+        if (dirP.norm() >= 0.001f)
+        {
+            Eigen::Vector3f dirPM = dirP.normalized();
+            a = qAcos(dirPM.dot(xAxis));
+            a = dirPM.z() >= 0 ? a : -a;
+        }
+        float alpha = a;
+
+        beta /= M_PI;
+        alpha /= M_PI;
+
+        Eigen::Vector3f vertDir = i->middle().cross(dir);
+        float distance = vertDir.norm();
+        if (vertDir.dot(yAxis) < 0)
+            distance = -distance;
+
+        if (distance < minDist)
+            minDist = distance;
+        if (distance > maxDist)
+            maxDist = distance;
+        distance /= 16;
+        pcl::PointXYZI point;
+        point.x = alpha;
+        point.y = beta;
+        point.z = distance;
+        point.intensity = index;
+        cloud->push_back(point);
+    }
+    qDebug() << "max: " << maxDist << ", min: " << minDist;
+    cloud->is_dense = true;
+    return cloud;
+}
+
+template<typename PointInT, typename PointOutT>
+pcl::PointCloud<pcl::PointXYZI>::Ptr LineExtractor<PointInT, PointOutT>::parameterizedPointMappingCluster(pcl::PointCloud<pcl::PointXYZ>::Ptr& dirCloud)
+{
+    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud < pcl::PointXYZI>);
+    dirCloud = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud < pcl::PointXYZ>);
+    pcl::search::KdTree<pcl::PointXYZI> tree;
+    tree.setInputCloud(m_boundary);
+    Eigen::Vector3f xAxis(1, 0, 0), yAxis(0, 1, 0);
+    Eigen::Vector3f baseDir(1, 1, 1);
+    baseDir.normalize();
+    for (int i = 0; i < m_boundary->size(); i++)
+    {
+        pcl::PointXYZI pt = m_boundary->points[i];
+        std::vector<int> indices;
+        std::vector<float> distances;
+        tree.radiusSearch(pt, 0.025f, indices, distances);
+
+        if (indices.size() > 3)
+        {
+            pcl::PCA<pcl::PointXYZI> pca;
+            pca.setInputCloud(m_boundary);
+            pca.setIndices(pcl::IndicesPtr(new std::vector<int>(indices)));
+            Eigen::Vector3f eigenValues = pca.getEigenValues();
+            Eigen::Vector3f::Index maxIndex;
+            eigenValues.maxCoeff(&maxIndex);
+            Eigen::Vector3f dir = pca.getEigenVectors().col(maxIndex).normalized();
+            dir.normalize();
+
+            if (dir.dot(baseDir) < 0)
+            {
+                dir = dir * -1;
+            }
+
+            float beta = qAcos(dir.dot(yAxis));
+            Eigen::Vector3f dirP = dir - yAxis * dir.dot(yAxis);
+            float a = 0;
+            if (dirP.norm() >= 0.001f)
+            {
+                Eigen::Vector3f dirPM = dirP.normalized();
+                a = qAcos(dirPM.dot(xAxis));
+                a = dirPM.z() >= 0 ? a : -a;
+            }
+            float alpha = a;
+            float distance = pt.getVector3fMap().cross(dir).norm();
+
+            //qDebug() << fixed << qSetRealNumberPrecision(8) << qSetFieldWidth(6) 
+                //<< qRadiansToDegrees(alpha) << qRadiansToDegrees(beta) << distance << dirP.x() << dirP.y() << dirP.z() << dirP.norm();
+            
+            beta /= M_PI;
+            alpha /= M_PI;
+            //distance /= qSqrt(3) * 10;
+            pcl::PointXYZI point;
+            point.x = alpha;
+            point.y = beta;
+            point.z = distance;
+            point.intensity = pt.intensity;
+            cloud->push_back(point);
+
+            pcl::PointXYZ pointDir;
+            pointDir.getVector3fMap() = dir;
+            dirCloud->push_back(pointDir);
+        }
+    }
+    cloud->is_dense = true;
+    dirCloud->is_dense = true;
+    return cloud;
+}
+
+template<typename PointInT, typename PointOutT>
+QList<QList<int>> LineExtractor<PointInT, PointOutT>::lineClusterFromParameterizedPointCloud(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud)
+{
+    pcl::search::KdTree<pcl::PointXYZI>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZI>);
+    
+    std::vector<pcl::PointIndices> clusterIndices;
+    pcl::EuclideanClusterExtraction<pcl::PointXYZI> ec;
+    ec.setClusterTolerance(0.025f);
+    ec.setMinClusterSize(1);
+    ec.setMaxClusterSize(m_lines.size());
+    ec.setSearchMethod(tree);
+    ec.setInputCloud(cloud);
+    ec.extract(clusterIndices);
+
+    int clusterIndex = 0;
+    QList<QList<int>> lineIndexClusters;
+    for (std::vector<pcl::PointIndices>::const_iterator it = clusterIndices.begin(); it != clusterIndices.end(); ++it, clusterIndex++)
+    {
+        qDebug() << it->indices.size();
+
+        double r = rand() * 1.0 / RAND_MAX;
+        double g = rand() * 1.0 / RAND_MAX;
+        double b = rand() * 1.0 / RAND_MAX;
+
+        // 1. 所有线段按第1条线段的方向进行排序。将目标中线平移，使其经过原点，计算出每条线段中点在该直线上的映射，计算其在该直线上的带符号的横坐标，按此坐标值排序。
+        QList<QPair<int, Eigen::Vector3f>> lines;
+        Eigen::Vector3f dir = Eigen::Vector3f::Zero();
+        for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); ++pit)
+        {
+            int index = *pit;
+            cloud->points[index].intensity = clusterIndex;
+            LineSegment line = m_lines[index];
+
+            if (dir.isZero())
+            {
+                dir = line.direction().normalized();
+            }
+
+            float mCoord = oneAxisCoord(line.middle(), dir);
+            float sCoord = oneAxisCoord(line.start(), dir);
+            float eCoord = oneAxisCoord(line.end(), dir);
+            lines.append(QPair<int, Eigen::Vector3f>(index, Eigen::Vector3f(sCoord, mCoord, eCoord)));
+        }
+
+        qSort(lines.begin(), lines.end(), [](const QPair<int, Eigen::Vector3f>& v1, const QPair<int, Eigen::Vector3f>& v2) -> bool
+            {
+                return v1.second.y() < v2.second.y();
+            }
+        );
+
+        QList<Eigen::Vector3f> gaps;
+        gaps << Eigen::Vector3f(-1000, 0, 1000);
+
+        for (QList<QPair<int, Eigen::Vector3f>>::iterator i = lines.begin(); i != lines.end(); i++)
+        {
+            QList<Eigen::Vector3f>::iterator itGaps = gaps.begin();
+            while (itGaps != gaps.end())
+            {
+                Eigen::Vector3f gap = *itGaps;
+                Eigen::Vector3f line = i->second;
+
+                float lineLength = line.z() - line.x();
+                float gapLength = gap.z() - gap.x();
+
+                float lengthSum = lineLength + gapLength;
+                float interactionLength = qMax(line.z(), gap.z()) - qMin(line.x(), gap.x());
+
+                // 判断线段与空白是否相交
+                if (interactionLength == lengthSum)
+                {
+                    // 完全重合，消除空白
+                    itGaps = gaps.erase(itGaps);
+                    continue;
+                }
+                else if (interactionLength > lengthSum)
+                {
+                    // 不相交，判断下一个
+                }
+                else
+                {
+                    // 相交
+                    float biggerLength = qMax(lineLength, gapLength);
+
+                    if (interactionLength > biggerLength)
+                    {
+                        // 相交，部分重合
+                        if (line.y() >= gap.y())
+                        {
+                            // 更新空白的右边界
+                            itGaps->z() = i->second.x();
+                        }
+                        else
+                        {
+                            // 更新空白的左边界
+                            itGaps->x() = i->second.z();
+                        }
+                    }
+                    else
+                    {
+                        // 包含
+                        itGaps = gaps.erase(itGaps);
+                        if (biggerLength == lineLength)
+                        {
+                            // 线包含空白，删除空白
+                        }
+                        else
+                        {
+                            // 空白包含线，切分空白
+                            itGaps = gaps.insert(itGaps, Eigen::Vector3f(gap.x(), (gap.x() + line.x()) / 2, line.x()));
+                            itGaps++;
+                            itGaps = gaps.insert(itGaps, Eigen::Vector3f(line.z(), (gap.z() + line.z()) / 2, gap.z()));
+                        }
+                    }
+                }
+
+                itGaps++;
+            }
+        }
+
+        QList<Eigen::Vector3f>::iterator itGaps = gaps.begin();
+        qSort(gaps.begin(), gaps.end(), [](const Eigen::Vector3f& v1, const Eigen::Vector3f& v2) -> bool
+            {
+                return v1.y() < v2.y();
+            }
+        );
+
+        itGaps = gaps.begin();
+        while (itGaps != gaps.end())
+        {
+            if ((itGaps->z() - itGaps->x()) < m_linesChainDistanceThreshold)
+            {
+                itGaps = gaps.erase(itGaps);
+            }
+            else
+            {
+                itGaps++;
+            }
+        }
+
+        qDebug() << "  gaps size:" << gaps.length();
+        for (int i = 0; i < gaps.length() - 1; i++)
+        {
+            Eigen::Vector3f beforeGap = gaps[i];
+            Eigen::Vector3f afterGap = gaps[i + 1];
+
+            QList<int> cluster;
+            for (QList<QPair<int, Eigen::Vector3f>>::iterator itLines = lines.begin(); itLines != lines.end(); itLines++)
+            {
+                if (itLines->second.y() > beforeGap.y() && itLines->second.y() <= afterGap.y())
+                {
+                    cluster.append(itLines->first);
+                }
+            }
+            if (!cluster.isEmpty())
+            {
+                lineIndexClusters.append(cluster);
+                qDebug() << "  cluster size:" << cluster.size();
+            }
+
+        }
+
+        //qDebug() << lines;
+    }
+
+    return lineIndexClusters;
+}
+
+template<typename PointInT, typename PointOutT>
+inline QList<LineSegment> LineExtractor<PointInT, PointOutT>::extractLinesFromClusters(const QList<QList<int>>& clusters, const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud)
+{
+    QList<LineSegment> lines;
+    QList<QList<int>>::const_iterator itClusters = clusters.begin();
+    while (itClusters != clusters.end())
+    {
+        QList<int> indices = *itClusters;
+        Eigen::Vector3f dir(0, 0, 0);
+        Eigen::Vector3f start(0, 0, 0);
+        Eigen::Vector3f end(0, 0, 0);
+        Eigen::Vector3f middle(0, 0, 0);
+
+        float sumLength = 0;
+        for (QList<int>::const_iterator itIndices = indices.begin(); itIndices != indices.end(); ++itIndices)
+        {
+            int index = cloud->points[*itIndices].intensity;
+            LineSegment line = m_lines[index];
+            sumLength += line.length();
+        }
+
+        for (QList<int>::const_iterator itIndices = indices.begin(); itIndices != indices.end(); ++itIndices)
+        {
+            int index = cloud->points[*itIndices].intensity;
+            LineSegment line = m_lines[index];
+            float weight = line.length() / sumLength;
+
+            dir += line.direction().normalized() * weight;
+            middle += line.middle() * weight;
+        }
+        dir.normalize();
+
+        for (QList<int>::const_iterator itIndices = indices.begin(); itIndices != indices.end(); ++itIndices)
+        {
+            int index = cloud->points[*itIndices].intensity;
+            LineSegment line = m_lines[index];
+
+            if (start.isZero())
+            {
+                start = ::closedPointOnLine(line.start(), dir, middle);
+            }
+            else
+            {
+                if ((start - line.start()).dot(dir) > 0)
+                {
+                    start = ::closedPointOnLine(line.start(), dir, middle);
+                }
+            }
+
+            if (end.isZero())
+            {
+                end = ::closedPointOnLine(line.end(), dir, middle);
+            }
+            else
+            {
+                if ((line.end() - end).dot(dir) > 0)
+                {
+                    end = ::closedPointOnLine(line.end(), dir, middle);
+                }
+            }
+        }
+        LineSegment ls(start, end);
+        lines.append(ls);
+        itClusters++;
+    }
+    return lines;
+}
 
 template<typename PointInT, typename PointOutT>
 void LineExtractor<PointInT, PointOutT>::joinSortedPoints()
@@ -569,10 +929,15 @@ float LineExtractor<PointInT, PointOutT>::lineFit(const std::vector<int> &segmen
     pcl::PCA<pcl::PointXYZI> pca;
     pca.setInputCloud(m_boundary);
     pca.setIndices(pcl::IndicesPtr(new std::vector<int>(indices)));
-    Eigen::Vector3f eigenValue = pca.getEigenVectors().col(0).normalized();
+
+    Eigen::Vector3f eigenValues = pca.getEigenValues();
+    Eigen::Vector3f::Index maxIndex;
+    eigenValues.maxCoeff(&maxIndex);
+
+    Eigen::Vector3f eigenVector = pca.getEigenVectors().col(maxIndex).normalized();
     Eigen::Vector4f mean4f = pca.getMean();
     meanPoint = mean4f.head(3);
-    dir = eigenValue;
+    dir = eigenVector;
     //std::cout << eigenValue.transpose() << ", " << eigenValue.normalized().transpose() << ", " << mean4f.transpose() << ", " << meanPoint.transpose() << std::endl;
 
     float sumDistance = 0;
@@ -788,60 +1153,83 @@ void LineExtractor<PointInT, PointOutT>::addLineTreeNode(LineTreeNode *node)
     while (curr)
     {
 //        qDebug() << "add line. curr " << curr;
-        LineSegment longLine = curr->line();
-        LineSegment shortLine = node->line();
-        compareLines(longLine, shortLine, distance, angle, chainDistance, lineRel);
+        QList<LineTreeNode*> sideLines = curr->sideLines();
+        sideLines.insert(0, curr);
+        bool done = false;
+        for (int i = 0; i < sideLines.length(); i++)
+        {
+            LineSegment longLine = sideLines[i]->line();
+            LineSegment shortLine = node->line();
 
-        if (lineRel == LR_SIDE)
-        {
-            node->setDistance(distance);
-            node->setChainDistance(chainDistance);
-            curr->addSideChild(node);
-            curr = nullptr;
-        }
-        else if (lineRel == LR_CHAIN_BW)
-        {
-            if (curr->hasLeftChild())
+            if (longLine.length() < shortLine.length())
             {
-                curr = curr->leftChild();
+                LineSegment tmpLine = longLine;
+                longLine = shortLine;
+                shortLine = tmpLine;
             }
-            else
+
+            compareLines(longLine, shortLine, distance, angle, chainDistance, lineRel);
+
+            if (lineRel == LR_SIDE)
             {
-                curr->addLeftChild(node);
+                node->setDistance(distance);
+                node->setChainDistance(chainDistance);
+                curr->addSideChild(node);
                 curr = nullptr;
+                done = true;
+                break;
             }
-            node->setDistance(distance);
-            node->setChainDistance(chainDistance);
-        }
-        else if (lineRel == LR_CHAIN_FW)
-        {
-            if (curr->hasParent())
+            else if (lineRel == LR_CHAIN_BW)
             {
-                if (curr->isLeftChild())
+                if (curr->hasLeftChild())
                 {
-                    curr->parent()->addLeftChild(node);
+                    curr = curr->leftChild();
                 }
-                else if (curr->isRightChild())
+                else
                 {
-                    curr->parent()->addRightChild(node);
+                    curr->addLeftChild(node);
+                    curr = nullptr;
                 }
+                node->setDistance(distance);
+                node->setChainDistance(chainDistance);
+                done = true;
+                break;
             }
-            else
+            else if (lineRel == LR_CHAIN_FW)
             {
-                m_root = node;
-            }
+                if (curr->hasParent())
+                {
+                    if (curr->isLeftChild())
+                    {
+                        curr->parent()->addLeftChild(node);
+                    }
+                    else if (curr->isRightChild())
+                    {
+                        curr->parent()->addRightChild(node);
+                    }
+                }
+                else
+                {
+                    m_root = node;
+                    node->setDistance(0);
+                    node->setChainDistance(0);
+                }
 
-            if (curr->hasRightChild())
-            {
-                node->addRightChild(curr->rightChild());
-                curr->addRightChild(nullptr);
+                if (curr->hasRightChild())
+                {
+                    node->addRightChild(curr->rightChild());
+                    curr->addRightChild(nullptr);
+                }
+                node->addLeftChild(curr);
+                curr->setDistance(distance);
+                curr->setChainDistance(chainDistance);
+                curr = nullptr;
+                done = true;
+                break;
             }
-            node->addLeftChild(curr);
-            curr->setDistance(distance);
-            curr->setChainDistance(chainDistance);
-            curr = nullptr;
+            
         }
-        else
+        if (!done)
         {
             curr = findRightRoot(curr);
             if (curr->hasRightChild())
@@ -934,7 +1322,7 @@ void LineExtractor<PointInT, PointOutT>::compareLines(LineSegment &longLine, Lin
     float lengthUnionS2E1 = (ptS2ProjOnLine1 - ptE1).norm();
     float lengthUnion = lengthUnionS1E2 > lengthUnionS2E1 ? lengthUnionS1E2 : lengthUnionS2E1;
 
-    if (lengthUnion <= (lengthLongLine + lengthLine2ProjOnLine1))
+    if (lengthUnion <= (lengthLongLine + lengthLine2ProjOnLine1 + m_linesChainDistanceThreshold))
     {
         lineRel = LR_SIDE;
     }
@@ -1025,3 +1413,17 @@ LineTreeNode *LineExtractor<PointInT, PointOutT>::findLeftLeaf(LineTreeNode *nod
     }
     return curr;
 }
+
+template<typename PointInT, typename PointOutT>
+inline void LineExtractor<PointInT, PointOutT>::LineHoughCluster(float alpha, float beta, float distance)
+{
+}
+
+struct PLMC
+{
+    Eigen::Vector3f center;
+    float radius;
+    QList<LineSegment> lines;
+};
+
+
