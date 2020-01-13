@@ -34,6 +34,7 @@ public:
     virtual void doProcessing(Frame& frame) override;
     virtual void afterProcessing(Frame& frame) override;
     virtual bool beforeProcessing(Frame& frame);
+    virtual void saveCurrentFrame() override;
 
 private:
     cv::cuda::GpuMat m_colorMatGpu;
@@ -42,6 +43,7 @@ private:
     pcl::gpu::DeviceArray<float3> m_pointCloudNormalsGpu;
     pcl::gpu::DeviceArray2D<uchar3> m_colorBuffer;
     pcl::gpu::DeviceArray2D<ushort> m_depthBuffer;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr m_boundaryCloud;
 
     cuda::Parameters m_parameters;
     cuda::Frame m_frameGpu;

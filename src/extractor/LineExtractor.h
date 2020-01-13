@@ -125,7 +125,7 @@ public:
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr parameterizedLineMappingCluster();
 
-    pcl::PointCloud<pcl::PointXYZI>::Ptr parameterizedPointMappingCluster(pcl::PointCloud<pcl::PointXYZ>::Ptr& dirCloud);
+    pcl::PointCloud<pcl::PointXYZI>::Ptr parameterizedPointMappingCluster(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloudIn, pcl::PointCloud<pcl::PointXYZ>::Ptr& dirCloud);
 
     QList<QList<int>> lineClusterFromParameterizedPointCloud(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud);
 

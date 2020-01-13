@@ -35,6 +35,8 @@ public:
 
     virtual Frame getFrame(int frameIndex) = 0;
 
+    virtual void saveCurrentFrame() {}
+
     QList<QPair<QString, cv::Mat>>& filteredMats() {
         return m_odometry->filteredMats();
     }

@@ -21,8 +21,9 @@ public:
     ~ToolWindowLineExtractor() override;
 
 private slots:
+    void onActionLoadPointCloud();
     void onActionGenerateLinePointCloud();
-    void onActionAnalysis();
+    void onActionParameterizedPointsAnalysis();
 
 private:
     QScopedPointer<Ui::ToolWindowLineExtractor> m_ui;

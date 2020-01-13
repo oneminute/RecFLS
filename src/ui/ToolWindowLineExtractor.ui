@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>940</width>
-    <height>641</height>
+    <width>1173</width>
+    <height>804</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,11 +20,124 @@
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
+      <property name="handleWidth">
+       <number>2</number>
+      </property>
       <widget class="QWidget" name="containerSecondary" native="true">
        <layout class="QVBoxLayout" name="layoutSecondary"/>
       </widget>
       <widget class="QWidget" name="containerPointCloud" native="true">
        <layout class="QHBoxLayout" name="layoutPointCloud"/>
+      </widget>
+      <widget class="QScrollArea" name="scrollArea">
+       <property name="widgetResizable">
+        <bool>true</bool>
+       </property>
+       <widget class="QWidget" name="scrollAreaWidgetContents">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>352</width>
+          <height>708</height>
+         </rect>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_2">
+         <item>
+          <widget class="QGroupBox" name="groupBox">
+           <property name="title">
+            <string>Parameterized Points Analysis</string>
+           </property>
+           <layout class="QFormLayout" name="formLayout">
+            <item row="1" column="0">
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>Random Offset</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QDoubleSpinBox" name="doubleSpinBoxRandomOffset">
+              <property name="decimals">
+               <number>6</number>
+              </property>
+              <property name="maximum">
+               <double>0.100000000000000</double>
+              </property>
+              <property name="singleStep">
+               <double>0.000010000000000</double>
+              </property>
+              <property name="value">
+               <double>0.000500000000000</double>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="label_2">
+              <property name="text">
+               <string>Cluster Tolerance</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QDoubleSpinBox" name="doubleSpinBoxClusterTolerance">
+              <property name="decimals">
+               <number>6</number>
+              </property>
+              <property name="maximum">
+               <double>1.000000000000000</double>
+              </property>
+              <property name="singleStep">
+               <double>0.000100000000000</double>
+              </property>
+              <property name="value">
+               <double>0.010000000000000</double>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_3">
+              <property name="text">
+               <string>Enable Random</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QCheckBox" name="checkBoxEnableRandom">
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="groupBox_2">
+           <property name="title">
+            <string>GroupBox</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="groupBox_3">
+           <property name="title">
+            <string>GroupBox</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="groupBox_4">
+           <property name="title">
+            <string>GroupBox</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
       </widget>
      </widget>
     </item>
@@ -35,8 +148,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>940</width>
-     <height>23</height>
+     <width>1173</width>
+     <height>26</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
@@ -50,7 +163,7 @@
     <property name="title">
      <string>Action</string>
     </property>
-    <addaction name="actionAnalysis"/>
+    <addaction name="actionParameterized_Points_Analysis"/>
    </widget>
    <addaction name="menu_File"/>
    <addaction name="menuAction"/>
@@ -68,7 +181,8 @@
    </attribute>
    <addaction name="actionLoad_Point_Cloud"/>
    <addaction name="actionGenerate_Line_Point_Cloud"/>
-   <addaction name="actionAnalysis"/>
+   <addaction name="actionGenerate_Lines"/>
+   <addaction name="actionParameterized_Points_Analysis"/>
   </widget>
   <action name="actionLoad_Point_Cloud">
    <property name="text">
@@ -80,9 +194,17 @@
     <string>Generate Line Point Cloud</string>
    </property>
   </action>
-  <action name="actionAnalysis">
+  <action name="actionParameterized_Points_Analysis">
    <property name="text">
-    <string>Analysis</string>
+    <string>Parameterized Points Analysis</string>
+   </property>
+   <property name="toolTip">
+    <string>Parameterized Points Analysis</string>
+   </property>
+  </action>
+  <action name="actionGenerate_Lines">
+   <property name="text">
+    <string>Generate Lines</string>
    </property>
   </action>
  </widget>

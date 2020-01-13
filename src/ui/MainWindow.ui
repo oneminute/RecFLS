@@ -61,6 +61,7 @@
    <addaction name="actionNext_Frame"/>
    <addaction name="actionPause"/>
    <addaction name="actionClose_Device"/>
+   <addaction name="actionSave_Current_Frame"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <widget class="QDockWidget" name="dockWidgetColorImage">
@@ -212,6 +213,14 @@
   <action name="actionLine_Extractor">
    <property name="text">
     <string>Line Extractor</string>
+   </property>
+  </action>
+  <action name="actionSave_Current_Frame">
+   <property name="text">
+    <string>Save Current_Frame</string>
+   </property>
+   <property name="toolTip">
+    <string>Save Current Frame</string>
    </property>
   </action>
  </widget>

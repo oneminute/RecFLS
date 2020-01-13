@@ -52,6 +52,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_ui->actionOpen_Device, &QAction::triggered, this, &MainWindow::onActionOpenDevice);
     connect(m_ui->actionLine_Extractor, &QAction::triggered, this, &MainWindow::onActionToolWindowLineExtractor);
     connect(m_ui->actionNext_Frame, &QAction::triggered, this, &MainWindow::onActionNextFrame);
+    connect(m_ui->actionSave_Current_Frame, &QAction::triggered, this, &MainWindow::onActionSaveCurrentFrame);
 }
 
 void MainWindow::setController(Controller *controller)
@@ -134,6 +135,11 @@ void MainWindow::onActionToolWindowLineExtractor()
     }
     m_toolWindowLineExtractor->setWindowModality(Qt::WindowModality::ApplicationModal);
     m_toolWindowLineExtractor->show();
+}
+
+void MainWindow::onActionSaveCurrentFrame()
+{
+    m_controller->saveCurrentFrame();
 }
 
 void MainWindow::onFrameFetched(Frame &frame)

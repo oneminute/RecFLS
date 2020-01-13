@@ -63,6 +63,11 @@ Frame DefaultController::getFrame(int frameIndex)
     return frame;
 }
 
+void DefaultController::saveCurrentFrame()
+{
+    m_odometry->saveCurrentFrame();
+}
+
 void DefaultController::onFrameFetched(Frame &frame)
 {
     m_odometry->setCloudViewer(m_cloudViewer);

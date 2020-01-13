@@ -22,6 +22,8 @@ public:
     virtual void reset() override;
     virtual Frame getFrame(int frameIndex) override;
 
+    virtual void saveCurrentFrame() override;
+
 private slots:
     void onFrameFetched(Frame &frame);
 

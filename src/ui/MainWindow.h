@@ -32,6 +32,7 @@ private:
     void onActionPause();
     void onActionCloseDevice();
     void onActionToolWindowLineExtractor();
+    void onActionSaveCurrentFrame();
 
     void onFrameFetched(Frame& frame);
 

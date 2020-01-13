@@ -221,6 +221,8 @@ template<typename PointInT, typename PointOutT>
 pcl::PointCloud<pcl::PointXYZI>::Ptr LineExtractor<PointInT, PointOutT>::parameterizedLineMappingCluster()
 {
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud < pcl::PointXYZI>);
+    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud2(new pcl::PointCloud < pcl::PointXYZI>);
+    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud3(new pcl::PointCloud < pcl::PointXYZI>);
     Eigen::Vector3f xAxis(1, 0, 0), yAxis(0, 1, 0);
     int index = 0;
     float minDist = 10000, maxDist = 0;
@@ -249,6 +251,11 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr LineExtractor<PointInT, PointOutT>::paramet
 
         Eigen::Vector3f vertDir = i->middle().cross(dir);
         float distance = vertDir.norm();
+        float linearLength = ::closedPointOnLine(i->middle(), dir, Eigen::Vector3f(0, 0, 0)).norm();
+        if (!qIsNaN(distance / linearLength))
+        {
+            distance /= linearLength;
+        }
         if (vertDir.dot(yAxis) < 0)
             distance = -distance;
 
@@ -256,40 +263,100 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr LineExtractor<PointInT, PointOutT>::paramet
             minDist = distance;
         if (distance > maxDist)
             maxDist = distance;
-        distance /= 16;
+        qDebug() << distance;
         pcl::PointXYZI point;
         point.x = alpha;
         point.y = beta;
-        point.z = distance;
+        point.z = 0;
         point.intensity = index;
         cloud->push_back(point);
     }
+
+    pcl::search::KdTree<pcl::PointXYZI> tree;
+    tree.setInputCloud(cloud);
+    for (int i = 0; i < cloud->size(); i++)
+    {
+        pcl::PointXYZI point = cloud->points[i];
+        LineSegment line = m_lines[point.intensity];
+        std::vector<int> indices;
+        std::vector<float> distances;
+        tree.radiusSearch(point, 0.05f, indices, distances);
+
+        float sumLength = 0;
+        for (std::vector<int>::iterator itIndices = indices.begin(); itIndices != indices.end(); itIndices++)
+        {
+            pcl::PointXYZI neighbourPoint = cloud->points[*itIndices];
+            LineSegment neighbourLine = m_lines[neighbourPoint.intensity];
+            sumLength += neighbourLine.length();
+        }
+        Eigen::Vector3f dir(0, 0, 0);
+        for (std::vector<int>::iterator itIndices = indices.begin(); itIndices != indices.end(); itIndices++)
+        {
+            pcl::PointXYZI neighbourPoint = cloud->points[*itIndices];
+            LineSegment neighbourLine = m_lines[neighbourPoint.intensity];
+            float weight = neighbourLine.length() / sumLength;
+            Eigen::Vector3f nDir = neighbourLine.direction().normalized();
+            if (nDir.dot(dir) < 0)
+                nDir = -nDir;
+            dir += nDir * weight;
+        }
+        dir.normalize();
+        Eigen::Vector3f vertDir = line.middle().cross(dir);
+        float distance = vertDir.norm();
+        if (vertDir.dot(yAxis) < 0)
+            distance = -distance;
+
+        if (distance < minDist)
+            minDist = distance;
+        if (distance > maxDist)
+            maxDist = distance;
+        distance /= 2;
+
+        //point.z = point.z / (maxDist - minDist);
+        point.z = distance;
+        cloud2->push_back(point);
+    }
+
+    index = 0;
+    for (std::vector<LineSegment>::iterator i = m_lines.begin(); i != m_lines.end(); i++, index++)
+    {
+        Eigen::Vector3f dir = i->direction();
+        dir.normalize();
+
+        pcl::PointXYZI point;
+        point.getVector3fMap() = dir;
+        point.intensity = index;
+        cloud3->push_back(point);
+    }
+
     qDebug() << "max: " << maxDist << ", min: " << minDist;
     cloud->is_dense = true;
+    cloud2->is_dense = true;
+    cloud3->is_dense = true;
     return cloud;
 }
 
 template<typename PointInT, typename PointOutT>
-pcl::PointCloud<pcl::PointXYZI>::Ptr LineExtractor<PointInT, PointOutT>::parameterizedPointMappingCluster(pcl::PointCloud<pcl::PointXYZ>::Ptr& dirCloud)
+pcl::PointCloud<pcl::PointXYZI>::Ptr LineExtractor<PointInT, PointOutT>::parameterizedPointMappingCluster(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloudIn, pcl::PointCloud<pcl::PointXYZ>::Ptr& dirCloud)
 {
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud < pcl::PointXYZI>);
     dirCloud = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud < pcl::PointXYZ>);
     pcl::search::KdTree<pcl::PointXYZI> tree;
-    tree.setInputCloud(m_boundary);
+    tree.setInputCloud(cloudIn);
     Eigen::Vector3f xAxis(1, 0, 0), yAxis(0, 1, 0);
     Eigen::Vector3f baseDir(1, 1, 1);
     baseDir.normalize();
-    for (int i = 0; i < m_boundary->size(); i++)
+    for (int i = 0; i < cloudIn->size(); i++)
     {
-        pcl::PointXYZI pt = m_boundary->points[i];
+        pcl::PointXYZI pt = cloudIn->points[i];
         std::vector<int> indices;
         std::vector<float> distances;
-        tree.radiusSearch(pt, 0.025f, indices, distances);
+        tree.radiusSearch(pt, 0.2f, indices, distances);
 
         if (indices.size() > 3)
         {
             pcl::PCA<pcl::PointXYZI> pca;
-            pca.setInputCloud(m_boundary);
+            pca.setInputCloud(cloudIn);
             pca.setIndices(pcl::IndicesPtr(new std::vector<int>(indices)));
             Eigen::Vector3f eigenValues = pca.getEigenValues();
             Eigen::Vector3f::Index maxIndex;
@@ -324,7 +391,7 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr LineExtractor<PointInT, PointOutT>::paramet
             point.x = alpha;
             point.y = beta;
             point.z = distance;
-            point.intensity = pt.intensity;
+            point.intensity = i;
             cloud->push_back(point);
 
             pcl::PointXYZ pointDir;
@@ -344,7 +411,7 @@ QList<QList<int>> LineExtractor<PointInT, PointOutT>::lineClusterFromParameteriz
     
     std::vector<pcl::PointIndices> clusterIndices;
     pcl::EuclideanClusterExtraction<pcl::PointXYZI> ec;
-    ec.setClusterTolerance(0.025f);
+    ec.setClusterTolerance(0.05f);
     ec.setMinClusterSize(1);
     ec.setMaxClusterSize(m_lines.size());
     ec.setSearchMethod(tree);
@@ -353,9 +420,12 @@ QList<QList<int>> LineExtractor<PointInT, PointOutT>::lineClusterFromParameteriz
 
     int clusterIndex = 0;
     QList<QList<int>> lineIndexClusters;
+    QList<QList<int>> lineIndexClusters2;
     for (std::vector<pcl::PointIndices>::const_iterator it = clusterIndices.begin(); it != clusterIndices.end(); ++it, clusterIndex++)
     {
         qDebug() << it->indices.size();
+
+        QList<int> cluster2;
 
         double r = rand() * 1.0 / RAND_MAX;
         double g = rand() * 1.0 / RAND_MAX;
@@ -366,8 +436,9 @@ QList<QList<int>> LineExtractor<PointInT, PointOutT>::lineClusterFromParameteriz
         Eigen::Vector3f dir = Eigen::Vector3f::Zero();
         for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); ++pit)
         {
-            int index = *pit;
-            cloud->points[index].intensity = clusterIndex;
+            int index = cloud->points[*pit].intensity;
+            cluster2.append(index);
+            //cloud->points[index].intensity = clusterIndex;
             LineSegment line = m_lines[index];
 
             if (dir.isZero())
@@ -380,6 +451,7 @@ QList<QList<int>> LineExtractor<PointInT, PointOutT>::lineClusterFromParameteriz
             float eCoord = oneAxisCoord(line.end(), dir);
             lines.append(QPair<int, Eigen::Vector3f>(index, Eigen::Vector3f(sCoord, mCoord, eCoord)));
         }
+        lineIndexClusters2.append(cluster2);
 
         qSort(lines.begin(), lines.end(), [](const QPair<int, Eigen::Vector3f>& v1, const QPair<int, Eigen::Vector3f>& v2) -> bool
             {
@@ -482,12 +554,21 @@ QList<QList<int>> LineExtractor<PointInT, PointOutT>::lineClusterFromParameteriz
             Eigen::Vector3f beforeGap = gaps[i];
             Eigen::Vector3f afterGap = gaps[i + 1];
 
+            qDebug().nospace().noquote() << "  [" << beforeGap.x() << ", " << beforeGap.z() << "(" << (beforeGap.z() - beforeGap.x()) << ")] -- ["
+                << afterGap.x() << ", " << afterGap.z() << "(" << (afterGap.z() - afterGap.x()) << ")]";
+
             QList<int> cluster;
-            for (QList<QPair<int, Eigen::Vector3f>>::iterator itLines = lines.begin(); itLines != lines.end(); itLines++)
+            for (QList<QPair<int, Eigen::Vector3f>>::iterator itLines = lines.begin(); itLines != lines.end(); )
             {
                 if (itLines->second.y() > beforeGap.y() && itLines->second.y() <= afterGap.y())
                 {
                     cluster.append(itLines->first);
+                    qDebug().nospace().noquote() << "    [" << itLines->second.x() << ", " << itLines->second.z() << "]";
+                    itLines = lines.erase(itLines);
+                }
+                else
+                {
+                    itLines++;
                 }
             }
             if (!cluster.isEmpty())
@@ -495,7 +576,18 @@ QList<QList<int>> LineExtractor<PointInT, PointOutT>::lineClusterFromParameteriz
                 lineIndexClusters.append(cluster);
                 qDebug() << "  cluster size:" << cluster.size();
             }
+        }
 
+        if (!lines.empty())
+        {
+            QList<int> cluster;
+            for (QList<QPair<int, Eigen::Vector3f>>::iterator itLines = lines.begin(); itLines != lines.end(); itLines++)
+            {
+                cluster.append(itLines->first);
+                qDebug().nospace().noquote() << "    [" << itLines->second.x() << ", " << itLines->second.z() << "]";
+            }
+            lineIndexClusters.append(cluster);
+            qDebug() << "  cluster size:" << cluster.size();
         }
 
         //qDebug() << lines;
