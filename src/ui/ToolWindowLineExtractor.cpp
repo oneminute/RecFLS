@@ -49,6 +49,9 @@ void ToolWindowLineExtractor::onActionParameterizedPointsAnalysis()
     extractor.setAngleSearchRadius(qDegreesToRadians(m_ui->doubleSpinBoxAngleSearchRadius->value()) / M_2_PI);
     extractor.setAngleMinNeighbours(m_ui->spinBoxAngleMinNeighbours->value());
     extractor.setMappingTolerance(m_ui->doubleSpinBoxClusterTolerance->value());
+    extractor.setAngleMappingMethod(m_ui->comboBoxAngleMappingMethod->currentIndex());
+    extractor.setMinLineLength(m_ui->doubleSpinBoxMinLineLength->value());
+    extractor.setRegionGrowingYDistanceThreshold(m_ui->doubleSpinBoxYDistanceThreshold->value());
 
     QList<LineSegment> lines = extractor.compute(m_cloud);
 

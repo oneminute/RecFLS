@@ -17,6 +17,12 @@ class DDBPLineExtractor : public QObject
 {
     Q_OBJECT
 public:
+    enum ANGLE_MAPPING_METHOD
+    {
+        TWO_DIMS = 0,
+        THREE_DIMS
+    };
+
     explicit DDBPLineExtractor(QObject* parent = nullptr);
 
     QList<LineSegment> compute(const pcl::PointCloud<pcl::PointXYZI>::Ptr& boundaryCloud);
@@ -99,8 +105,16 @@ public:
     float mappingTolerance() const { return m_mappingTolerance; }
     void setMappingTolerance(float _mappingTolerance) { m_mappingTolerance = _mappingTolerance; }
 
+    float regionGrowingYDistanceThreshold() const { return m_regionGrowingYDistanceThreshold; }
+    void setRegionGrowingYDistanceThreshold(float _regionGrowingYDistance) { m_regionGrowingYDistanceThreshold = _regionGrowingYDistance; }
+
+    ANGLE_MAPPING_METHOD angleMappingMethod() const { return m_angleMappingMethod; }
+    void setAngleMappingMethod(int _angleMappingMethod) { m_angleMappingMethod = static_cast<ANGLE_MAPPING_METHOD>(_angleMappingMethod); }
+
+    float minLineLength() const { return m_minLineLength; }
+    void setMinLineLength(float _minLineLength) { m_minLineLength = _minLineLength; }
+
 protected:
-    bool customRegionGrowing(const pcl::PointXYZI& ptA, const pcl::PointXYZI& ptB, float sqrDistance);
 
 private:
     // ±ﬂΩÁµ„µ„‘∆
@@ -139,6 +153,8 @@ private:
 
     QList<int> m_linePointsCount;
 
+    ANGLE_MAPPING_METHOD m_angleMappingMethod;
+
     float m_searchRadius;
     int m_minNeighbours;
     float m_searchErrorThreshold;
@@ -147,6 +163,10 @@ private:
     int m_angleMinNeighbours;
 
     float m_mappingTolerance;
+
+    float m_regionGrowingYDistanceThreshold;
+
+    float m_minLineLength;
 
     Eigen::Vector3f m_maxPoint;
     Eigen::Vector3f m_minPoint;

@@ -15,24 +15,30 @@
 
 DDBPLineExtractor::DDBPLineExtractor(QObject* parent)
     : QObject(parent)
+    , m_angleMappingMethod(TWO_DIMS)
     , m_searchRadius(0.05f)
     , m_minNeighbours(3)
     , m_searchErrorThreshold(0.025f)
     , m_angleSearchRadius(qDegreesToRadians(20.0) / M_PI)
     , m_angleMinNeighbours(10)
     , m_mappingTolerance(0.01f)
+    , m_regionGrowingYDistanceThreshold(0.005f)
+    , m_minLineLength(0.01f)
 {
 
 }
 
 QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>::Ptr& boundaryCloud)
 {
+    qDebug() << "angleMappingMethod" << m_angleMappingMethod;
     qDebug() << "searchRadius:" << m_searchRadius;
     qDebug() << "minNeighbours:" << m_minNeighbours;
     qDebug() << "searchErrorThreshold:" << m_searchErrorThreshold;
     qDebug() << "angleSearchRadius:" << m_angleSearchRadius;
     qDebug() << "angleMinNeighbours:" << m_angleMinNeighbours;
     qDebug() << "mappingTolerance:" << m_mappingTolerance;
+    qDebug() << "regionGrowingYDistance:" << m_regionGrowingYDistanceThreshold;
+    qDebug() << "minLineLength:" << m_minLineLength;
 
     m_boundaryCloud.reset(new pcl::PointCloud<pcl::PointXYZI>);
     m_angleCloud.reset(new pcl::PointCloud<pcl::PointXYZI>);
@@ -121,13 +127,29 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
             primeDir = -primeDir;
         }
 
-        // 计算俯仰角的补角
-        float cosY = primeDir.dot(yAxis);
-        float alpha = qAcos(cosY);
+        Eigen::Vector3f eulerAngles(Eigen::Vector3f::Zero());
+        // 使用二维或三维的映射角。二维使用计算出的俯仰角和航向角
+        if (m_angleMappingMethod == TWO_DIMS)
+        {
+            // 计算俯仰角的补角
+            float cosY = primeDir.dot(yAxis);
+            float alpha = qAcos(cosY);
 
-        // 计算水平角
-        float cosX = (primeDir - yAxis * cosY).normalized().dot(xAxis);
-        float beta = qAcos(cosX);
+            // 计算水平角
+            float cosX = (primeDir - yAxis * cosY).normalized().dot(xAxis);
+            float beta = qAcos(cosX);
+
+            eulerAngles.x() = alpha / M_2_PI;
+            eulerAngles.y() = beta / M_2_PI;
+        }
+        else if (m_angleMappingMethod = THREE_DIMS)
+        {
+            // 计算欧拉角
+            Eigen::Quaternionf rotQuat = Eigen::Quaternionf();
+            rotQuat.setFromTwoVectors(globalDir, primeDir);
+            Eigen::Matrix3f rotMatrix = rotQuat.toRotationMatrix();
+            eulerAngles = rotMatrix.eulerAngles(0, 1, 2) / M_PI;
+        }
 
         // 计算当前点到穿过原点的主方向所在直线的垂直距离
         float distance = point.cross(primeDir).norm();
@@ -150,9 +172,9 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
         }
 
         pcl::PointXYZI anglePt;
-        anglePt.x = alpha / M_2_PI;
-        anglePt.y = beta / M_2_PI;
-        anglePt.z = 0;
+        anglePt.x = eulerAngles.x();
+        anglePt.y = eulerAngles.y();
+        anglePt.z = eulerAngles.z();
         anglePt.intensity = index;
         m_angleCloud->push_back(anglePt);
         
@@ -178,10 +200,11 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
         m_boundaryIndices->push_back(index);
         m_boundaryCloud->push_back(ptIn);
 
-        /*if (index % 100 == 0)
+        if (index % 100 == 0)
         {
-            qDebug() << alpha << "(" << qRadiansToDegrees(alpha) << ")," << beta << "(" << qRadiansToDegrees(beta) << ")";
-        }*/
+            //qDebug() << alpha << "(" << qRadiansToDegrees(alpha) << ")," << beta << "(" << qRadiansToDegrees(beta) << ")";
+            qDebug() << eulerAngles.x() << eulerAngles.y() << eulerAngles.z();
+        }
         index++;
         m_angleCloudIndices.append(index);
     }
@@ -320,7 +343,7 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
 
                             Eigen::Vector3f yAxis(0, 1, 0);
                             float distToY = (candidatePoint - seedPoint).cross(yAxis).norm();
-                            if (distToY < 0.005f)
+                            if (distToY < m_regionGrowingYDistanceThreshold)
                             {
                                 return true;
                             }
@@ -362,7 +385,7 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
                         dir /= indices.indices.size();
                         center /= indices.indices.size();
 
-                        // 验证直线，计算每个点的方向与主方向的方向期望
+                        // 验证直线，计算每个点到目标直线的距离期望
                         float error = 0;
                        
                         for (std::vector<int>::const_iterator itIndices = indices.indices.begin(); itIndices != indices.indices.end(); ++itIndices)
@@ -402,7 +425,7 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
                         qDebug() << "    error:" << error;
 
                         LineSegment ls(start, end);
-                        if (ls.length() > 0.1f)
+                        if (ls.length() > m_minLineLength)
                         {
                             lines.append(ls);
                             m_errors.append(error);
@@ -422,19 +445,3 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
     return lines;
 }
 
-bool DDBPLineExtractor::customRegionGrowing(const pcl::PointXYZI& ptSeed, const pcl::PointXYZI& ptCandidate, float sqrDistance)
-{
-    if (qSqrt(sqrDistance) < m_mappingTolerance)
-    {
-        Eigen::Vector3f seedPoint = ptSeed.getVector3fMap();
-        Eigen::Vector3f candidatePoint = ptCandidate.getVector3fMap();
-
-        Eigen::Vector3f yAxis(0, 1, 0);
-        float distToY = (candidatePoint - seedPoint).cross(yAxis).norm();
-        if (distToY < 0.005f)
-        {
-            return true;
-        }
-    }
-    return false;
-}
