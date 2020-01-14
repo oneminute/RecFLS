@@ -23,12 +23,13 @@ ToolWindowLineExtractor::ToolWindowLineExtractor(QWidget* parent)
 {
     m_ui->setupUi(this);
 
-    m_cloudViewer = new CloudViewer(this);
-    m_cloudViewerSecondary = new CloudViewer(this);
-    //m_cloudViewerSecondary->removeAllCoordinates();
+    m_cloudViewer1 = new CloudViewer(this);
+    m_cloudViewer2 = new CloudViewer(this);
+    m_cloudViewer3 = new CloudViewer(this);
 
-    m_ui->layoutPointCloud->addWidget(m_cloudViewer);
-    m_ui->layoutSecondary->addWidget(m_cloudViewerSecondary);
+    m_ui->layoutPointCloud->addWidget(m_cloudViewer1);
+    m_ui->layoutSecondary->addWidget(m_cloudViewer2);
+    m_ui->layoutSecondary->addWidget(m_cloudViewer3);
 
     connect(m_ui->actionLoad_Point_Cloud, &QAction::triggered, this, &ToolWindowLineExtractor::onActionLoadPointCloud);
     connect(m_ui->actionGenerate_Line_Point_Cloud, &QAction::triggered, this, &ToolWindowLineExtractor::onActionGenerateLinePointCloud);
@@ -41,117 +42,116 @@ ToolWindowLineExtractor::~ToolWindowLineExtractor()
 
 void ToolWindowLineExtractor::onActionParameterizedPointsAnalysis()
 {
-    if (!m_extractor)
+    DDBPLineExtractor extractor;
+    extractor.setSearchRadius(m_ui->doubleSpinBoxSearchRadius->value());
+    extractor.setMinNeighbours(m_ui->spinBoxMinNeighbours->value());
+    extractor.setSearchErrorThreshold(m_ui->doubleSpinBoxSearchErrorThreshold->value());
+    extractor.setAngleSearchRadius(qDegreesToRadians(m_ui->doubleSpinBoxAngleSearchRadius->value()) / M_2_PI);
+    extractor.setAngleMinNeighbours(m_ui->spinBoxAngleMinNeighbours->value());
+    extractor.setMappingTolerance(m_ui->doubleSpinBoxClusterTolerance->value());
+
+    QList<LineSegment> lines = extractor.compute(m_cloud);
+
+    pcl::PointCloud<pcl::PointXYZI>::Ptr angleCloud = extractor.angleCloud();
+    QList<float> densityList = extractor.densityList();
+    QList<int> angleCloudIndices = extractor.angleCloudIndices();
+    QMap<int, std::vector<int>> subCloudIndices = extractor.subCloudIndices();
+    pcl::PointCloud<pcl::PointXYZI>::Ptr mappingCloud = extractor.mappingCloud();
+    QList<float> errors = extractor.errors();
+    pcl::PointCloud<pcl::PointXYZI>::Ptr linedCloud = extractor.linedCloud();
+    QList<int> linePointsCount = extractor.linePointsCount();
+
+    m_cloudViewer1->visualizer()->removeAllPointClouds();
+    m_cloudViewer1->visualizer()->removeAllShapes();
+    m_cloudViewer2->visualizer()->removeAllPointClouds();
+    m_cloudViewer2->visualizer()->removeAllShapes();
+    m_cloudViewer3->visualizer()->removeAllPointClouds();
+    m_cloudViewer3->visualizer()->removeAllShapes();
+
+    pcl::PointCloud<pcl::PointXYZI>::Ptr densityCloud(new pcl::PointCloud<pcl::PointXYZI>);
+    for (int i = 0; i < densityList.size(); i++)
     {
-        m_extractor.reset(new LineExtractor<pcl::PointXYZI, pcl::PointXYZI>(
-            PARAMETERS.floatValue("segment_distance_threshold", 0.1f, "LineExtractor"),
-            PARAMETERS.intValue("min_line_points", 9, "LineExtractor"),
-            PARAMETERS.floatValue("pca_error_threshold", 0.005f, "LineExtractor"),
-            PARAMETERS.floatValue("line_cluster_angle_threshold", 20.0f, "LineExtractor"),
-            PARAMETERS.floatValue("lines_distance_threshold", 0.01f, "LineExtractor"),
-            PARAMETERS.floatValue("lines_chain_distance_threshold", 0.01f, "LineExtractor")
-        ));
+        int index = angleCloudIndices[i];
+        //qDebug() << indexList[i] << m_density[indexList[i]];
+
+        pcl::PointXYZI ptAngle = angleCloud->points[index];
+        ptAngle.intensity = densityList[index];
+        densityCloud->push_back(ptAngle);
     }
 
-    m_cloudViewerSecondary->visualizer()->removeAllPointClouds();
-    m_cloudViewerSecondary->visualizer()->removeAllShapes();
-
-    //pcl::PointCloud<pcl::PointXYZI> leCloud;
-    //m_extractor->compute(*m_cloud, leCloud);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr dirCloud;
-    pcl::PointCloud<pcl::PointXYZI>::Ptr clusterCloud = m_extractor->parameterizedPointMappingCluster(m_cloud, dirCloud);
-    pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(clusterCloud, "intensity");
-    m_cloudViewerSecondary->visualizer()->addPointCloud(clusterCloud, iColor, "cluster points");
-    m_cloudViewerSecondary->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cluster points");
-
-    pcl::search::KdTree<pcl::PointXYZI>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZI>);
-    std::vector<pcl::PointIndices> clusterIndices;
-    pcl::EuclideanClusterExtraction<pcl::PointXYZI> ec;
-    ec.setClusterTolerance(m_ui->doubleSpinBoxClusterTolerance->value());
-    ec.setMinClusterSize(10);
-    ec.setMaxClusterSize(clusterCloud->size());
-    ec.setSearchMethod(tree);
-    ec.setInputCloud(clusterCloud);
-    ec.extract(clusterIndices);
-
-    int count = 0;
-    for (std::vector<pcl::PointIndices>::iterator i = clusterIndices.begin(); i != clusterIndices.end(); i++, count++)
+    pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryCloud2(new pcl::PointCloud<pcl::PointXYZI>);
+    for (QMap<int, std::vector<int>>::iterator i = subCloudIndices.begin(); i != subCloudIndices.end(); i++)
     {
-        QString clusterId = QString("cluster_%1").arg(count);
-        QString lineId = QString("line_%1").arg(count);
-        QString arrowId = QString("arrow_%1").arg(count);
-        qDebug() << clusterId << ". cluster size:" << i->indices.size();
-        Eigen::Vector3f center(0, 0, 0);
-        Eigen::Vector3f dir(0, 0, 0);
-        Eigen::Vector3f mean(0, 0, 0);
-        for (std::vector<int>::iterator itInd = i->indices.begin(); itInd != i->indices.end(); itInd++)
+        int index = i.key();
+        pcl::PointXYZI pt = m_cloud->points[index];
+        pt.intensity = index;
+        int color = qrand();
+
+        for (std::vector<int>::iterator itNeighbour = i.value().begin(); itNeighbour != i.value().end(); itNeighbour++)
         {
-            int index = *itInd;
-            Eigen::Vector3f point = clusterCloud->points[index].getVector3fMap();
-            center += point;
-            //clusterCloud->points[*itInd].intensity = count;
-            Eigen::Vector3f ptDir = dirCloud->points[clusterCloud->points[index].intensity].getVector3fMap();
-            dir += ptDir;
-            Eigen::Vector3f pt = m_cloud->points[clusterCloud->points[index].intensity].getVector3fMap();
-            mean += pt;
+            int neighbourIndex = *itNeighbour;
+            pcl::PointXYZI ptNeighbour = m_cloud->points[neighbourIndex];
+            ptNeighbour.intensity = color;
+            boundaryCloud2->push_back(ptNeighbour);
         }
-        dir = dir / i->indices.size();
-        dir.normalize();
-        mean = mean / i->indices.size();
-
-        qDebug() << dir.x() << dir.y() << dir.z() << mean.x() << mean.y() << mean.z();
-
-        Eigen::Vector3f start = m_cloud->points[clusterCloud->points[i->indices[0]].intensity].getVector3fMap();
-        Eigen::Vector3f end = start;
-        for (std::vector<int>::iterator itInd = i->indices.begin(); itInd != i->indices.end(); itInd++)
-        {
-            int index = clusterCloud->points[*itInd].intensity;
-            Eigen::Vector3f point = m_cloud->points[index].getVector3fMap();
-            Eigen::Vector3f projPt = closedPointOnLine(point, dir, mean);
-            if ((start - projPt).dot(dir) > 0)
-            {
-                start = projPt;
-            }
-            if ((projPt - end).dot(dir) > 0)
-            {
-                end = projPt;
-            }
-        }
-
-        pcl::PointXYZ startPt, endPt;
-        startPt.getVector3fMap() = start;
-        endPt.getVector3fMap() = end;
-        float length = (end - start).norm();
-        qDebug() << start.x() << start.y() << start.z() << end.x() << end.y() << end.z() << length;
-        m_cloudViewer->visualizer()->addLine(startPt, endPt, 1, 1, 0, lineId.toStdString());
-        //m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineId.toStdString());
-        //m_cloudViewer->visualizer()->addArrow(startPt, endPt, 1, 1, 0, 0, arrowId.toStdString());
-        m_cloudViewer->visualizer()->addLine(startPt, endPt, 1, 0, 0, lineId.toStdString());
-
-        center = center / i->indices.size();
-        pcl::PointXYZ ptCenter;
-        ptCenter.getVector3fMap() = center;
-        //m_cloudViewerSecondary->visualizer()->addSphere(ptCenter, 0.1 * i->indices.size() / m_cloud->size(), id.toStdString());
-        m_cloudViewerSecondary->visualizer()->addText3D(std::to_string(i->indices.size()), ptCenter, 0.01, 1, 1, 1, clusterId.toStdString());
     }
 
-    qDebug() << clusterCloud->size();
-    for (int i = 0; i < clusterCloud->size(); i++)
+    if (m_ui->radioButtonShowBoundaryCloud->isChecked())
     {
-        pcl::PointXYZI pt = clusterCloud->points[i];
+        pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(m_cloud, "intensity");
+        m_cloudViewer1->visualizer()->addPointCloud(m_cloud, iColor, "original cloud");
+        m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "original cloud");
+    }
+    else if (m_ui->radioButtonShowGroupedCloud->isChecked())
+    {
+        pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(boundaryCloud2, "intensity");
+        m_cloudViewer1->visualizer()->addPointCloud(boundaryCloud2, iColor, "grouped cloud");
+        m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "grouped cloud");
+    }
+    else if (m_ui->radioButtonShowLinedCloud->isChecked())
+    {
+        pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(linedCloud, "intensity");
+        m_cloudViewer1->visualizer()->addPointCloud(linedCloud, iColor, "lined cloud");
+        m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "lined cloud");
+    }
 
-        Eigen::Vector3f dir = dirCloud->points[i].getVector3fMap();
-        if (i % 100 == 0)
+    if (m_ui->radioButtonShowAngleCloud->isChecked())
+    {
+        pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(angleCloud, "intensity");
+        m_cloudViewer2->visualizer()->addPointCloud(angleCloud, iColor, "angle cloud");
+        m_cloudViewer2->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "angle cloud");
+    }
+    else if (m_ui->radioButtonShowDensityCloud->isChecked())
+    {
+        pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(densityCloud, "intensity");
+        m_cloudViewer2->visualizer()->addPointCloud(densityCloud, iColor, "density cloud");
+        m_cloudViewer2->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "density cloud");
+    }
+
+    {
+        pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(mappingCloud, "intensity");
+        m_cloudViewer3->visualizer()->addPointCloud(mappingCloud, iColor, "mapping cloud");
+        m_cloudViewer3->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "mapping cloud");
+
+        for (int i = 0; i < lines.size()/* && errors[i]*/; i++)
         {
-            pcl::PointXYZI ptStart = m_cloud->points[i];
-            pcl::PointXYZI ptEnd;
-            ptEnd.getVector3fMap() = ptStart.getVector3fMap() + dir * 0.01f;
-            QString arrowId = QString("arrow_%1").arg(i);
-            //m_cloudViewer->visualizer()->addArrow(ptStart, ptEnd, 1, 1, 1, 0, arrowId.toStdString());
+            double r = rand() * 1.0 / RAND_MAX;
+            double g = rand() * 1.0 / RAND_MAX;
+            double b = rand() * 1.0 / RAND_MAX;
+            LineSegment line = lines[i];
+            std::string lineNo = "line_" + std::to_string(i);
+            std::string textNo = "text_" + std::to_string(i);
+            qDebug() << QString::fromStdString(lineNo) << line.length() << errors[i] << linePointsCount[i];
+            pcl::PointXYZI start, end, middle;
+            start.getVector3fMap() = line.start();
+            end.getVector3fMap() = line.end();
+            Eigen::Vector3f dir = line.direction();
+            middle.getVector3fMap() = line.middle();
+            //m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
+            m_cloudViewer1->visualizer()->addLine(start, end, r, g, b, lineNo);
+            m_cloudViewer1->visualizer()->addText3D(std::to_string(i), middle, 0.025, 1, 1, 1, textNo);
+            m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
         }
-
-        //dir = dir.transpose();
-        //qDebug() << fixed << qSetRealNumberPrecision(2) << qSetFieldWidth(6) << qRadiansToDegrees(pt.x * M_PI) << qRadiansToDegrees(pt.y / 2 * M_PI) << pt.z << dir;
     }
 }
 
@@ -181,28 +181,34 @@ void ToolWindowLineExtractor::onActionLoadPointCloud()
     qDebug() << fileName << cloud->size();
 
     qsrand(QDateTime::currentMSecsSinceEpoch());
-    if (m_ui->checkBoxEnableRandom->isChecked())
+    
+    for (int i = 0; i < cloud->size(); i++)
     {
-        for (int i = 0; i < cloud->size(); i++)
+        pcl::PointXYZ inPt = cloud->points[i];
+        pcl::PointXYZI outPt;
+        float offsetX = 0;
+        float offsetY = 0;
+        float offsetZ = 0;
+        if (m_ui->checkBoxEnableRandom->isChecked())
         {
-            pcl::PointXYZ inPt = cloud->points[i];
-            pcl::PointXYZI outPt;
-            float offsetX = qrand() * 1.f / RAND_MAX * m_ui->doubleSpinBoxRandomOffset->value();
-            float offsetY = qrand() * 1.f / RAND_MAX * m_ui->doubleSpinBoxRandomOffset->value();
-            float offsetZ = qrand() * 1.f / RAND_MAX * m_ui->doubleSpinBoxRandomOffset->value();
-            outPt.x = inPt.x + offsetX;
-            outPt.y = inPt.y + offsetY;
-            outPt.z = inPt.z + offsetZ;
-            outPt.intensity = i;
-            m_cloud->push_back(outPt);
+            offsetX = qrand() * 1.f / RAND_MAX * m_ui->doubleSpinBoxRandomOffset->value();
+            offsetY = qrand() * 1.f / RAND_MAX * m_ui->doubleSpinBoxRandomOffset->value();
+            offsetZ = qrand() * 1.f / RAND_MAX * m_ui->doubleSpinBoxRandomOffset->value();
         }
+        outPt.x = inPt.x + offsetX;
+        outPt.y = inPt.y + offsetY;
+        outPt.z = inPt.z + offsetZ;
+        outPt.intensity = i;
+        m_cloud->push_back(outPt);
     }
 
-    m_cloudViewer->visualizer()->removeAllPointClouds();
-    m_cloudViewer->visualizer()->removeAllShapes();
+    m_cloudViewer1->visualizer()->removeAllPointClouds();
+    m_cloudViewer1->visualizer()->removeAllShapes();
     pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(m_cloud, "intensity");
-    m_cloudViewer->visualizer()->addPointCloud(m_cloud, iColor, "original cloud");
-    m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "original cloud");
+    m_cloudViewer1->visualizer()->addPointCloud(m_cloud, iColor, "original cloud");
+    m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "original cloud");
+
+    
 }
 
 void ToolWindowLineExtractor::onActionGenerateLinePointCloud()
@@ -218,8 +224,8 @@ void ToolWindowLineExtractor::onActionGenerateLinePointCloud()
     dir2.normalize();
     dir3.normalize();
 
-    m_cloudViewer->visualizer()->removeAllPointClouds();
-    m_cloudViewer->visualizer()->removeAllShapes();
+    m_cloudViewer1->visualizer()->removeAllPointClouds();
+    m_cloudViewer1->visualizer()->removeAllShapes();
 
     qsrand(QDateTime::currentMSecsSinceEpoch());
 
@@ -270,6 +276,6 @@ void ToolWindowLineExtractor::onActionGenerateLinePointCloud()
     qDebug() << "cloud size:" << m_cloud->size();
 
     pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(m_cloud, "intensity");
-    m_cloudViewer->visualizer()->addPointCloud(m_cloud, iColor, "original cloud");
-    m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "original cloud");
+    m_cloudViewer1->visualizer()->addPointCloud(m_cloud, iColor, "original cloud");
+    m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "original cloud");
 }

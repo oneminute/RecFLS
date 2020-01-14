@@ -29,8 +29,9 @@ private:
     QScopedPointer<Ui::ToolWindowLineExtractor> m_ui;
 
     QScopedPointer<LineExtractor<pcl::PointXYZI, pcl::PointXYZI>> m_extractor;
-    CloudViewer *m_cloudViewer;
-    CloudViewer *m_cloudViewerSecondary;
+    CloudViewer *m_cloudViewer1;
+    CloudViewer *m_cloudViewer2;
+    CloudViewer *m_cloudViewer3;
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_cloud;
 };
 
