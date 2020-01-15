@@ -185,7 +185,7 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
 
         pcl::PointXYZI mappingPt;
         mappingPt.x = distance / m_boundBoxDiameter * 2;
-        mappingPt.y = radiansZ * M_1_PI / 2;
+        mappingPt.y = radiansZ / (M_PI * 2);
         mappingPt.z = xCoord / m_boundBoxDiameter * 2;
         mappingPt.intensity = index;
         m_mappingCloud->push_back(mappingPt);

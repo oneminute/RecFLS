@@ -33,10 +33,6 @@ ToolWindowLineExtractor::ToolWindowLineExtractor(QWidget* parent)
 
     m_cloudViewer1->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, -1, 0);
     m_cloudViewer2->setCameraPosition(0, 0, 1.5f, 0, 0, 0, 1, 0, 0);
-    //Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
-    //pose.topRightCorner(3, 1) = Eigen::Vector3f(1, 1, 0);
-    //std::cout << pose << std::endl;
-    //m_cloudViewer2->updateCameraTargetPosition(pose);
 
     connect(m_ui->actionLoad_Point_Cloud, &QAction::triggered, this, &ToolWindowLineExtractor::onActionLoadPointCloud);
     connect(m_ui->actionGenerate_Line_Point_Cloud, &QAction::triggered, this, &ToolWindowLineExtractor::onActionGenerateLinePointCloud);
@@ -128,14 +124,12 @@ void ToolWindowLineExtractor::onActionParameterizedPointsAnalysis()
     if (m_ui->radioButtonShowAngleCloud->isChecked())
     {
         pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(angleCloud, "intensity");
-        //pcl::transformPointCloud<pcl::PointXYZI>(*angleCloud, *angleCloud, Eigen::Vector3f(-1, 0, 0), Eigen::Quaternionf::Identity());
         m_cloudViewer2->visualizer()->addPointCloud(angleCloud, iColor, "angle cloud");
         m_cloudViewer2->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "angle cloud");
     }
     else if (m_ui->radioButtonShowDensityCloud->isChecked())
     {
         pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(densityCloud, "intensity");
-        //pcl::transformPointCloud<pcl::PointXYZI>(*densityCloud, *densityCloud, Eigen::Vector3f(-1, 0, 0), Eigen::Quaternionf::Identity());
         m_cloudViewer2->visualizer()->addPointCloud(densityCloud, iColor, "density cloud");
         m_cloudViewer2->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "density cloud");
     }
