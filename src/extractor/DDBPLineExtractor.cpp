@@ -19,7 +19,7 @@ DDBPLineExtractor::DDBPLineExtractor(QObject* parent)
     , m_searchRadius(0.05f)
     , m_minNeighbours(3)
     , m_searchErrorThreshold(0.025f)
-    , m_angleSearchRadius(qDegreesToRadians(20.0) / M_PI)
+    , m_angleSearchRadius(qDegreesToRadians(20.0) * M_1_PI)
     , m_angleMinNeighbours(10)
     , m_mappingTolerance(0.01f)
     , m_regionGrowingYDistanceThreshold(0.005f)
@@ -139,8 +139,8 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
             float cosX = (primeDir - yAxis * cosY).normalized().dot(xAxis);
             float beta = qAcos(cosX);
 
-            eulerAngles.x() = alpha / M_2_PI;
-            eulerAngles.y() = beta / M_2_PI;
+            eulerAngles.x() = alpha * M_1_PI;
+            eulerAngles.y() = beta * M_1_PI;
         }
         else if (m_angleMappingMethod = THREE_DIMS)
         {
@@ -148,7 +148,7 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
             Eigen::Quaternionf rotQuat = Eigen::Quaternionf();
             rotQuat.setFromTwoVectors(globalDir, primeDir);
             Eigen::Matrix3f rotMatrix = rotQuat.toRotationMatrix();
-            eulerAngles = rotMatrix.eulerAngles(0, 1, 2) / M_PI;
+            eulerAngles = rotMatrix.eulerAngles(0, 1, 2) * M_1_PI;
         }
 
         // 计算当前点到穿过原点的主方向所在直线的垂直距离
@@ -168,7 +168,7 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
         float radiansZ = qAcos(cosZ);
         if (lineVertProj.cross(zAxis).dot(primeDir) < 0)
         {
-            radiansZ = M_2_PI - radiansZ;
+            radiansZ = (M_PI * 2) - radiansZ;
         }
 
         pcl::PointXYZI anglePt;
@@ -185,7 +185,7 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
 
         pcl::PointXYZI mappingPt;
         mappingPt.x = distance / m_boundBoxDiameter * 2;
-        mappingPt.y = radiansZ / M_2_PI;
+        mappingPt.y = radiansZ * M_1_PI / 2;
         mappingPt.z = xCoord / m_boundBoxDiameter * 2;
         mappingPt.intensity = index;
         m_mappingCloud->push_back(mappingPt);

@@ -24,10 +24,42 @@
        <number>2</number>
       </property>
       <widget class="QWidget" name="containerSecondary" native="true">
-       <layout class="QVBoxLayout" name="layoutSecondary"/>
+       <layout class="QVBoxLayout" name="layoutSecondary">
+        <property name="spacing">
+         <number>2</number>
+        </property>
+        <property name="leftMargin">
+         <number>2</number>
+        </property>
+        <property name="topMargin">
+         <number>2</number>
+        </property>
+        <property name="rightMargin">
+         <number>2</number>
+        </property>
+        <property name="bottomMargin">
+         <number>2</number>
+        </property>
+       </layout>
       </widget>
       <widget class="QWidget" name="containerPointCloud" native="true">
-       <layout class="QHBoxLayout" name="layoutPointCloud"/>
+       <layout class="QHBoxLayout" name="layoutPointCloud">
+        <property name="spacing">
+         <number>2</number>
+        </property>
+        <property name="leftMargin">
+         <number>2</number>
+        </property>
+        <property name="topMargin">
+         <number>2</number>
+        </property>
+        <property name="rightMargin">
+         <number>2</number>
+        </property>
+        <property name="bottomMargin">
+         <number>2</number>
+        </property>
+       </layout>
       </widget>
       <widget class="QScrollArea" name="scrollArea">
        <property name="widgetResizable">
@@ -39,7 +71,7 @@
           <x>0</x>
           <y>0</y>
           <width>1037</width>
-          <height>708</height>
+          <height>717</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -165,7 +197,7 @@
                <double>360.000000000000000</double>
               </property>
               <property name="value">
-               <double>10.000000000000000</double>
+               <double>15.000000000000000</double>
               </property>
              </widget>
             </item>
@@ -333,7 +365,7 @@
                <double>0.001000000000000</double>
               </property>
               <property name="value">
-               <double>0.010000000000000</double>
+               <double>0.050000000000000</double>
               </property>
              </widget>
             </item>
@@ -390,7 +422,7 @@
      <x>0</x>
      <y>0</y>
      <width>1173</width>
-     <height>26</height>
+     <height>23</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">

@@ -31,6 +31,13 @@ ToolWindowLineExtractor::ToolWindowLineExtractor(QWidget* parent)
     m_ui->layoutSecondary->addWidget(m_cloudViewer2);
     m_ui->layoutSecondary->addWidget(m_cloudViewer3);
 
+    m_cloudViewer1->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, -1, 0);
+    m_cloudViewer2->setCameraPosition(0, 0, 1.5f, 0, 0, 0, 1, 0, 0);
+    //Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
+    //pose.topRightCorner(3, 1) = Eigen::Vector3f(1, 1, 0);
+    //std::cout << pose << std::endl;
+    //m_cloudViewer2->updateCameraTargetPosition(pose);
+
     connect(m_ui->actionLoad_Point_Cloud, &QAction::triggered, this, &ToolWindowLineExtractor::onActionLoadPointCloud);
     connect(m_ui->actionGenerate_Line_Point_Cloud, &QAction::triggered, this, &ToolWindowLineExtractor::onActionGenerateLinePointCloud);
     connect(m_ui->actionParameterized_Points_Analysis, &QAction::triggered, this, &ToolWindowLineExtractor::onActionParameterizedPointsAnalysis);
@@ -46,7 +53,7 @@ void ToolWindowLineExtractor::onActionParameterizedPointsAnalysis()
     extractor.setSearchRadius(m_ui->doubleSpinBoxSearchRadius->value());
     extractor.setMinNeighbours(m_ui->spinBoxMinNeighbours->value());
     extractor.setSearchErrorThreshold(m_ui->doubleSpinBoxSearchErrorThreshold->value());
-    extractor.setAngleSearchRadius(qDegreesToRadians(m_ui->doubleSpinBoxAngleSearchRadius->value()) / M_2_PI);
+    extractor.setAngleSearchRadius(qDegreesToRadians(m_ui->doubleSpinBoxAngleSearchRadius->value()) * M_1_PI);
     extractor.setAngleMinNeighbours(m_ui->spinBoxAngleMinNeighbours->value());
     extractor.setMappingTolerance(m_ui->doubleSpinBoxClusterTolerance->value());
     extractor.setAngleMappingMethod(m_ui->comboBoxAngleMappingMethod->currentIndex());
@@ -109,24 +116,26 @@ void ToolWindowLineExtractor::onActionParameterizedPointsAnalysis()
     {
         pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(boundaryCloud2, "intensity");
         m_cloudViewer1->visualizer()->addPointCloud(boundaryCloud2, iColor, "grouped cloud");
-        m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "grouped cloud");
+        m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "grouped cloud");
     }
     else if (m_ui->radioButtonShowLinedCloud->isChecked())
     {
         pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(linedCloud, "intensity");
         m_cloudViewer1->visualizer()->addPointCloud(linedCloud, iColor, "lined cloud");
-        m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "lined cloud");
+        m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "lined cloud");
     }
 
     if (m_ui->radioButtonShowAngleCloud->isChecked())
     {
         pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(angleCloud, "intensity");
+        //pcl::transformPointCloud<pcl::PointXYZI>(*angleCloud, *angleCloud, Eigen::Vector3f(-1, 0, 0), Eigen::Quaternionf::Identity());
         m_cloudViewer2->visualizer()->addPointCloud(angleCloud, iColor, "angle cloud");
         m_cloudViewer2->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "angle cloud");
     }
     else if (m_ui->radioButtonShowDensityCloud->isChecked())
     {
         pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(densityCloud, "intensity");
+        //pcl::transformPointCloud<pcl::PointXYZI>(*densityCloud, *densityCloud, Eigen::Vector3f(-1, 0, 0), Eigen::Quaternionf::Identity());
         m_cloudViewer2->visualizer()->addPointCloud(densityCloud, iColor, "density cloud");
         m_cloudViewer2->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "density cloud");
     }
