@@ -28,10 +28,12 @@ private slots:
 private:
     QScopedPointer<Ui::ToolWindowBoundaryExtractor> m_ui;
     CloudViewer* m_cloudViewer;
+    CloudViewer* m_projectedCloudViewer;
 
     QScopedPointer<BoundaryExtractor> m_boundaryExtractor;
     QScopedPointer<SensorReaderDevice> m_device;
-    pcl::PointCloud<pcl::PointXYZI>::Ptr m_boundary;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr m_allBoundary;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr m_boundaryPoints;
 };
 
 #endif // TOOLWINDOWBOUNDARYEXTRACTOR_H

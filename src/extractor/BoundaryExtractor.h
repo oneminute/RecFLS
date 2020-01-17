@@ -12,11 +12,16 @@
 
 #include <opencv2/opencv.hpp>
 
-
 class BoundaryExtractor : public QObject
 {
     Q_OBJECT
 public:
+    enum DOWNSAMPLING_METHOD
+    {
+        DM_VOXEL_GRID = 0,
+        DM_UNIFORM_SAMPLING
+    };
+
     explicit BoundaryExtractor(QObject* parent = nullptr);
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr compute();
@@ -41,6 +46,11 @@ public:
     pcl::PointCloud<pcl::Normal>::Ptr normals() const { return m_normals; }
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr filteredCloud() const { return m_filteredCloud; }
+
+    pcl::PointCloud<pcl::PointXYZI>::Ptr projectedCloud() const { return m_projectedCloud; }
+    pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryPoints() const { return m_boundaryPoints; }
+    pcl::PointCloud<pcl::PointXYZI>::Ptr veilPoints() const { return m_veilPoints; }
+    pcl::PointCloud<pcl::PointXYZI>::Ptr borderPoints() const { return m_borderPoints; }
 
     int OutlierRemovalMeanK() const { return m_outlierRemovalMeanK; }
     void setOutlierRemovalMeanK(int _outlierRemovalMeanK) { m_outlierRemovalMeanK = _outlierRemovalMeanK; }
@@ -69,6 +79,33 @@ public:
     float boundaryAngleThreshold() const { return m_boundaryAngleThreshold; }
     void setBoundaryAngleThreshold(float _boundaryAngleThreshold) { m_boundaryAngleThreshold = _boundaryAngleThreshold; }
 
+    float matWidth() const { return m_matWidth; }
+    void setMatWidth(int _matWidth) { m_matWidth = _matWidth; }
+
+    float matHeight() const { return m_matHeight; }
+    void setMatHeight(int _matHeight) { m_matHeight = _matHeight; }
+
+    float cx() const { return m_cx; }
+    void setCx(float _cx) { m_cx = _cx; }
+
+    float cy() const { return m_cy; }
+    void setCy(float _cy) { m_cy = _cy; }
+
+    float fx() const { return m_fx; }
+    void setFx(float _fx) { m_fx = _fx; }
+
+    float fy() const { return m_fy; }
+    void setFy(float _fy) { m_fy = _fy; }
+
+    float projectedRadiusSearch() const { return m_projectedRadiusSearch; }
+    void setProjectedRadiusSearch(float _projectedRadiusSearch) { m_projectedRadiusSearch = _projectedRadiusSearch; }
+
+    float borderWidth() const { return m_borderWidth; }
+    void setBorderWidth(float _borderWidth) { m_borderWidth = _borderWidth; }
+
+    float veilDistanceThreshold() const { return m_veilDistanceThreshold; }
+    void setVeilDistanceThreshold(float _veilDistanceThreshold) { m_veilDistanceThreshold = _veilDistanceThreshold; }
+
 protected:
     void computeNormals();
 
@@ -79,7 +116,12 @@ private:
     pcl::PointCloud<pcl::PointXYZ>::Ptr m_filteredCloud;
     pcl::PointCloud<pcl::PointXYZ>::Ptr m_removalCloud;
     pcl::PointCloud<pcl::Normal>::Ptr m_normals;
-    pcl::PointCloud<pcl::PointXYZI>::Ptr m_boundary;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr m_allBoundary;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr m_projectedCloud;
+
+    pcl::PointCloud<pcl::PointXYZI>::Ptr m_boundaryPoints;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr m_veilPoints;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr m_borderPoints;
 
     float m_downsampleLeafSize;
     int m_outlierRemovalMeanK;
@@ -90,6 +132,15 @@ private:
     float m_normalsRadiusSearch;
     float m_boundaryRadiusSearch;
     float m_boundaryAngleThreshold;
+    int m_matWidth;
+    int m_matHeight;
+    float m_cx;
+    float m_cy;
+    float m_fx;
+    float m_fy;
+    float m_projectedRadiusSearch;
+    float m_borderWidth;
+    float m_veilDistanceThreshold;
 };
 
 

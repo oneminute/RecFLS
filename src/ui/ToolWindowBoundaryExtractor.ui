@@ -20,6 +20,9 @@
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
+      <widget class="QWidget" name="widget_4" native="true">
+       <layout class="QVBoxLayout" name="verticalLayout2"/>
+      </widget>
       <widget class="QWidget" name="widget" native="true">
        <layout class="QVBoxLayout" name="verticalLayout1"/>
       </widget>
@@ -31,9 +34,6 @@
         </size>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_2">
-        <item>
-         <widget class="ImageViewer" name="imageViewerProjected" native="true"/>
-        </item>
         <item>
          <widget class="QGroupBox" name="groupBox_2">
           <property name="title">
@@ -96,7 +96,7 @@
               <string/>
              </property>
              <property name="checked">
-              <bool>true</bool>
+              <bool>false</bool>
              </property>
             </widget>
            </item>
@@ -387,14 +387,6 @@
    </property>
   </action>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>ImageViewer</class>
-   <extends>QWidget</extends>
-   <header>ui/ImageViewer.h</header>
-   <container>1</container>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>
