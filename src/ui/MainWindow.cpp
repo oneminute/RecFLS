@@ -51,6 +51,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(m_ui->actionOpen_Device, &QAction::triggered, this, &MainWindow::onActionOpenDevice);
     connect(m_ui->actionLine_Extractor, &QAction::triggered, this, &MainWindow::onActionToolWindowLineExtractor);
+    connect(m_ui->actionLine_Matcher, &QAction::triggered, this, &MainWindow::onActionToolWindowLineMatcher);
+    connect(m_ui->actionBoundary_Extractor, &QAction::triggered, this, &MainWindow::onActionToolWindowBoundaryExtractor);
     connect(m_ui->actionNext_Frame, &QAction::triggered, this, &MainWindow::onActionNextFrame);
     connect(m_ui->actionSave_Current_Frame, &QAction::triggered, this, &MainWindow::onActionSaveCurrentFrame);
 }
@@ -129,12 +131,23 @@ void MainWindow::onActionCloseDevice()
 
 void MainWindow::onActionToolWindowLineExtractor()
 {
-    if (!m_toolWindowLineExtractor)
-    {
-        m_toolWindowLineExtractor.reset(new ToolWindowLineExtractor);
-    }
+    m_toolWindowLineExtractor.reset(new ToolWindowLineExtractor);
     m_toolWindowLineExtractor->setWindowModality(Qt::WindowModality::ApplicationModal);
     m_toolWindowLineExtractor->show();
+}
+
+void MainWindow::onActionToolWindowLineMatcher()
+{
+    m_toolWindowLineMatcher.reset(new ToolWindowLineMatcher);
+    m_toolWindowLineMatcher->setWindowModality(Qt::WindowModality::ApplicationModal);
+    m_toolWindowLineMatcher->show();
+}
+
+void MainWindow::onActionToolWindowBoundaryExtractor()
+{
+    m_toolWindowBoundaryExtractor.reset(new ToolWindowBoundaryExtractor);
+    m_toolWindowBoundaryExtractor->setWindowModality(Qt::WindowModality::ApplicationModal);
+    m_toolWindowBoundaryExtractor->show();
 }
 
 void MainWindow::onActionSaveCurrentFrame()

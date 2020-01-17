@@ -1,7 +1,8 @@
 #include "LineMatchOdometry.h"
 #include "device/Device.h"
-#include "extractor/LineExtractor.hpp"
 #include "util/StopWatch.h"
+
+#include <QDebug>
 
 #include <pcl/common/common.h>
 #include <pcl/features/boundary.h>
@@ -176,67 +177,67 @@ void LineMatchOdometry::doProcessing(Frame& frame)
     std::cout << "boundary size:" << boundary.size() << ", cloud size:" << m_cloud->points.size() << std::endl;
     StopWatch::instance().tock("boundary_estimation");
 
-    StopWatch::instance().tick("line_extract");
-    LineExtractor<pcl::PointXYZ, pcl::PointXYZI> le;
-    pcl::PointCloud<pcl::PointXYZI> leCloud;
-    le.compute(*boundaryCloud, leCloud);
+//    StopWatch::instance().tick("line_extract");
+//    LineExtractor<pcl::PointXYZ, pcl::PointXYZI> le;
+//    pcl::PointCloud<pcl::PointXYZI> leCloud;
+//    le.compute(*boundaryCloud, leCloud);
 
-    pcl::PointCloud<pcl::PointXYZI>::Ptr result;
-    result = le.getBoundary();
+//    pcl::PointCloud<pcl::PointXYZI>::Ptr result;
+//    result = le.getBoundary();
 
-    qDebug() << "boundary size:" << result->size();
-    result->width = result->points.size();
-    result->height = 1;
-    result->is_dense = true;
-    StopWatch::instance().tock("line_extract");
+//    qDebug() << "boundary size:" << result->size();
+//    result->width = result->points.size();
+//    result->height = 1;
+//    result->is_dense = true;
+//    StopWatch::instance().tock("line_extract");
 
-    StopWatch::instance().tick("show_result");
-    std::vector<LineSegment> lines = le.getLines();
-    qDebug() << "size of lines: " << lines.size();
+//    StopWatch::instance().tick("show_result");
+//    std::vector<LineSegment> lines = le.getLines();
+//    qDebug() << "size of lines: " << lines.size();
 
-    m_cloudViewer->visualizer()->removeAllShapes();
-    srand(0);
-    for (size_t i = 0; i < lines.size() && false; i++)
-    {
-        std::string lineNo = "line_" + std::to_string(i);
+//    m_cloudViewer->visualizer()->removeAllShapes();
+//    srand(0);
+//    for (size_t i = 0; i < lines.size() && false; i++)
+//    {
+//        std::string lineNo = "line_" + std::to_string(i);
 
-        double r = rand() * 1.0 / RAND_MAX;
-        double g = rand() * 1.0 / RAND_MAX;
-        double b = rand() * 1.0 / RAND_MAX;
-//        double r = 1;
-//        double g = 0;
-//        double b = 0;
+//        double r = rand() * 1.0 / RAND_MAX;
+//        double g = rand() * 1.0 / RAND_MAX;
+//        double b = rand() * 1.0 / RAND_MAX;
+////        double r = 1;
+////        double g = 0;
+////        double b = 0;
 
-//        qDebug().noquote().nospace() << QString::fromStdString(lineNo) << " length is " << lines[i].length() << "m";
+////        qDebug().noquote().nospace() << QString::fromStdString(lineNo) << " length is " << lines[i].length() << "m";
 
-        if (lines[i].length() > 0.1f)
-        {
-            pcl::PointXYZI start, end;
-            start.getVector3fMap() = lines[i].start();
-            end.getVector3fMap() = lines[i].end();
-            Eigen::Vector3f dir = lines[i].direction();
-//            m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
-            m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
-            m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo);
-        }
-    }
+//        if (lines[i].length() > 0.1f)
+//        {
+//            pcl::PointXYZI start, end;
+//            start.getVector3fMap() = lines[i].start();
+//            end.getVector3fMap() = lines[i].end();
+//            Eigen::Vector3f dir = lines[i].direction();
+////            m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
+//            m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
+//            m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo);
+//        }
+//    }
 
-    QList<LineCluster*> clusters = le.getLineClusters();
-    for (int i = 0; i < clusters.size() && true; i++)
-    {
-        double r = rand() * 1.0 / RAND_MAX;
-        double g = rand() * 1.0 / RAND_MAX;
-        double b = rand() * 1.0 / RAND_MAX;
+//    QList<LineCluster*> clusters = le.getLineClusters();
+//    for (int i = 0; i < clusters.size() && true; i++)
+//    {
+//        double r = rand() * 1.0 / RAND_MAX;
+//        double g = rand() * 1.0 / RAND_MAX;
+//        double b = rand() * 1.0 / RAND_MAX;
 
-        LineSegment line = clusters[i]->merge();
-        if (line.length() < 0.1f)
-            continue;
-        std::string lineNo = "cluster_line_" + std::to_string(i);
-        pcl::PointXYZI start, end;
-        start.getVector3fMap() = line.start();
-        end.getVector3fMap() = line.end();
-        m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
-        m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
+//        LineSegment line = clusters[i]->merge();
+//        if (line.length() < 0.1f)
+//            continue;
+//        std::string lineNo = "cluster_line_" + std::to_string(i);
+//        pcl::PointXYZI start, end;
+//        start.getVector3fMap() = line.start();
+//        end.getVector3fMap() = line.end();
+//        m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
+//        m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
 
 //        for (int j = 0; clusters[i]->size() > 3 && j < clusters[i].size(); j++)
 //        {
@@ -248,7 +249,7 @@ void LineMatchOdometry::doProcessing(Frame& frame)
 //            m_cloudViewer->visualizer()->addLine(start, end, r, g, b, lineNo);
 //            m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
 //        }
-    }
+//    }
     StopWatch::instance().tock("show_result");
 
 //    pcl::PointCloud<pcl::PointXYZI>::Ptr segmentsCloud(new pcl::PointCloud<pcl::PointXYZI>);

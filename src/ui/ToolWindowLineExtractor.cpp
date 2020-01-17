@@ -9,7 +9,6 @@
 
 #include "common/Parameters.h"
 #include "util/Utils.h"
-#include "extractor/LineExtractor.hpp"
 #include "extractor/DDBPLineExtractor.h"
 
 #include <pcl/io/ply_io.h>
@@ -54,7 +53,7 @@ void ToolWindowLineExtractor::onActionParameterizedPointsAnalysis()
     extractor.setMappingTolerance(m_ui->doubleSpinBoxClusterTolerance->value());
     extractor.setAngleMappingMethod(m_ui->comboBoxAngleMappingMethod->currentIndex());
     extractor.setMinLineLength(m_ui->doubleSpinBoxMinLineLength->value());
-    extractor.setRegionGrowingYDistanceThreshold(m_ui->doubleSpinBoxYDistanceThreshold->value());
+    extractor.setRegionGrowingZDistanceThreshold(m_ui->doubleSpinBoxZDistanceThreshold->value());
 
     QList<LineSegment> lines = extractor.compute(m_cloud);
 

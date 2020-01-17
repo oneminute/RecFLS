@@ -40,15 +40,16 @@ int main(int argc, char *argv[])
     Device *device = new SensorReaderDevice;
     Controller *controller = new  DefaultController(device);
 
-    MainWindow w;
-    w.setController(controller);
-    w.show();
+    MainWindow* w = new MainWindow;
+    w->setController(controller);
+    w->show();
 
     int result = app.exec();
 
     StopWatch::instance().debugPrint();
     //Parameters::Global().save();
     delete device;
+    delete w;
 
     return result;
 }

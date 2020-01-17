@@ -14,7 +14,7 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_CXX_STANDARD 14)
 
 add_definitions(-DSTB_IMAGE_IMPLEMENTATION)
-add_definitions(-DEIGEN_DONT_ALIGN)
+#add_definitions(-DEIGEN_DONT_ALIGN)
 add_definitions(-DPCL_ONLY_CORE_POINT_TYPES)
 
 
@@ -33,7 +33,11 @@ find_package(VTK REQUIRED QUIET)
 find_package(CUDA)
 
 set(__cuda_arch_bin "3.0 3.5 5.0 5.2 5.3 6.0 6.1")
-set(CUDA_NVCC_FLAGS "-Xcompiler \"/wd 4819\" --ftz=true;--prec-div=false;--prec-sqrt=false;--expt-relaxed-constexpr")
+IF(MSVC)
+    set(CUDA_NVCC_FLAGS "-Xcompiler \"/wd 4819\" --ftz=true;--prec-div=false;--prec-sqrt=false;--expt-relaxed-constexpr")
+ELSE(MSVC)
+    set(CUDA_NVCC_FLAGS "--ftz=true;--prec-div=false;--prec-sqrt=false;--expt-relaxed-constexpr")
+ENDIF(MSVC)
 
 set(INCLUDE_DIRS
     ${INCLUDE_DIRS}
@@ -65,6 +69,9 @@ FILE(GLOB DEVICE_SRCS src/device/*.cpp)
 FILE(GLOB EXTRACTOR_HEADERS src/extractor/*.h)
 FILE(GLOB EXTRACTOR_SRCS src/extractor/*.hpp src/extractor/*.cpp)
 
+FILE(GLOB MATCHER_HEADERS src/matcher/*.h)
+FILE(GLOB MATCHER_SRCS src/matcher/*hpp src/matcher/*.cpp)
+
 FILE(GLOB ODOMETRY_HEADERS src/odometry/*.h)
 FILE(GLOB ODOMETRY_SRCS src/odometry/*.cpp)
 
@@ -94,6 +101,7 @@ set(HEADER_FILES
     ${CUDA_HEADERS}
     ${DEVICE_HEADERS}
     ${EXTRACTOR_HEADERS}
+    ${MATCHER_HEADERS}
     ${ODOMETRY_HEADERS}
     ${UI_HEADERS}
     ${UTIL_HEADERS}
@@ -107,6 +115,7 @@ set(SRC_FILES
     ${CUDA_SRCS}
     ${DEVICE_SRCS}
     ${EXTRACTOR_SRCS}
+    ${MATCHER_SRCS}
     ${ODOMETRY_SRCS}
     ${UI_SRCS}
     ${UIS}
@@ -125,6 +134,8 @@ IF(MSVC)
     source_group("header\\device" FILES ${DEVICE_HEADERS})
     source_group("source\\extractor" FILES ${EXTRACTOR_SRCS})
     source_group("header\\extractor" FILES ${EXTRACTOR_HEADERS})
+    source_group("source\\matcher" FILES ${MATCHER_SRCS})
+    source_group("header\\matcher" FILES ${MATCHER_HEADERS})
     source_group("source\\odometry" FILES ${ODOMETRY_SRCS})
     source_group("header\\odometry" FILES ${ODOMETRY_HEADERS})
     source_group("source\\ui" FILES ${UI_SRCS})

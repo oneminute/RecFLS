@@ -21,6 +21,8 @@ public:
     virtual Frame getFrame(int frameIndex);
     virtual void fetchNext();
 
+    quint64 totalFrames() const { return m_frameCount; }
+
 private:
     quint64 m_frameCount;
     QList<Frame> m_frames;

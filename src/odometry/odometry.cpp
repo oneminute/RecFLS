@@ -1,4 +1,4 @@
-#include "odometry.h"
+#include "Odometry.h"
 #include "util/StopWatch.h"
 
 Odometry::Odometry(QObject *parent) : QObject(parent)

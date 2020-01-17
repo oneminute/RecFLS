@@ -22,7 +22,7 @@ DDBPLineExtractor::DDBPLineExtractor(QObject* parent)
     , m_angleSearchRadius(qDegreesToRadians(20.0) * M_1_PI)
     , m_angleMinNeighbours(10)
     , m_mappingTolerance(0.01f)
-    , m_regionGrowingYDistanceThreshold(0.005f)
+    , m_regionGrowingZDistanceThreshold(0.005f)
     , m_minLineLength(0.01f)
 {
 
@@ -37,7 +37,7 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
     qDebug() << "angleSearchRadius:" << m_angleSearchRadius;
     qDebug() << "angleMinNeighbours:" << m_angleMinNeighbours;
     qDebug() << "mappingTolerance:" << m_mappingTolerance;
-    qDebug() << "regionGrowingYDistance:" << m_regionGrowingYDistanceThreshold;
+    qDebug() << "regionGrowingYDistance:" << m_regionGrowingZDistanceThreshold;
     qDebug() << "minLineLength:" << m_minLineLength;
 
     m_boundaryCloud.reset(new pcl::PointCloud<pcl::PointXYZI>);
@@ -84,7 +84,7 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
         std::vector<float> neighbourDistances;
         tree.radiusSearch(ptIn, m_searchRadius, neighbourIndices, neighbourDistances);
 
-        // 近邻点太表示这是一个离群点，且小于3也无法进行PCA计算
+        // 近邻点太少表示这是一个离群点，且小于3也无法进行PCA计算
         if (neighbourIndices.size() < m_minNeighbours)
         {
             continue;
@@ -341,9 +341,8 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
                             Eigen::Vector3f seedPoint = ptSeed.getVector3fMap();
                             Eigen::Vector3f candidatePoint = ptCandidate.getVector3fMap();
 
-                            Eigen::Vector3f yAxis(0, 1, 0);
-                            float distToY = (candidatePoint - seedPoint).cross(yAxis).norm();
-                            if (distToY < m_regionGrowingYDistanceThreshold)
+                            float distToZ = (candidatePoint - seedPoint).cross(zAxis).norm();
+                            if (distToZ < m_regionGrowingZDistanceThreshold)
                             {
                                 return true;
                             }

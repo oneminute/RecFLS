@@ -1,9 +1,9 @@
-#include "linematchcudaodometry.h"
+#include "LineMatchCudaOdometry.h"
 #include "util/StopWatch.h"
 #include "cuda/CudaInternal.h"
 #include "device/Device.h"
 #include "ui/CloudViewer.h"
-#include "extractor/LineExtractor.hpp"
+//#include "extractor/LineExtractor.hpp"
 #include "common/Parameters.h"
 
 #include <QDebug>

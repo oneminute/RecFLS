@@ -8,6 +8,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <opencv2/opencv.hpp>
+#include <pcl/common/common.h>
 
 class FrameData;
 class Device;
@@ -104,6 +105,8 @@ public:
     cv::Mat undistortRGBImage();
 
     cv::Mat alignDepthToColor();
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr getCloud(pcl::Indices& indices, float minDepth = 0.4f, float maxDepth = 8.0f);
 
 signals:
 

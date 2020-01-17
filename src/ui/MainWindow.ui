@@ -43,6 +43,8 @@
      <string>Tools</string>
     </property>
     <addaction name="actionLine_Extractor"/>
+    <addaction name="actionLine_Matcher"/>
+    <addaction name="actionBoundary_Extractor"/>
    </widget>
    <addaction name="menu_File"/>
    <addaction name="menu_Device"/>
@@ -221,6 +223,16 @@
    </property>
    <property name="toolTip">
     <string>Save Current Frame</string>
+   </property>
+  </action>
+  <action name="actionLine_Matcher">
+   <property name="text">
+    <string>Line Matcher</string>
+   </property>
+  </action>
+  <action name="actionBoundary_Extractor">
+   <property name="text">
+    <string>Boundary Extractor</string>
    </property>
   </action>
  </widget>

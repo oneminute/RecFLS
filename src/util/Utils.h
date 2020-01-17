@@ -25,16 +25,16 @@ public:
 };
 
 template<typename _Scalar, int _Rows, int _Cols>
-QDebug &qDebugMatrix(QDebug &out, const Eigen::Matrix<_Scalar, _Rows, _Cols>& m);
+QDebug qDebugMatrix(QDebug &out, const Eigen::Matrix<_Scalar, _Rows, _Cols>& m);
 
 template<typename _Scalar, int _Rows, int _Cols>
 QDataStream &streamInMatrix(QDataStream &in, Eigen::Matrix<_Scalar, _Rows, _Cols> &m);
 
-QDebug &operator<<(QDebug out, const Eigen::Matrix4f &m);
+QDebug operator<<(QDebug out, const Eigen::Matrix4f &m);
 
-QDebug &operator<<(QDebug out, const cv::Mat &m);
+QDebug operator<<(QDebug out, const cv::Mat &m);
 
-QDebug &operator<<(QDebug out, const Eigen::Vector3f &v);
+QDebug operator<<(QDebug out, const Eigen::Vector3f &v);
 
 QDataStream &operator>>(QDataStream &in, Eigen::Matrix4f &m);
 

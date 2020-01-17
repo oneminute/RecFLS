@@ -105,8 +105,8 @@ public:
     float mappingTolerance() const { return m_mappingTolerance; }
     void setMappingTolerance(float _mappingTolerance) { m_mappingTolerance = _mappingTolerance; }
 
-    float regionGrowingYDistanceThreshold() const { return m_regionGrowingYDistanceThreshold; }
-    void setRegionGrowingYDistanceThreshold(float _regionGrowingYDistance) { m_regionGrowingYDistanceThreshold = _regionGrowingYDistance; }
+    float regionGrowingZDistanceThreshold() const { return m_regionGrowingZDistanceThreshold; }
+    void setRegionGrowingZDistanceThreshold(float _regionGrowingZDistance) { m_regionGrowingZDistanceThreshold = _regionGrowingZDistance; }
 
     ANGLE_MAPPING_METHOD angleMappingMethod() const { return m_angleMappingMethod; }
     void setAngleMappingMethod(int _angleMappingMethod) { m_angleMappingMethod = static_cast<ANGLE_MAPPING_METHOD>(_angleMappingMethod); }
@@ -164,7 +164,7 @@ private:
 
     float m_mappingTolerance;
 
-    float m_regionGrowingYDistanceThreshold;
+    float m_regionGrowingZDistanceThreshold;
 
     float m_minLineLength;
 

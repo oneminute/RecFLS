@@ -6,7 +6,6 @@
 
 #include <pcl/common/common.h>
 #include "CloudViewer.h"
-#include "extractor/LineExtractor.h"
 
 namespace Ui {
 class ToolWindowLineExtractor;
@@ -28,7 +27,6 @@ private slots:
 private:
     QScopedPointer<Ui::ToolWindowLineExtractor> m_ui;
 
-    QScopedPointer<LineExtractor<pcl::PointXYZI, pcl::PointXYZI>> m_extractor;
     CloudViewer *m_cloudViewer1;
     CloudViewer *m_cloudViewer2;
     CloudViewer *m_cloudViewer3;

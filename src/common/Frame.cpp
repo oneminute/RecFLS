@@ -343,6 +343,48 @@ cv::Mat Frame::alignDepthToColor()
     return data->device->alignDepthToColor(data->depthMat, data->colorMat);
 }
 
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr Frame::getCloud(pcl::Indices& indices, float minDepth, float maxDepth)
+{
+    indices.clear();
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+
+    cv::Mat depth = depthMat();
+    cv::Mat color = colorMat();
+    depth.convertTo(depth, CV_32F);
+    int count = 0;
+    for(int i = 0; i < getDepthHeight(); i++) {
+        for(int j = 0; j < getDepthWidth(); j++) {
+            int index = i * getDepthWidth() + j;
+            pcl::PointXYZRGB pt;
+            float zValue = depth.at<float>(i, j);
+
+            float x = 0, y = 0, z = 0;
+            z = zValue / getDevice()->depthShift();
+            x = (j - getDevice()->cx()) * z / getDevice()->fx();
+            y = (i - getDevice()->cy()) * z / getDevice()->fy();
+
+            pt.x = x;
+            pt.y = y;
+            pt.z = z;
+            pt.b = color.at<cv::Vec3b>(cv::Point(j, i))[0];
+            pt.g = color.at<cv::Vec3b>(cv::Point(j, i))[1];
+            pt.r = color.at<cv::Vec3b>(cv::Point(j, i))[2];
+
+            if (pt.z > minDepth && pt.z <= maxDepth) {
+                indices.push_back(count++);
+                cloud->push_back(pt);
+            }
+        }
+    }
+    cloud->is_dense = true;
+    //cloud->width = getDepthWidth();
+    //cloud->height =  getDepthHeight();
+    cloud->width = cloud->points.size();
+    cloud->height =  1;
+
+    return cloud;
+}
+
 QDataStream &operator>>(QDataStream &in, Frame &frame)
 {
     return frame.load(in);

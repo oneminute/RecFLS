@@ -16,7 +16,7 @@ void Utils::registerTypes()
 }
 
 template<typename _Scalar, int _Rows, int _Cols>
-QDebug &qDebugMatrix(QDebug &out, const Eigen::Matrix<_Scalar, _Rows, _Cols> &m)
+QDebug qDebugMatrix(QDebug &out, const Eigen::Matrix<_Scalar, _Rows, _Cols> &m)
 {
     for (int i = 0; i < m.rows(); i++)
     {
@@ -41,7 +41,7 @@ QDataStream &streamInMatrix(QDataStream &in, Eigen::Matrix<_Scalar, _Rows, _Cols
     return in;
 }
 
-QDebug &operator<<(QDebug out, const Eigen::Matrix4f &m)
+QDebug operator<<(QDebug out, const Eigen::Matrix4f &m)
 {
     return qDebugMatrix(out, m);
 }
@@ -51,7 +51,7 @@ QDataStream &operator>>(QDataStream &in, Eigen::Matrix4f &m)
     return streamInMatrix(in, m);
 }
 
-QDebug &operator<<(QDebug out, const Eigen::Vector3f &v)
+QDebug operator<<(QDebug out, const Eigen::Vector3f &v)
 {
     return qDebugMatrix(out, v);
 }
@@ -300,7 +300,7 @@ cv::Mat cvMatFrom(const Eigen::MatrixXf &m)
     return mat;
 }
 
-QDebug &operator<<(QDebug out, const cv::Mat &m)
+QDebug operator<<(QDebug out, const cv::Mat &m)
 {
     for (int i = 0; i < m.rows; i++)
     {
