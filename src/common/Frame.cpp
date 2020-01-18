@@ -343,7 +343,7 @@ cv::Mat Frame::alignDepthToColor()
     return data->device->alignDepthToColor(data->depthMat, data->colorMat);
 }
 
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr Frame::getCloud(pcl::Indices& indices, float minDepth, float maxDepth)
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr Frame::getCloud(std::vector<int>& indices, float minDepth, float maxDepth)
 {
     indices.clear();
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);

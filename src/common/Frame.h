@@ -106,7 +106,7 @@ public:
 
     cv::Mat alignDepthToColor();
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr getCloud(pcl::Indices& indices, float minDepth = 0.4f, float maxDepth = 8.0f);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr getCloud(std::vector<int>& indices, float minDepth = 0.4f, float maxDepth = 8.0f);
 
 signals:
 

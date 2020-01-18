@@ -67,7 +67,7 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::compute()
         }
     }*/
 
-    pcl::Indices indices;
+    std::vector<int> indices;
 
     TICK("Downsampling");
     if (m_downsamplingMethod == DM_VOXEL_GRID)
@@ -219,7 +219,7 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::compute()
         pcl::PointXYZI point = m_allBoundary->points[projPoint.intensity];
         float length = lengthList[i];
 
-        pcl::Indices neighbourIndices;
+        std::vector<int> neighbourIndices;
         std::vector<float> neighbourDistances;
         projTree.radiusSearch(projPoint, m_projectedRadiusSearch, neighbourIndices, neighbourDistances);
         if (neighbourIndices.size() == 1)
