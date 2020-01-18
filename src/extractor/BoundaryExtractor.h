@@ -103,8 +103,17 @@ public:
     float borderWidth() const { return m_borderWidth; }
     void setBorderWidth(float _borderWidth) { m_borderWidth = _borderWidth; }
 
+    float borderHeight() const { return m_borderHeight; }
+    void setBorderHeight(float _borderHeight) { m_borderHeight = _borderHeight; }
+
     float veilDistanceThreshold() const { return m_veilDistanceThreshold; }
     void setVeilDistanceThreshold(float _veilDistanceThreshold) { m_veilDistanceThreshold = _veilDistanceThreshold; }
+
+    int downsamplingMethod() const { return static_cast<int>(m_downsamplingMethod); }
+    void setDownsamplingMethod(int _downsamplingMethod) { m_downsamplingMethod = static_cast<DOWNSAMPLING_METHOD>(_downsamplingMethod); }
+
+    bool enableRemovalFilter() const { return m_enableRemovalFilter; }
+    void setEnableRemovalFilter(bool _enable) { m_enableRemovalFilter = _enable; }
 
 protected:
     void computeNormals();
@@ -123,6 +132,8 @@ private:
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_veilPoints;
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_borderPoints;
 
+    DOWNSAMPLING_METHOD m_downsamplingMethod;
+    bool m_enableRemovalFilter;
     float m_downsampleLeafSize;
     int m_outlierRemovalMeanK;
     float m_stddevMulThresh;
@@ -138,8 +149,9 @@ private:
     float m_cy;
     float m_fx;
     float m_fy;
-    float m_projectedRadiusSearch;
     float m_borderWidth;
+    float m_borderHeight;
+    float m_projectedRadiusSearch;
     float m_veilDistanceThreshold;
 };
 

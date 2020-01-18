@@ -17,6 +17,8 @@
 
 BoundaryExtractor::BoundaryExtractor(QObject* parent)
     : QObject(parent)
+    , m_downsamplingMethod(DM_VOXEL_GRID)
+    , m_enableRemovalFilter(false)
     , m_downsampleLeafSize(0.005f)
     , m_outlierRemovalMeanK(50)
     , m_stddevMulThresh(1.0f)
@@ -32,9 +34,10 @@ BoundaryExtractor::BoundaryExtractor(QObject* parent)
     , m_cy(240)
     , m_fx(583)
     , m_fy(583)
-    , m_borderWidth(20)
-    , m_projectedRadiusSearch(0.025f)
-    , m_veilDistanceThreshold(0.0025f)
+    , m_borderWidth(26)
+    , m_borderHeight(16)
+    , m_projectedRadiusSearch(M_PI / 72)
+    , m_veilDistanceThreshold(0.1f)
 {
 
 }
@@ -67,23 +70,23 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::compute()
     pcl::Indices indices;
 
     TICK("Downsampling");
-    //pcl::UniformSampling<pcl::PointXYZ> us;
-    ////us.setIndices(m_indices);
-    //us.setInputCloud(m_cloud);
-    //us.setRadiusSearch(m_downsampleLeafSize);
-    //us.filter(*m_downsampledCloud);
-
-    //pcl::PCLPointCloud2::Ptr cloud2(new pcl::PCLPointCloud2);
-    //pcl::toPCLPointCloud2(*m_cloud, *cloud2);
-
-    pcl::VoxelGrid<pcl::PointXYZ> vg;
-    //vg.setIndices(m_indices);
-    vg.setInputCloud(m_cloud);
-    vg.setLeafSize(m_downsampleLeafSize, m_downsampleLeafSize, m_downsampleLeafSize);
-    vg.filter(*m_downsampledCloud);
-
-    //pcl::fromPCLPointCloud2(*cloud2, *m_downsampledCloud);
-
+    if (m_downsamplingMethod == DM_VOXEL_GRID)
+    {
+        pcl::VoxelGrid<pcl::PointXYZ> vg;
+        //vg.setIndices(m_indices);
+        vg.setInputCloud(m_cloud);
+        vg.setLeafSize(m_downsampleLeafSize, m_downsampleLeafSize, m_downsampleLeafSize);
+        vg.filter(*m_downsampledCloud);
+    }
+    if (m_downsamplingMethod == DM_UNIFORM_SAMPLING)
+    {
+        pcl::UniformSampling<pcl::PointXYZ> us;
+        //us.setIndices(m_indices);
+        us.setInputCloud(m_cloud);
+        us.setRadiusSearch(m_downsampleLeafSize);
+        us.filter(*m_downsampledCloud);
+    }
+    
     qDebug() << "Size before downsampling:" << m_cloud->size() << ", size after:" << m_downsampledCloud->size();
 
     //m_indices->clear();
@@ -93,20 +96,25 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::compute()
     }*/
     TOCK("Downsampling");
 
-    //TICK("Outlier_Removal");
-    //// 剔除离群点
-    //pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
-    ////sor.setIndices(m_indices);
-    //sor.setInputCloud(m_downsampledCloud);
-    //sor.setMeanK(m_outlierRemovalMeanK); 
-    //sor.setStddevMulThresh(m_stddevMulThresh); //距离大于1倍标准方差
-    //sor.filter(indices);
-    ////m_indices.reset(new std::vector<int>(indices));
-    //pcl::copyPointCloud(*m_downsampledCloud, indices, *m_removalCloud);
-    //qDebug() << "Cloud size before outlier removal:" << m_downsampledCloud->size() << ", size after:" << m_removalCloud->size() << ", removed size:" << (m_downsampledCloud->size() - indices.size());
-    //TOCK("Outlier_Removal");
-
-    m_removalCloud = m_downsampledCloud;
+    TICK("Outlier_Removal");
+    // 剔除离群点
+    if (m_enableRemovalFilter)
+    {
+        pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+        //sor.setIndices(m_indices);
+        sor.setInputCloud(m_downsampledCloud);
+        sor.setMeanK(m_outlierRemovalMeanK);
+        sor.setStddevMulThresh(m_stddevMulThresh); //距离大于1倍标准方差
+        sor.filter(indices);
+        //m_indices.reset(new std::vector<int>(indices));
+        pcl::copyPointCloud(*m_downsampledCloud, indices, *m_removalCloud);
+        qDebug() << "Cloud size before outlier removal:" << m_downsampledCloud->size() << ", size after:" << m_removalCloud->size() << ", removed size:" << (m_downsampledCloud->size() - indices.size());
+        TOCK("Outlier_Removal");
+    }
+    else
+    {
+        m_removalCloud = m_downsampledCloud;
+    }
 
     TICK("Gaussian_Filter");
     // 高斯滤波
@@ -184,7 +192,7 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::compute()
         int i = static_cast<int>(point.x * m_fx / point.z + m_cx);
         int j = static_cast<int>(point.y * m_fy / point.z + m_cy);
         
-        if (i <= m_borderWidth + 6 || j <= m_borderWidth - 4 || i >= (m_matWidth - m_borderWidth - 6) || j >= (m_matHeight - m_borderWidth + 4))
+        if (i <= m_borderWidth || j <= m_borderHeight || i >= (m_matWidth - m_borderWidth) || j >= (m_matHeight - m_borderHeight))
         {
             // 图像边框点
             m_borderPoints->push_back(point);
@@ -213,7 +221,7 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::compute()
 
         pcl::Indices neighbourIndices;
         std::vector<float> neighbourDistances;
-        projTree.radiusSearch(projPoint, M_PI / 72, neighbourIndices, neighbourDistances);
+        projTree.radiusSearch(projPoint, m_projectedRadiusSearch, neighbourIndices, neighbourDistances);
         if (neighbourIndices.size() == 1)
         {
             // 孤点
@@ -228,7 +236,7 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::compute()
             pcl::PointXYZI neighbourProjPoint = m_projectedCloud->points[neighbourIndex];
             float neighbourLength = lengthList[neighbourIndex];
 
-            if (length - neighbourLength >= 0.1f)
+            if (length - neighbourLength >= m_veilDistanceThreshold)
             {
                 isVeil = true;
                 break;
@@ -246,70 +254,6 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::compute()
         }
     }
 
-    //pcl::search::KdTree<pcl::PointXYZI> projTree;
-    //projTree.setInputCloud(projectedCloud);
-    //float borderH = 0.05f;
-    //float borderV = 0.04f;
-    //for (int index = 0; index < projectedCloud->size(); index++)
-    //{
-    //    pcl::PointXYZI projPoint = projectedCloud->points[index];
-    //    pcl::PointXYZI point = m_allBoundary->points[projPoint.intensity];
-    //    pcl::Indices neighbourIndices;
-    //    std::vector<float> neighbourDistances;
-
-    //    if (projPoint.x <= borderH || projPoint.y <= borderV || projPoint.x >= (1 - borderH) || projPoint.y >= (1 - borderV))
-    //    {
-    //        // 图像边框点
-    //        m_borderPoints->push_back(point);
-    //        continue;
-    //    }
-
-    //    projTree.radiusSearch(projPoint, m_projectedRadiusSearch, neighbourIndices, neighbourDistances);
-    //    if (neighbourIndices.size() == 1)
-    //    {
-    //        // 孤点
-    //        continue;
-    //    }
-    //    qDebug() << "neighbours:" << neighbourIndices.size();
-
-    //    Eigen::Vector3f ep = point.getVector3fMap();
-    //    Eigen::Vector3f ray = ep.normalized();
-    //    bool isVeil = false;
-    //    for (int i = 1; i < neighbourIndices.size(); i++)
-    //    {
-    //        pcl::PointXYZI neighbourProjPoint = projectedCloud->points[neighbourIndices[i]];
-    //        pcl::PointXYZI neighbourPoint = m_allBoundary->points[neighbourProjPoint.intensity];
-    //        Eigen::Vector3f enp = neighbourPoint.getVector3fMap();
-    //        Eigen::Vector3f line = ep - enp;
-
-    //        float cos = line.normalized().dot(ray);
-    //        if (cos < 0 || line.norm() < 0.005f)
-    //        {
-    //            continue;
-    //        }
-
-    //        float radians = qAcos(cos);
-    //        float distance = enp.cross(ray).norm();
-    //        //if (distance <= m_veilDistanceThreshold)
-    //        //qDebug() << "  " << radians << distance;
-    //        if (radians <= M_PI / 18)
-    //        {
-    //            // 有遮挡的点，所以这是个阴影点
-    //            isVeil = true;
-    //            break;
-    //        }
-    //    }
-
-    //    if (isVeil)
-    //    {
-    //        m_veilPoints->push_back(point);
-    //    }
-    //    else
-    //    {
-    //        // 这是个真正的边界点
-    //        m_boundaryPoints->push_back(point);
-    //    }
-    //}
     m_boundaryPoints->width = m_boundaryPoints->points.size();
     m_boundaryPoints->height = 1;
     m_boundaryPoints->is_dense = true;

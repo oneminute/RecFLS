@@ -5,6 +5,7 @@
 #include <QAction>
 #include <QFileDialog>
 #include <QDir>
+#include <QtMath>
 
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/io/pcd_io.h>
@@ -26,9 +27,11 @@ ToolWindowBoundaryExtractor::ToolWindowBoundaryExtractor(QWidget *parent)
     m_cloudViewer->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, -1, 0);
     m_projectedCloudViewer = new CloudViewer;
     m_projectedCloudViewer->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, 1, 0);
+    m_depthViewer = new ImageViewer;
 
     m_ui->verticalLayout1->addWidget(m_cloudViewer);
     m_ui->verticalLayout2->addWidget(m_projectedCloudViewer);
+    m_ui->verticalLayout2->addWidget(m_depthViewer);
 
     connect(m_ui->actionLoad_Data_Set, &QAction::triggered, this, &ToolWindowBoundaryExtractor::onActionLoadDataSet);
     connect(m_ui->actionCompute, &QAction::triggered, this, &ToolWindowBoundaryExtractor::onActionCompute);
@@ -42,6 +45,8 @@ ToolWindowBoundaryExtractor::~ToolWindowBoundaryExtractor()
 void ToolWindowBoundaryExtractor::onActionCompute()
 {
     m_boundaryExtractor.reset(new BoundaryExtractor);
+    m_boundaryExtractor->setDownsamplingMethod(m_ui->comboBoxDownsamplingMethod->currentIndex());
+    m_boundaryExtractor->setEnableRemovalFilter(m_ui->checkBoxEnableRemovalFilter->isChecked());
     m_boundaryExtractor->setDownsampleLeafSize(m_ui->doubleSpinBoxDownsampleLeafSize->value());
     m_boundaryExtractor->setOutlierRemovalMeanK(m_ui->doubleSpinBoxOutlierRemovalMeanK->value());
     m_boundaryExtractor->setStddevMulThresh(m_ui->doubleSpinBoxStddevMulThresh->value());
@@ -51,6 +56,10 @@ void ToolWindowBoundaryExtractor::onActionCompute()
     m_boundaryExtractor->setNormalsRadiusSearch(m_ui->doubleSpinBoxNormalsRadiusSearch->value());
     m_boundaryExtractor->setBoundaryRadiusSearch(m_ui->doubleSpinBoxRadiusSearch->value());
     m_boundaryExtractor->setBoundaryAngleThreshold(M_PI / m_ui->spinBoxAngleThresholdDivision->value());
+    m_boundaryExtractor->setBorderWidth(m_ui->spinBoxBorderWidth->value());
+    m_boundaryExtractor->setBorderHeight(m_ui->spinBoxBorderHeight->value());
+    m_boundaryExtractor->setProjectedRadiusSearch(qDegreesToRadians(m_ui->doubleSpinBoxProjectedRadiusSearch->value()));
+    m_boundaryExtractor->setVeilDistanceThreshold(m_ui->doubleSpinBoxVeilDistanceThreshold->value());
 
     m_cloudViewer->visualizer()->removeAllPointClouds();
     m_cloudViewer->visualizer()->removeAllShapes();
@@ -81,6 +90,7 @@ void ToolWindowBoundaryExtractor::onActionCompute()
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_veilPoints = m_boundaryExtractor->veilPoints();
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_borderPoints = m_boundaryExtractor->borderPoints();
 
+    m_depthViewer->setImage(cvMat2QImage(frame.depthMat(), false));
     if (m_ui->radioButtonShowColor->isChecked())
     {
         m_cloudViewer->addCloud("scene cloud", colorCloud);

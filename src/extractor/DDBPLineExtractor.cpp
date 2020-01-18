@@ -55,14 +55,14 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
 
     QList<LineSegment> lines;
 
-    //Eigen::Vector4f minPoint, maxPoint;
-    //pcl::getMinMax3D<pcl::PointXYZI>(*boundaryCloud, minPoint, maxPoint);
-    //m_minPoint = minPoint.head(3);
-    //m_maxPoint = maxPoint.head(3);
-    //m_boundBoxDiameter = (m_maxPoint - m_minPoint).norm();
-    m_boundBoxDiameter = 4;
+    Eigen::Vector4f minPoint, maxPoint;
+    pcl::getMinMax3D<pcl::PointXYZI>(*boundaryCloud, minPoint, maxPoint);
+    m_minPoint = minPoint.head(3);
+    m_maxPoint = maxPoint.head(3);
+    m_boundBoxDiameter = (m_maxPoint - m_minPoint).norm();
+    //m_boundBoxDiameter = 4;
 
-    //qDebug() << "bound box diameter:" << m_boundBoxDiameter << minPoint.x() << minPoint.y() << minPoint.z() << maxPoint.x() << maxPoint.y() << maxPoint.z();
+    qDebug() << "bound box diameter:" << m_boundBoxDiameter << minPoint.x() << minPoint.y() << minPoint.z() << maxPoint.x() << maxPoint.y() << maxPoint.z() << (m_maxPoint - m_minPoint).norm();
 
     pcl::search::KdTree<pcl::PointXYZI> tree;
     tree.setInputCloud(boundaryCloud);
@@ -272,6 +272,7 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
         m_offsetRate.append(offsetRate);
     }
 
+    // 根据密度值和离心率值对所有的映射点进行排序。
     qSort(m_angleCloudIndices.begin(), m_angleCloudIndices.end(), [=](int v1, int v2) -> bool
         {
             if (v1 >= m_angleCloudIndices.size() || v2 >= m_angleCloudIndices.size())
@@ -288,6 +289,8 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
         }
     );
 
+    // 从密度最大的值开始挑出每一个映射点，每一个映射点及其近邻点即为一组同方向的点，但这些点的方向
+    // 可能仅仅是平行而相距很远。
     QVector<bool> processed(m_angleCloud->size(), false);
     for (int i = 0; i < m_density.size(); i++)
     {
@@ -313,6 +316,8 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
                 subCloudIndices.push_back(static_cast<int>(m_angleCloud->points[neighbourIndex].intensity));
                 processed[neighbourIndex] = true;
             }
+
+            // 如果当前映射点的近邻数量足够，则再次使用条件化欧式聚集来对这组点再次聚集，以找出共线且连续的线段。
             if (subCloudIndices.size() >= m_angleMinNeighbours)
             {
                 m_subCloudIndices.insert(m_angleCloud->points[index].intensity, subCloudIndices);
@@ -324,15 +329,7 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
 
                 std::vector<pcl::PointIndices> clusterIndices;
 
-                /*pcl::EuclideanClusterExtraction<pcl::PointXYZI> ec;
-                ec.setClusterTolerance(m_mappingTolerance);
-                ec.setMinClusterSize(1);
-                ec.setMaxClusterSize(subCloudIndices.size());
-                ec.setSearchMethod(tree);
-                ec.setInputCloud(m_mappingCloud);
-                ec.setIndices(pcl::IndicesPtr(new std::vector<int>(subCloudIndices)));
-                ec.extract(clusterIndices);*/
-
+                // 使用条件化欧式聚集来进行区域增长，重点在Z方向的增长，而限制在XY方向的增长。
                 pcl::ConditionalEuclideanClustering<pcl::PointXYZI> cec(true);
                 cec.setConditionFunction([=](const pcl::PointXYZI& ptSeed, const pcl::PointXYZI& ptCandidate, float sqrDistance) -> bool
                     {
@@ -370,6 +367,7 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
 
                     if (indices.indices.size() >= m_angleMinNeighbours)
                     {
+                        // 计算全体近邻点方向的平均的方向作为主方向，同时计算质点。
                         for (std::vector<int>::const_iterator itIndices = indices.indices.begin(); itIndices != indices.indices.end(); ++itIndices)
                         {
                             int localIndex = m_mappingCloud->points[*itIndices].intensity;
@@ -384,24 +382,25 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
                         dir /= indices.indices.size();
                         center /= indices.indices.size();
 
-                        // 验证直线，计算每个点到目标直线的距离期望
+                        // 验证直线，计算每个点到目标直线的距离期望，使用该值作为误差以验证是否为有效的直线。
+                        // 同时计算这一组点形成的起点与终点。
                         float error = 0;
                        
                         for (std::vector<int>::const_iterator itIndices = indices.indices.begin(); itIndices != indices.indices.end(); ++itIndices)
                         {
                             int index = m_mappingCloud->points[*itIndices].intensity;
                             pcl::PointXYZI ptBoundary = m_boundaryCloud->points[index];
-                            //pcl::PointXYZI ptCenter = m_centerCloud->points[index];
                             Eigen::Vector3f boundaryPoint = ptBoundary.getVector3fMap();
-                            //Eigen::Vector3f centerPoint = ptCenter.getVector3fMap();
                             error = (boundaryPoint - center).cross(dir).norm();
 
                             if (start.isZero())
                             {
+                                // 如果第一次循环，让当前点作为起点
                                 start = closedPointOnLine(boundaryPoint, dir, center);
                             }
                             else
                             {
+                                // 将当前点与当前计算出的临时起点连在一起，查看其与当前聚集主方向的一致性，若一致则当前点为新的起点。
                                 if ((start - boundaryPoint).dot(dir) > 0)
                                 {
                                     start = closedPointOnLine(boundaryPoint, dir, center);
@@ -410,10 +409,12 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
 
                             if (end.isZero())
                             {
+                                // 如果第一次循环，让当前点作为终点
                                 end = closedPointOnLine(boundaryPoint, dir, center);
                             }
                             else
                             {
+                                // 将当前点与当前计算出的临时终点连在一起，查看其与当前聚集主方向的一致性，若一致则当前点为新的终点。
                                 if ((boundaryPoint - end).dot(dir) > 0)
                                 {
                                     end = closedPointOnLine(boundaryPoint, dir, center);

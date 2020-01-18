@@ -5,6 +5,7 @@
 #include <QScopedPointer>
 
 #include "ui/CloudViewer.h"
+#include "ui/ImageViewer.h"
 #include "extractor/BoundaryExtractor.h"
 #include "device/SensorReaderDevice.h"
 
@@ -29,6 +30,7 @@ private:
     QScopedPointer<Ui::ToolWindowBoundaryExtractor> m_ui;
     CloudViewer* m_cloudViewer;
     CloudViewer* m_projectedCloudViewer;
+    ImageViewer* m_depthViewer;
 
     QScopedPointer<BoundaryExtractor> m_boundaryExtractor;
     QScopedPointer<SensorReaderDevice> m_device;
