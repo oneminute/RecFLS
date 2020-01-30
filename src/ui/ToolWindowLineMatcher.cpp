@@ -5,12 +5,24 @@
 #include <QtMath>
 
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/kdtree/impl/kdtree_flann.hpp>
+#include <pcl/common/pca.h>
 
 #include "common/Parameters.h"
 
 ToolWindowLineMatcher::ToolWindowLineMatcher(QWidget *parent) 
     : QMainWindow(parent)
     , m_ui(new Ui::ToolWindowLineMatcher)
+    , m_isStepMode(false)
+    , m_isInit(false)
+    , m_isLoaded(false)
+    , m_iteration(0)
+    , m_diameter1(0)
+    , m_diameter2(0)
+    , m_rotation(Eigen::Quaternionf::Identity())
+    , m_translation(Eigen::Vector3f::Zero())
+    , m_rotationError(0)
+    , m_translationError(0)
 {
     m_ui->setupUi(this);
 
@@ -28,13 +40,19 @@ ToolWindowLineMatcher::ToolWindowLineMatcher(QWidget *parent)
 
     connect(m_ui->actionLoad_Data_Set, &QAction::triggered, this, &ToolWindowLineMatcher::onActionLoadDataSet);
     connect(m_ui->actionMatch, &QAction::triggered, this, &ToolWindowLineMatcher::onActionMatch);
+    connect(m_ui->actionBegin_Step, &QAction::triggered, this, &ToolWindowLineMatcher::onActionBeginStep);
+    connect(m_ui->actionStep_Rotaion_Match, &QAction::triggered, this, &ToolWindowLineMatcher::onActionStepRotaionMatch);
+    connect(m_ui->actionStep_Translate_Match, &QAction::triggered, this, &ToolWindowLineMatcher::onActionStepTranslationMatch);
+    connect(m_ui->actionReset, &QAction::triggered, this, &ToolWindowLineMatcher::onActionReset);
+
+    updateWidgets();
 }
 
 ToolWindowLineMatcher::~ToolWindowLineMatcher()
 {
 }
 
-void ToolWindowLineMatcher::compute()
+void ToolWindowLineMatcher::initCompute()
 {
     if (!m_boundaryExtractor)
     {
@@ -87,20 +105,18 @@ void ToolWindowLineMatcher::compute()
 
     pcl::IndicesPtr indices1(new pcl::Indices);
     pcl::IndicesPtr indices2(new pcl::Indices);
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr colorCloud1;
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr colorCloud2;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud1(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud2(new pcl::PointCloud<pcl::PointXYZ>);
+    m_cloud1.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    m_cloud2.reset(new pcl::PointCloud<pcl::PointXYZ>);
 
-    colorCloud1 = frame1.getCloud(*indices1);
-    colorCloud2 = frame2.getCloud(*indices2);
-    pcl::copyPointCloud<pcl::PointXYZRGB, pcl::PointXYZ>(*colorCloud1, *cloud1);
-    pcl::copyPointCloud<pcl::PointXYZRGB, pcl::PointXYZ>(*colorCloud2, *cloud2);
+    m_colorCloud1 = frame1.getCloud(*indices1);
+    m_colorCloud2 = frame2.getCloud(*indices2);
+    pcl::copyPointCloud<pcl::PointXYZRGB, pcl::PointXYZ>(*m_colorCloud1, *m_cloud1);
+    pcl::copyPointCloud<pcl::PointXYZRGB, pcl::PointXYZ>(*m_colorCloud2, *m_cloud2);
     
     pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryPoints1;
     pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryPoints2;
     {
-        m_boundaryExtractor->setInputCloud(cloud1);
+        m_boundaryExtractor->setInputCloud(m_cloud1);
         m_boundaryExtractor->setMatWidth(frame1.getDepthWidth());
         m_boundaryExtractor->setMatHeight(frame1.getDepthHeight());
         m_boundaryExtractor->setCx(frame1.getDevice()->cx());
@@ -110,8 +126,9 @@ void ToolWindowLineMatcher::compute()
         m_boundaryExtractor->setNormals(nullptr);
         m_boundaryExtractor->compute();
         boundaryPoints1 = m_boundaryExtractor->boundaryPoints();
+        m_filteredCloud1 = m_boundaryExtractor->filteredCloud();
 
-        m_boundaryExtractor->setInputCloud(cloud2);
+        m_boundaryExtractor->setInputCloud(m_cloud2);
         m_boundaryExtractor->setMatWidth(frame2.getDepthWidth());
         m_boundaryExtractor->setMatHeight(frame2.getDepthHeight());
         m_boundaryExtractor->setCx(frame2.getDevice()->cx());
@@ -121,28 +138,20 @@ void ToolWindowLineMatcher::compute()
         m_boundaryExtractor->setNormals(nullptr);
         m_boundaryExtractor->compute();
         boundaryPoints2 = m_boundaryExtractor->boundaryPoints();
+        m_filteredCloud2 = m_boundaryExtractor->filteredCloud();
     }
 
-    pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr mslCloud1;
-    pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr mslCloud2;
-    pcl::PointCloud<DDBPLineExtractor::MSLPoint>::Ptr mslPointCloud1;
-    pcl::PointCloud<DDBPLineExtractor::MSLPoint>::Ptr mslPointCloud2;
-    pcl::PointCloud<pcl::PointXYZI>::Ptr mappingCloud1;
-    pcl::PointCloud<pcl::PointXYZI>::Ptr mappingCloud2;
     QList<LineSegment> lines1;
     QList<LineSegment> lines2;
-    float diameter1, diameter2;
     {
         lines1 = m_lineExtractor->compute(boundaryPoints1);
-        mslCloud1 = m_lineExtractor->mslCloud();
-        mslPointCloud1 = m_lineExtractor->mslPointCloud();
-        mappingCloud1 = m_lineExtractor->mappingCloud();
-        diameter1 = m_lineExtractor->boundBoxDiameter();
+        m_mslCloud1 = m_lineExtractor->mslCloud();
+        m_mslPointCloud1 = m_lineExtractor->mslPointCloud();
+        m_diameter1 = m_lineExtractor->boundBoxDiameter();
         lines2 = m_lineExtractor->compute(boundaryPoints2);
-        mslCloud2 = m_lineExtractor->mslCloud();
-        mslPointCloud2 = m_lineExtractor->mslPointCloud();
-        mappingCloud2 = m_lineExtractor->mappingCloud();
-        diameter2 = m_lineExtractor->boundBoxDiameter();
+        m_mslCloud2 = m_lineExtractor->mslCloud();
+        m_mslPointCloud2 = m_lineExtractor->mslPointCloud();
+        m_diameter2 = m_lineExtractor->boundBoxDiameter();
     }
 
     m_cloudViewer1->visualizer()->removeAllPointClouds();
@@ -152,25 +161,31 @@ void ToolWindowLineMatcher::compute()
     m_cloudViewer3->visualizer()->removeAllPointClouds();
     m_cloudViewer3->visualizer()->removeAllShapes();
 
-    {
-        m_lineMatcher->stepRotation(diameter1, mslPointCloud1, mslCloud1, diameter2, mslPointCloud2, mslCloud2);
-    }
+    m_tree.reset(new pcl::KdTreeFLANN<DDBPLineExtractor::MSLPoint>());
+    m_tree->setInputCloud(m_mslPointCloud2);
 
     // ÏÔÊ¾µãÔÆ
     {
-        //m_cloudViewer2->addCloud("cloud", colorCloud1);
-        //m_cloudViewer3->addCloud("cloud", colorCloud2);
-        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> h1(colorCloud1, 127, 127, 127);
-        m_cloudViewer2->visualizer()->addPointCloud(colorCloud1, h1, "cloud");
-        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> h2(colorCloud2, 127, 127, 127);
-        m_cloudViewer3->visualizer()->addPointCloud(colorCloud2, h2, "cloud");
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> h1(m_colorCloud1, 127, 127, 127);
+        m_cloudViewer2->visualizer()->addPointCloud(m_colorCloud1, h1, "cloud");
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> h2(m_colorCloud2, 127, 127, 127);
+        m_cloudViewer3->visualizer()->addPointCloud(m_colorCloud2, h2, "cloud");
     }
+    showCloudAndLines(m_cloudViewer2, lines1, m_mslCloud1);
+    showCloudAndLines(m_cloudViewer3, lines2, m_mslCloud2);
 
-    ShowCloudAndLines(m_cloudViewer2, lines1, mslCloud1);
-    ShowCloudAndLines(m_cloudViewer3, lines2, mslCloud2);
+    m_rotation = Eigen::Quaternionf::Identity();
+    m_translation = Eigen::Vector3f::Zero();
+
+    m_isInit = true;
 }
 
-void ToolWindowLineMatcher::ShowCloudAndLines(CloudViewer* viewer, QList<LineSegment>& lines, boost::shared_ptr<pcl::PointCloud<DDBPLineExtractor::MSL>>& mslCloud)
+void ToolWindowLineMatcher::compute()
+{
+    //m_rotation = m_lineMatcher->stepRotation(m_diameter1, m_mslPointCloud1, m_mslCloud1, m_diameter2, m_mslPointCloud2, m_mslCloud2, m_tree, m_rotationError, m_translationError);
+}
+
+void ToolWindowLineMatcher::showCloudAndLines(CloudViewer* viewer, QList<LineSegment>& lines, boost::shared_ptr<pcl::PointCloud<DDBPLineExtractor::MSL>>& mslCloud)
 {
     {
         for (int i = 0; i < lines.size()/* && errors[i]*/; i++)
@@ -211,6 +226,52 @@ void ToolWindowLineMatcher::ShowCloudAndLines(CloudViewer* viewer, QList<LineSeg
     }
 }
 
+void ToolWindowLineMatcher::showMatchedClouds()
+{
+    Eigen::Matrix4f rotMat(Eigen::Matrix4f::Identity());
+    rotMat.topLeftCorner(3, 3) = m_rotation.toRotationMatrix();
+    rotMat.topRightCorner(3, 1) = m_translation;
+    pcl::transformPointCloud(*m_filteredCloud1, *m_filteredCloud1, rotMat);
+
+    {
+        m_cloudViewer1->visualizer()->removeAllPointClouds();
+        m_cloudViewer1->visualizer()->removeAllShapes();
+
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> h1(m_filteredCloud1, 255, 0, 0);
+        m_cloudViewer1->visualizer()->addPointCloud(m_filteredCloud1, h1, "cloud1");
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> h2(m_filteredCloud2, 0, 0, 255);
+        m_cloudViewer1->visualizer()->addPointCloud(m_filteredCloud2, h2, "cloud2");
+
+        for (QMap<int, int>::iterator i = m_pairs.begin(); i != m_pairs.end(); i++)
+        {
+            {
+                DDBPLineExtractor::MSL msl = m_mslCloud1->points[i.value()];
+                pcl::PointXYZI start, end, middle;
+                start.getVector3fMap() = msl.getEndPoint(-3);
+                end.getVector3fMap() = msl.getEndPoint(3);
+                middle.getVector3fMap() = msl.point;
+                QString lineName = QString("msl_1_%1").arg(i.value());
+                std::string textNo = "text_1_" + std::to_string(i.value());
+                m_cloudViewer1->visualizer()->addText3D(std::to_string(i.value()), middle, 0.05, 255, 255, 0, textNo);
+                m_cloudViewer1->visualizer()->addLine(start, end, 255, 255, 0, lineName.toStdString());
+                m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 1, lineName.toStdString());
+            }
+            {
+                DDBPLineExtractor::MSL msl = m_mslCloud2->points[i.key()];
+                pcl::PointXYZI start, end, middle;
+                start.getVector3fMap() = msl.getEndPoint(-3);
+                end.getVector3fMap() = msl.getEndPoint(3);
+                middle.getVector3fMap() = msl.point;
+                QString lineName = QString("msl_2_%1").arg(i.key());
+                std::string textNo = "text_2_" + std::to_string(i.key());
+                m_cloudViewer1->visualizer()->addText3D(std::to_string(i.key()), middle, 0.05, 0, 255, 255, textNo);
+                m_cloudViewer1->visualizer()->addLine(start, end, 0, 255, 255, lineName.toStdString());
+                m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 1, lineName.toStdString());
+            }
+        }
+    }
+}
+
 void ToolWindowLineMatcher::stepCompute()
 {
 }
@@ -233,9 +294,64 @@ void ToolWindowLineMatcher::onActionLoadDataSet()
     }
     m_ui->comboBoxFirstFrame->setCurrentIndex(0);
     m_ui->comboBoxSecondFrame->setCurrentIndex(1);
+    m_isLoaded = true;
+    updateWidgets();
 }
 
 void ToolWindowLineMatcher::onActionMatch()
 {
     compute();
+    updateWidgets();
+}
+
+void ToolWindowLineMatcher::onActionBeginStep()
+{
+    initCompute();
+
+    m_isStepMode = true;
+    updateWidgets();
+}
+
+void ToolWindowLineMatcher::onActionStepRotaionMatch()
+{
+    m_rotation = m_lineMatcher->stepRotation(m_diameter1, m_mslPointCloud1, m_mslCloud1, 
+        m_diameter2, m_mslPointCloud2, m_mslCloud2, m_tree, m_rotationError, m_translationError, m_rotation, m_pairs);
+    m_iteration++;
+
+    showMatchedClouds();
+    updateWidgets();
+}
+
+void ToolWindowLineMatcher::onActionStepTranslationMatch()
+{
+    m_translation = m_lineMatcher->stepTranslation(m_diameter1, m_mslPointCloud1, m_mslCloud1, 
+        m_diameter2, m_mslPointCloud2, m_mslCloud2, m_tree, m_rotationError, m_translationError, m_rotation, m_translation, m_pairs);
+    m_iteration++;
+
+    showMatchedClouds();
+    updateWidgets();
+}
+
+void ToolWindowLineMatcher::onActionReset()
+{
+    m_isInit = false;
+    m_isStepMode = false;
+    m_isLoaded = false;
+    m_iteration = 0;
+
+    updateWidgets();
+}
+
+void ToolWindowLineMatcher::updateWidgets()
+{
+    m_ui->actionLoad_Data_Set->setEnabled(!m_isLoaded);
+    m_ui->actionMatch->setEnabled(!m_isInit && m_isLoaded);
+    m_ui->actionBegin_Step->setEnabled(!m_isInit && m_isLoaded);
+    m_ui->actionStep_Rotaion_Match->setEnabled(m_isInit && m_isStepMode);
+    m_ui->actionStep_Translate_Match->setEnabled(m_isInit && m_isStepMode);
+    m_ui->actionReset->setEnabled(m_isInit);
+
+    m_ui->labelIteration->setText(QString::number(m_iteration));
+    m_ui->labelRotationError->setText(QString::number(qRadiansToDegrees(m_rotationError)));
+    m_ui->labelTranslationError->setText(QString::number(m_translationError));
 }

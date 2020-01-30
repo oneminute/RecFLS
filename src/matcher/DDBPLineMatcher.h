@@ -59,22 +59,33 @@ public:
         pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr secondLineCloud
     );
 
-    Eigen::Matrix4f stepRotation(
+    Eigen::Quaternionf stepRotation(
         float firstDiameter,
         pcl::PointCloud<DDBPLineExtractor::MSLPoint>::Ptr firstPointCloud, 
         pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr firstLineCloud, 
         float secondDiameter,
         pcl::PointCloud<DDBPLineExtractor::MSLPoint>::Ptr secondPointCloud,
         pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr secondLineCloud,
-        const Eigen::Matrix4f& initPose = Eigen::Matrix4f::Identity()
+        pcl::KdTreeFLANN<DDBPLineExtractor::MSLPoint>::Ptr tree,
+        float& rotationError,
+        float& translationError,
+        const Eigen::Quaternionf& initRot = Eigen::Quaternionf::Identity(),
+        QMap<int, int>& pairs = QMap<int, int>()
     );
 
-    Eigen::Matrix4f stepTranslate(
-        pcl::PointCloud<DDBPLineExtractor::MSLPoint>::Ptr firstPointCloud, 
-        pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr firstLineCloud, 
+    Eigen::Vector3f stepTranslation(
+        float firstDiameter,
+        pcl::PointCloud<DDBPLineExtractor::MSLPoint>::Ptr firstPointCloud,
+        pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr firstLineCloud,
+        float secondDiameter,
         pcl::PointCloud<DDBPLineExtractor::MSLPoint>::Ptr secondPointCloud,
         pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr secondLineCloud,
-        const Eigen::Matrix4f& initPose = Eigen::Matrix4f::Identity()
+        pcl::KdTreeFLANN<DDBPLineExtractor::MSLPoint>::Ptr tree,
+        float& rotationError,
+        float& translationError,
+        const Eigen::Quaternionf& initRot = Eigen::Quaternionf::Identity(),
+        const Eigen::Vector3f& initTrans = Eigen::Vector3f::Zero(),
+        QMap<int, int>& pairs = QMap<int, int>()
     );
 
 protected:

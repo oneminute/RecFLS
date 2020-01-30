@@ -37,6 +37,21 @@
       </property>
       <widget class="QWidget" name="widget" native="true">
        <layout class="QVBoxLayout" name="verticalLayout_2">
+        <property name="spacing">
+         <number>1</number>
+        </property>
+        <property name="leftMargin">
+         <number>1</number>
+        </property>
+        <property name="topMargin">
+         <number>1</number>
+        </property>
+        <property name="rightMargin">
+         <number>1</number>
+        </property>
+        <property name="bottomMargin">
+         <number>1</number>
+        </property>
         <item>
          <widget class="QSplitter" name="splitter_2">
           <property name="orientation">
@@ -104,6 +119,12 @@
        </layout>
       </widget>
       <widget class="QWidget" name="widget_3" native="true">
+       <property name="maximumSize">
+        <size>
+         <width>400</width>
+         <height>16777215</height>
+        </size>
+       </property>
        <layout class="QVBoxLayout" name="verticalLayout_3">
         <item>
          <widget class="QGroupBox" name="groupBox">
@@ -139,6 +160,50 @@
           <property name="title">
            <string>Matcher</string>
           </property>
+          <layout class="QFormLayout" name="formLayout_2">
+           <item row="0" column="0">
+            <widget class="QLabel" name="label_3">
+             <property name="text">
+              <string>Iteration</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLabel" name="labelIteration">
+             <property name="text">
+              <string>0</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="label_4">
+             <property name="text">
+              <string>Rotation Error</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QLabel" name="labelRotationError">
+             <property name="text">
+              <string>0</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel" name="label_5">
+             <property name="text">
+              <string>Translation Error</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QLabel" name="labelTranslationError">
+             <property name="text">
+              <string>0</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </widget>
         </item>
        </layout>
@@ -184,6 +249,10 @@
    </attribute>
    <addaction name="actionLoad_Data_Set"/>
    <addaction name="actionMatch"/>
+   <addaction name="actionBegin_Step"/>
+   <addaction name="actionStep_Rotaion_Match"/>
+   <addaction name="actionStep_Translate_Match"/>
+   <addaction name="actionReset"/>
   </widget>
   <action name="actionLoad_Data_Set">
    <property name="text">
@@ -193,6 +262,26 @@
   <action name="actionMatch">
    <property name="text">
     <string>Match</string>
+   </property>
+  </action>
+  <action name="actionStep_Rotaion_Match">
+   <property name="text">
+    <string>Step Rotaion Match</string>
+   </property>
+  </action>
+  <action name="actionReset">
+   <property name="text">
+    <string>Reset</string>
+   </property>
+  </action>
+  <action name="actionStep_Translate_Match">
+   <property name="text">
+    <string>Step Translate Match</string>
+   </property>
+  </action>
+  <action name="actionBegin_Step">
+   <property name="text">
+    <string>Begin Step</string>
    </property>
   </action>
  </widget>

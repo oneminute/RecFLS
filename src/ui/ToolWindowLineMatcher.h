@@ -22,15 +22,23 @@ public:
     explicit ToolWindowLineMatcher(QWidget *parent = nullptr);
     ~ToolWindowLineMatcher();
 
+    void initCompute();
     void compute();
     void stepCompute();
 
 protected:
-    void ShowCloudAndLines(CloudViewer* viewer, QList<LineSegment>& lines, boost::shared_ptr<pcl::PointCloud<DDBPLineExtractor::MSL>>& mslCloud);
+    void showCloudAndLines(CloudViewer* viewer, QList<LineSegment>& lines, boost::shared_ptr<pcl::PointCloud<DDBPLineExtractor::MSL>>& mslCloud);
+    void showMatchedClouds();
 
     void onActionLoadDataSet();
     void onActionMatch();
+    void onActionBeginStep();
+    void onActionStepRotaionMatch();
+    void onActionStepTranslationMatch();
+    void onActionReset();
 
+protected:
+    void updateWidgets();
 
 private:
     QScopedPointer<Ui::ToolWindowLineMatcher> m_ui;
@@ -41,6 +49,31 @@ private:
     QScopedPointer<BoundaryExtractor> m_boundaryExtractor;
     QScopedPointer<DDBPLineExtractor> m_lineExtractor;
     QScopedPointer<DDBPLineMatcher> m_lineMatcher;
+
+    bool m_isStepMode;
+    bool m_isInit;
+    bool m_isLoaded;
+    int m_iteration;
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_colorCloud1;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_colorCloud2;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr m_cloud1;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr m_cloud2;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr m_filteredCloud1;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr m_filteredCloud2;
+    pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr m_mslCloud1;
+    pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr m_mslCloud2;
+    pcl::PointCloud<DDBPLineExtractor::MSLPoint>::Ptr m_mslPointCloud1;
+    pcl::PointCloud<DDBPLineExtractor::MSLPoint>::Ptr m_mslPointCloud2;
+    pcl::KdTreeFLANN<DDBPLineExtractor::MSLPoint>::Ptr m_tree;
+
+    float m_diameter1;
+    float m_diameter2;
+    Eigen::Quaternionf m_rotation;
+    Eigen::Vector3f m_translation;
+    float m_rotationError;
+    float m_translationError;
+    QMap<int, int> m_pairs;
 };
 
 #endif // TOOLWINDOWLINEMATCHER_H
