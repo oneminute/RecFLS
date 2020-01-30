@@ -7,6 +7,8 @@
 #include <pcl/common/pca.h>
 #include <pcl/search/search.h>
 #include <pcl/search/kdtree.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/kdtree/impl/kdtree_flann.hpp>
 #include <pcl/segmentation/region_growing.h>
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/segmentation/conditional_euclidean_clustering.h>
@@ -24,6 +26,7 @@ DDBPLineExtractor::DDBPLineExtractor(QObject* parent)
     , m_mappingTolerance(0.01f)
     , m_regionGrowingZDistanceThreshold(0.005f)
     , m_minLineLength(0.01f)
+    , m_mslRadiusSearch(0.01f)
 {
 
 }
@@ -37,8 +40,9 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
     qDebug() << "angleSearchRadius:" << m_angleSearchRadius;
     qDebug() << "angleMinNeighbours:" << m_angleMinNeighbours;
     qDebug() << "mappingTolerance:" << m_mappingTolerance;
-    qDebug() << "regionGrowingYDistance:" << m_regionGrowingZDistanceThreshold;
+    qDebug() << "z distance threshold:" << m_regionGrowingZDistanceThreshold;
     qDebug() << "minLineLength:" << m_minLineLength;
+    qDebug() << "msl radius search:" << m_mslRadiusSearch;
 
     m_boundaryCloud.reset(new pcl::PointCloud<pcl::PointXYZI>);
     m_angleCloud.reset(new pcl::PointCloud<pcl::PointXYZI>);
@@ -131,13 +135,9 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
         // 使用二维或三维的映射角。二维使用计算出的俯仰角和航向角
         if (m_angleMappingMethod == TWO_DIMS)
         {
-            // 计算俯仰角的补角
-            float cosY = primeDir.dot(yAxis);
-            float alpha = qAcos(cosY);
-
-            // 计算水平角
-            float cosX = (primeDir - yAxis * cosY).normalized().dot(xAxis);
-            float beta = qAcos(cosX);
+            float alpha, beta;
+            // 计算俯仰角和水平角
+            calculateAlphaBeta(primeDir, alpha, beta);
 
             eulerAngles.x() = alpha * M_1_PI;
             eulerAngles.y() = beta * M_1_PI;
@@ -200,13 +200,12 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
         m_boundaryIndices->push_back(index);
         m_boundaryCloud->push_back(ptIn);
 
-        if (index % 100 == 0)
+        /*if (index % 100 == 0)
         {
-            //qDebug() << alpha << "(" << qRadiansToDegrees(alpha) << ")," << beta << "(" << qRadiansToDegrees(beta) << ")";
             qDebug() << eulerAngles.x() << eulerAngles.y() << eulerAngles.z();
-        }
-        index++;
+        }*/
         m_angleCloudIndices.append(index);
+        index++;
     }
     m_boundaryCloud->width = m_boundaryCloud->points.size();
     m_boundaryCloud->height = 1;
@@ -292,7 +291,7 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
     // 从密度最大的值开始挑出每一个映射点，每一个映射点及其近邻点即为一组同方向的点，但这些点的方向
     // 可能仅仅是平行而相距很远。
     QVector<bool> processed(m_angleCloud->size(), false);
-    for (int i = 0; i < m_density.size(); i++)
+    for (int i = 0; i < m_angleCloudIndices.size(); i++)
     {
         int index = m_angleCloudIndices[i];
         if (processed[index])
@@ -441,6 +440,77 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
     m_linedCloud->height = 1;
     m_linedCloud->is_dense = true;
     qDebug() << "Extract" << m_subCloudIndices.size() << "groups.";
+
+    // 再次对线段进行映射，每一个线段映射为一个5维向量。
+    // 其中前两个维度为俯仰角和航向角，后三个维度是原点到直线垂线交点的位置。
+    m_mslPointCloud.reset(new pcl::PointCloud<MSLPoint>);
+    m_mslCloud.reset(new pcl::PointCloud<MSL>);
+    QList<bool> mslProcessed;
+    QList<int> mslIndices;
+    for (int i = 0; i < lines.size(); i++)
+    {
+        MSLPoint mslPoint;
+        LineSegment line = lines[i];
+        float alpha, beta;
+        Eigen::Vector3f dir = line.direction().normalized();
+        calculateAlphaBeta(dir, alpha, beta);
+        mslPoint.alpha = alpha / M_PI;
+        mslPoint.beta = beta / M_PI;
+        Eigen::Vector3f start = line.start();
+        Eigen::Vector3f closedPoint = start + dir * (-start.dot(dir));
+        mslPoint.x = closedPoint.x() / m_boundBoxDiameter;
+        mslPoint.y = closedPoint.y() / m_boundBoxDiameter;
+        mslPoint.z = closedPoint.z() / m_boundBoxDiameter;
+        m_mslPointCloud->push_back(mslPoint);
+        mslProcessed.append(false);
+        mslIndices.append(i);
+
+        MSL msl;
+        msl.dir = dir;
+        msl.point = closedPoint;
+        msl.weight = 1;
+        m_mslCloud->push_back(msl);
+    }
+
+    /*pcl::KdTreeFLANN<MSLPoint> mslTree;
+    mslTree.setInputCloud(m_mslPointCloud);
+
+    for (int i = 0; i < m_mslPointCloud->size(); i++)
+    {
+        MSLPoint mslPoint = m_mslPointCloud->points[mslIndices[i]];
+        if (mslProcessed[i])
+            continue;
+
+        std::vector<int> indices;
+        std::vector<float> distances;
+        mslTree.radiusSearch(mslPoint, m_mslRadiusSearch, indices, distances);
+
+        float maxLineLength = 0;
+        Eigen::Vector3f dir;
+        Eigen::Vector3f point;
+        for (int j = 0; j < indices.size(); j++)
+        {
+            int neighbourIndex = indices[j];
+            MSLPoint neighbour = m_mslPointCloud->points[neighbourIndex];
+            mslProcessed[neighbourIndex] = true;
+            LineSegment line = lines[neighbourIndex];
+            if (line.length() > maxLineLength)
+            {
+                maxLineLength = line.length();
+                dir = line.direction().normalized();
+                point.x() = neighbour.x * m_boundBoxDiameter;
+                point.y() = neighbour.y * m_boundBoxDiameter;
+                point.z() = neighbour.z * m_boundBoxDiameter;
+            }
+        }
+
+        MSL msl;
+        msl.dir = dir;
+        msl.point = point;
+        msl.weight = maxLineLength / m_boundBoxDiameter;
+        m_mslCloud->push_back(msl);
+        qDebug() << "msl" << i << ":" << indices.size() << msl.weight;
+    }*/
 
     return lines;
 }

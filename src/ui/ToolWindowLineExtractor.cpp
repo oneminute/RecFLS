@@ -36,6 +36,7 @@ ToolWindowLineExtractor::ToolWindowLineExtractor(QWidget* parent)
     connect(m_ui->actionLoad_Point_Cloud, &QAction::triggered, this, &ToolWindowLineExtractor::onActionLoadPointCloud);
     connect(m_ui->actionGenerate_Line_Point_Cloud, &QAction::triggered, this, &ToolWindowLineExtractor::onActionGenerateLinePointCloud);
     connect(m_ui->actionParameterized_Points_Analysis, &QAction::triggered, this, &ToolWindowLineExtractor::onActionParameterizedPointsAnalysis);
+    connect(m_ui->actionSave_Config, &QAction::triggered, this, &ToolWindowLineExtractor::onActionSaveConfig);
 }
 
 ToolWindowLineExtractor::~ToolWindowLineExtractor()
@@ -54,6 +55,7 @@ void ToolWindowLineExtractor::onActionParameterizedPointsAnalysis()
     extractor.setAngleMappingMethod(m_ui->comboBoxAngleMappingMethod->currentIndex());
     extractor.setMinLineLength(m_ui->doubleSpinBoxMinLineLength->value());
     extractor.setRegionGrowingZDistanceThreshold(m_ui->doubleSpinBoxZDistanceThreshold->value());
+    extractor.setMslRadiusSearch(m_ui->doubleSpinBoxMSLRadiusSearch->value());
 
     QList<LineSegment> lines = extractor.compute(m_cloud);
 
@@ -65,6 +67,7 @@ void ToolWindowLineExtractor::onActionParameterizedPointsAnalysis()
     QList<float> errors = extractor.errors();
     pcl::PointCloud<pcl::PointXYZI>::Ptr linedCloud = extractor.linedCloud();
     QList<int> linePointsCount = extractor.linePointsCount();
+    pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr mslCloud = extractor.mslCloud();
 
     m_cloudViewer1->visualizer()->removeAllPointClouds();
     m_cloudViewer1->visualizer()->removeAllShapes();
@@ -158,6 +161,35 @@ void ToolWindowLineExtractor::onActionParameterizedPointsAnalysis()
             m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
         }
     }
+
+    {
+        for (int i = 0; i < mslCloud->size(); i++)
+        {
+            DDBPLineExtractor::MSL msl = mslCloud->points[i];
+            pcl::PointXYZI start, end;
+            start.getVector3fMap() = msl.getEndPoint(-3);
+            end.getVector3fMap() = msl.getEndPoint(3);
+            QString lineName = QString("msl_%1").arg(i);
+            m_cloudViewer1->visualizer()->addLine(start, end, 255, 0, 0, lineName.toStdString());
+            m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 1, lineName.toStdString());
+        }
+    }
+}
+
+void ToolWindowLineExtractor::onActionSaveConfig()
+{
+    PARAMETERS.setValue("search_radius", m_ui->doubleSpinBoxSearchRadius->value(), "LineExtractor");
+    PARAMETERS.setValue("min_neighbours", m_ui->spinBoxMinNeighbours->value(), "LineExtractor");
+    PARAMETERS.setValue("search_error_threshold", m_ui->doubleSpinBoxSearchErrorThreshold->value(), "LineExtractor");
+    PARAMETERS.setValue("angle_search_radius", qDegreesToRadians(m_ui->doubleSpinBoxAngleSearchRadius->value()) * M_1_PI, "LineExtractor");
+    PARAMETERS.setValue("angle_min_neighbours", m_ui->spinBoxAngleMinNeighbours->value(), "LineExtractor");
+    PARAMETERS.setValue("mapping_tolerance", m_ui->doubleSpinBoxClusterTolerance->value(), "LineExtractor");
+    PARAMETERS.setValue("angle_mapping_method", m_ui->comboBoxAngleMappingMethod->currentIndex(), "LineExtractor");
+    PARAMETERS.setValue("min_line_length", m_ui->doubleSpinBoxMinLineLength->value(), "LineExtractor");
+    PARAMETERS.setValue("region_growing_z_distance_threshold", m_ui->doubleSpinBoxZDistanceThreshold->value(), "LineExtractor");
+    PARAMETERS.setValue("msl_radius_search", m_ui->doubleSpinBoxMSLRadiusSearch->value(), "LineExtractor");
+
+    PARAMETERS.save();
 }
 
 void ToolWindowLineExtractor::onActionLoadPointCloud()
@@ -212,8 +244,6 @@ void ToolWindowLineExtractor::onActionLoadPointCloud()
     pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(m_cloud, "intensity");
     m_cloudViewer1->visualizer()->addPointCloud(m_cloud, iColor, "original cloud");
     m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "original cloud");
-
-    
 }
 
 void ToolWindowLineExtractor::onActionGenerateLinePointCloud()

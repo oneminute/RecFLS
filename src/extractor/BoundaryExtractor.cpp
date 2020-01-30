@@ -34,8 +34,10 @@ BoundaryExtractor::BoundaryExtractor(QObject* parent)
     , m_cy(240)
     , m_fx(583)
     , m_fy(583)
-    , m_borderWidth(26)
-    , m_borderHeight(16)
+    , m_borderLeft(26)
+    , m_borderRight(22)
+    , m_borderTop(16)
+    , m_borderBottom(16)
     , m_projectedRadiusSearch(M_PI / 72)
     , m_veilDistanceThreshold(0.1f)
 {
@@ -192,7 +194,7 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::compute()
         int i = static_cast<int>(point.x * m_fx / point.z + m_cx);
         int j = static_cast<int>(point.y * m_fy / point.z + m_cy);
         
-        if (i <= m_borderWidth || j <= m_borderHeight || i >= (m_matWidth - m_borderWidth) || j >= (m_matHeight - m_borderHeight))
+        if (i <= m_borderLeft || j <= m_borderTop || i >= (m_matWidth - m_borderRight) || j >= (m_matHeight - m_borderBottom))
         {
             // Í¼Ïñ±ß¿òµã
             m_borderPoints->push_back(point);

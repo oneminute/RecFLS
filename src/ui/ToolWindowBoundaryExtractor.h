@@ -25,6 +25,7 @@ private slots:
     void onActionLoadDataSet();
     void onActionCompute();
     void onActionSave();
+    void onActionSaveConfig();
 
 private:
     QScopedPointer<Ui::ToolWindowBoundaryExtractor> m_ui;

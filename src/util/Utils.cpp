@@ -4,6 +4,7 @@
 #include <pcl/common/eigen.h>
 #include <pcl/common/common.h>
 #include <QImage>
+#include <QtMath>
 
 Utils::Utils()
 {
@@ -337,4 +338,33 @@ float oneAxisCoord(const Eigen::Vector3f& point, const Eigen::Vector3f& dir)
         coord = -coord;
     }
     return coord;
+}
+
+void calculateAlphaBeta(const Eigen::Vector3f& dir, float& alpha, float& beta)
+{
+    // ¼ÆËã¸©Ñö½ÇµÄ²¹½Ç
+    float cosY = dir.dot(Eigen::Vector3f::UnitY());
+    alpha = qAcos(cosY);
+
+    // ¼ÆËãË®Æ½½Ç
+    float cosX = (dir - Eigen::Vector3f::UnitY() * cosY).normalized().dot(Eigen::Vector3f::UnitX());
+    beta = qAcos(cosX);
+}
+
+float distanceBetweenLines(const Eigen::Vector3f& line1, const Eigen::Vector3f& point1, const Eigen::Vector3f& line2, const Eigen::Vector3f& point2)
+{
+    Eigen::Vector3f vertLine = line1.cross(line2).normalized();
+    float distance = (point1 - point2).dot(vertLine);
+    return distance;
+}
+
+Eigen::Vector3f transBetweenLines(const Eigen::Vector3f& line1, const Eigen::Vector3f& point1, const Eigen::Vector3f& line2, const Eigen::Vector3f& point2)
+{
+    Eigen::Vector3f cross = line1.cross(line2);
+    float sqrNorm = cross.squaredNorm();
+    float t1 = (point2 - point1).cross(line2).dot(cross) / sqrNorm;
+    float t2 = (point1 - point2).cross(line1).dot(cross) / sqrNorm;
+    Eigen::Vector3f vp1 = point1 + line1 * t1;
+    Eigen::Vector3f vp2 = point2 + line2 * t2;
+    return (vp2 - vp1);
 }

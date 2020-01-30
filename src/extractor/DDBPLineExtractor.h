@@ -23,6 +23,35 @@ public:
         THREE_DIMS
     };
 
+    struct MSLPoint
+    {
+        union
+        {
+            float props[5];
+            struct
+            {
+                float alpha;
+                float beta;
+                float x;
+                float y;
+                float z;
+            };
+        };
+        static int propsSize() { return 5; }
+    };
+
+    struct MSL
+    {
+        Eigen::Vector3f dir;
+        Eigen::Vector3f point;
+        float weight;
+
+        Eigen::Vector3f getEndPoint(float length)
+        {
+            return point + dir * length;
+        }
+    };
+
     explicit DDBPLineExtractor(QObject* parent = nullptr);
 
     QList<LineSegment> compute(const pcl::PointCloud<pcl::PointXYZI>::Ptr& boundaryCloud);
@@ -62,6 +91,16 @@ public:
         return m_linedCloud;
     }
 
+    pcl::PointCloud<MSLPoint>::Ptr mslPointCloud() const
+    {
+        return m_mslPointCloud;
+    }
+
+    pcl::PointCloud<MSL>::Ptr mslCloud() const
+    {
+        return m_mslCloud;
+    }
+
     QList<float> densityList() const
     {
         return m_density;
@@ -86,6 +125,8 @@ public:
     {
         return m_linePointsCount;
     }
+
+    float boundBoxDiameter() const { return m_boundBoxDiameter; }
 
     float searchRadius() const { return m_searchRadius; }
     void setSearchRadius(float _searchRadius) { m_searchRadius = _searchRadius; }
@@ -114,6 +155,9 @@ public:
     float minLineLength() const { return m_minLineLength; }
     void setMinLineLength(float _minLineLength) { m_minLineLength = _minLineLength; }
 
+    float mslRadiusSearch() const { return m_mslRadiusSearch; }
+    void setMslRadiusSearch(float _mslRadiusSearch) { m_mslRadiusSearch = _mslRadiusSearch; }
+
 protected:
 
 private:
@@ -138,6 +182,10 @@ private:
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_centerCloud;
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_linedCloud;
+
+    pcl::PointCloud<MSLPoint>::Ptr m_mslPointCloud;
+
+    pcl::PointCloud<MSL>::Ptr m_mslCloud;
 
     QMap<int, std::vector<int>> m_subCloudIndices;
 
@@ -167,6 +215,8 @@ private:
     float m_regionGrowingZDistanceThreshold;
 
     float m_minLineLength;
+
+    float m_mslRadiusSearch;
 
     Eigen::Vector3f m_maxPoint;
     Eigen::Vector3f m_minPoint;

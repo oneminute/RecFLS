@@ -234,7 +234,7 @@
               <double>0.001000000000000</double>
              </property>
              <property name="value">
-              <double>0.010000000000000</double>
+              <double>0.007500000000000</double>
              </property>
             </widget>
            </item>
@@ -363,12 +363,12 @@
            <item row="2" column="0">
             <widget class="QLabel" name="label_15">
              <property name="text">
-              <string>Border Width</string>
+              <string>Border Left</string>
              </property>
             </widget>
            </item>
            <item row="2" column="1">
-            <widget class="QSpinBox" name="spinBoxBorderWidth">
+            <widget class="QSpinBox" name="spinBoxBorderLeft">
              <property name="value">
               <number>26</number>
              </property>
@@ -377,15 +377,15 @@
              </property>
             </widget>
            </item>
-           <item row="3" column="0">
+           <item row="4" column="0">
             <widget class="QLabel" name="label_16">
              <property name="text">
-              <string>Border Height</string>
+              <string>Border Top</string>
              </property>
             </widget>
            </item>
-           <item row="3" column="1">
-            <widget class="QSpinBox" name="spinBoxBorderHeight">
+           <item row="4" column="1">
+            <widget class="QSpinBox" name="spinBoxBorderTop">
              <property name="value">
               <number>16</number>
              </property>
@@ -394,14 +394,14 @@
              </property>
             </widget>
            </item>
-           <item row="4" column="0">
+           <item row="6" column="0">
             <widget class="QLabel" name="label_17">
              <property name="text">
               <string>Projected Radius Search</string>
              </property>
             </widget>
            </item>
-           <item row="4" column="1">
+           <item row="6" column="1">
             <widget class="QDoubleSpinBox" name="doubleSpinBoxProjectedRadiusSearch">
              <property name="decimals">
               <number>5</number>
@@ -417,14 +417,14 @@
              </property>
             </widget>
            </item>
-           <item row="5" column="0">
+           <item row="7" column="0">
             <widget class="QLabel" name="label_18">
              <property name="text">
               <string>Veil Distance Threshold</string>
              </property>
             </widget>
            </item>
-           <item row="5" column="1">
+           <item row="7" column="1">
             <widget class="QDoubleSpinBox" name="doubleSpinBoxVeilDistanceThreshold">
              <property name="decimals">
               <number>5</number>
@@ -437,6 +437,34 @@
              </property>
              <property name="value">
               <double>0.100000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QLabel" name="label_19">
+             <property name="text">
+              <string>Border Right</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="0">
+            <widget class="QLabel" name="label_20">
+             <property name="text">
+              <string>Border Bottom</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QSpinBox" name="spinBoxBorderRight">
+             <property name="value">
+              <number>22</number>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="1">
+            <widget class="QSpinBox" name="spinBoxBorderBottom">
+             <property name="value">
+              <number>16</number>
              </property>
             </widget>
            </item>
@@ -470,6 +498,7 @@
      <string>&amp;Action</string>
     </property>
     <addaction name="actionCompute"/>
+    <addaction name="actionSave_Config"/>
    </widget>
    <addaction name="menu_File"/>
    <addaction name="menu_Action"/>
@@ -488,6 +517,7 @@
    <addaction name="actionLoad_Data_Set"/>
    <addaction name="actionCompute"/>
    <addaction name="actionSave"/>
+   <addaction name="actionSave_Config"/>
   </widget>
   <action name="actionLoad_Data_Set">
    <property name="text">
@@ -502,6 +532,11 @@
   <action name="actionSave">
    <property name="text">
     <string>Save</string>
+   </property>
+  </action>
+  <action name="actionSave_Config">
+   <property name="text">
+    <string>Save Config</string>
    </property>
   </action>
  </widget>

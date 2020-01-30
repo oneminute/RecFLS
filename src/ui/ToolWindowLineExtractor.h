@@ -23,6 +23,7 @@ private slots:
     void onActionLoadPointCloud();
     void onActionGenerateLinePointCloud();
     void onActionParameterizedPointsAnalysis();
+    void onActionSaveConfig();
 
 private:
     QScopedPointer<Ui::ToolWindowLineExtractor> m_ui;

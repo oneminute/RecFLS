@@ -15,6 +15,21 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
+    <property name="spacing">
+     <number>2</number>
+    </property>
+    <property name="leftMargin">
+     <number>2</number>
+    </property>
+    <property name="topMargin">
+     <number>2</number>
+    </property>
+    <property name="rightMargin">
+     <number>2</number>
+    </property>
+    <property name="bottomMargin">
+     <number>2</number>
+    </property>
     <item>
      <widget class="QSplitter" name="splitter">
       <property name="orientation">
@@ -28,17 +43,65 @@
            <enum>Qt::Vertical</enum>
           </property>
           <widget class="QWidget" name="widget_4" native="true">
-           <layout class="QVBoxLayout" name="verticalLayoutCloud2"/>
+           <layout class="QVBoxLayout" name="verticalLayoutCloud2">
+            <property name="spacing">
+             <number>1</number>
+            </property>
+            <property name="leftMargin">
+             <number>1</number>
+            </property>
+            <property name="topMargin">
+             <number>1</number>
+            </property>
+            <property name="rightMargin">
+             <number>1</number>
+            </property>
+            <property name="bottomMargin">
+             <number>1</number>
+            </property>
+           </layout>
           </widget>
           <widget class="QWidget" name="widget_5" native="true">
-           <layout class="QVBoxLayout" name="verticalLayoutCloud3"/>
+           <layout class="QVBoxLayout" name="verticalLayoutCloud3">
+            <property name="spacing">
+             <number>1</number>
+            </property>
+            <property name="leftMargin">
+             <number>1</number>
+            </property>
+            <property name="topMargin">
+             <number>1</number>
+            </property>
+            <property name="rightMargin">
+             <number>1</number>
+            </property>
+            <property name="bottomMargin">
+             <number>1</number>
+            </property>
+           </layout>
           </widget>
          </widget>
         </item>
        </layout>
       </widget>
       <widget class="QWidget" name="widget_2" native="true">
-       <layout class="QVBoxLayout" name="verticalLayoutCloud1"/>
+       <layout class="QVBoxLayout" name="verticalLayoutCloud1">
+        <property name="spacing">
+         <number>1</number>
+        </property>
+        <property name="leftMargin">
+         <number>1</number>
+        </property>
+        <property name="topMargin">
+         <number>1</number>
+        </property>
+        <property name="rightMargin">
+         <number>1</number>
+        </property>
+        <property name="bottomMargin">
+         <number>1</number>
+        </property>
+       </layout>
       </widget>
       <widget class="QWidget" name="widget_3" native="true">
        <layout class="QVBoxLayout" name="verticalLayout_3">

@@ -33,9 +33,12 @@ ToolWindowBoundaryExtractor::ToolWindowBoundaryExtractor(QWidget *parent)
     m_ui->verticalLayout2->addWidget(m_projectedCloudViewer);
     m_ui->verticalLayout2->addWidget(m_depthViewer);
 
+    //m_ui->comboBoxDownsamplingMethod->setCurrentIndex(PARAMETERS.intValue();
+
     connect(m_ui->actionLoad_Data_Set, &QAction::triggered, this, &ToolWindowBoundaryExtractor::onActionLoadDataSet);
     connect(m_ui->actionCompute, &QAction::triggered, this, &ToolWindowBoundaryExtractor::onActionCompute);
     connect(m_ui->actionSave, &QAction::triggered, this, &ToolWindowBoundaryExtractor::onActionSave);
+    connect(m_ui->actionSave_Config, &QAction::triggered, this, &ToolWindowBoundaryExtractor::onActionSaveConfig);
 }
 
 ToolWindowBoundaryExtractor::~ToolWindowBoundaryExtractor()
@@ -56,13 +59,17 @@ void ToolWindowBoundaryExtractor::onActionCompute()
     m_boundaryExtractor->setNormalsRadiusSearch(m_ui->doubleSpinBoxNormalsRadiusSearch->value());
     m_boundaryExtractor->setBoundaryRadiusSearch(m_ui->doubleSpinBoxRadiusSearch->value());
     m_boundaryExtractor->setBoundaryAngleThreshold(M_PI / m_ui->spinBoxAngleThresholdDivision->value());
-    m_boundaryExtractor->setBorderWidth(m_ui->spinBoxBorderWidth->value());
-    m_boundaryExtractor->setBorderHeight(m_ui->spinBoxBorderHeight->value());
+    m_boundaryExtractor->setBorderLeft(m_ui->spinBoxBorderLeft->value());
+    m_boundaryExtractor->setBorderRight(m_ui->spinBoxBorderRight->value());
+    m_boundaryExtractor->setBorderTop(m_ui->spinBoxBorderTop->value());
+    m_boundaryExtractor->setBorderBottom(m_ui->spinBoxBorderBottom->value());
     m_boundaryExtractor->setProjectedRadiusSearch(qDegreesToRadians(m_ui->doubleSpinBoxProjectedRadiusSearch->value()));
     m_boundaryExtractor->setVeilDistanceThreshold(m_ui->doubleSpinBoxVeilDistanceThreshold->value());
 
     m_cloudViewer->visualizer()->removeAllPointClouds();
     m_cloudViewer->visualizer()->removeAllShapes();
+    m_projectedCloudViewer->visualizer()->removeAllPointClouds();
+    m_projectedCloudViewer->visualizer()->removeAllShapes();
 
     int frameIndex = m_ui->comboBoxFrameIndex->currentIndex();
     Frame frame = m_device->getFrame(frameIndex);
@@ -150,6 +157,29 @@ void ToolWindowBoundaryExtractor::onActionSave()
     cloud.height = 1;
     cloud.is_dense = true;
     pcl::io::savePCDFile<pcl::PointXYZ>(fileName.toStdString(), cloud);
+}
+
+void ToolWindowBoundaryExtractor::onActionSaveConfig()
+{
+    PARAMETERS.setValue("downsampling_method", m_ui->comboBoxDownsamplingMethod->currentIndex(), "BoundaryExtractor");
+    PARAMETERS.setValue("enable_removal_filter", m_ui->checkBoxEnableRemovalFilter->isChecked(), "BoundaryExtractor");
+    PARAMETERS.setValue("downsample_leaf_size", m_ui->doubleSpinBoxDownsampleLeafSize->value(), "BoundaryExtractor");
+    PARAMETERS.setValue("outlier_removal_mean_k", m_ui->doubleSpinBoxOutlierRemovalMeanK->value(), "BoundaryExtractor");
+    PARAMETERS.setValue("std_dev_mul_thresh", m_ui->doubleSpinBoxStddevMulThresh->value(), "BoundaryExtractor");
+    PARAMETERS.setValue("gaussian_sigma", m_ui->doubleSpinBoxGaussianSigma->value(), "BoundaryExtractor");
+    PARAMETERS.setValue("gaussian_r_sigma", m_ui->doubleSpinBoxGaussianRSigma->value(), "BoundaryExtractor");
+    PARAMETERS.setValue("gaussian_radius_search", m_ui->doubleSpinBoxGaussianRadiusSearch->value(), "BoundaryExtractor");
+    PARAMETERS.setValue("normals_radius_search", m_ui->doubleSpinBoxNormalsRadiusSearch->value(), "BoundaryExtractor");
+    PARAMETERS.setValue("boundary_radius_search", m_ui->doubleSpinBoxRadiusSearch->value(), "BoundaryExtractor");
+    PARAMETERS.setValue("boundary_angle_threshold", M_PI / m_ui->spinBoxAngleThresholdDivision->value(), "BoundaryExtractor");
+    PARAMETERS.setValue("border_left", m_ui->spinBoxBorderLeft->value(), "BoundaryExtractor");
+    PARAMETERS.setValue("border_right", m_ui->spinBoxBorderRight->value(), "BoundaryExtractor");
+    PARAMETERS.setValue("border_top", m_ui->spinBoxBorderTop->value(), "BoundaryExtractor");
+    PARAMETERS.setValue("border_bottom", m_ui->spinBoxBorderBottom->value(), "BoundaryExtractor");
+    PARAMETERS.setValue("projected_radius_search", m_ui->doubleSpinBoxProjectedRadiusSearch->value(), "BoundaryExtractor");
+    PARAMETERS.setValue("veil_distance_threshold", m_ui->doubleSpinBoxVeilDistanceThreshold->value(), "BoundaryExtractor");
+
+    PARAMETERS.save();
 }
 
 void ToolWindowBoundaryExtractor::onActionLoadDataSet()

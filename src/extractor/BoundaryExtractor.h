@@ -100,11 +100,17 @@ public:
     float projectedRadiusSearch() const { return m_projectedRadiusSearch; }
     void setProjectedRadiusSearch(float _projectedRadiusSearch) { m_projectedRadiusSearch = _projectedRadiusSearch; }
 
-    float borderWidth() const { return m_borderWidth; }
-    void setBorderWidth(float _borderWidth) { m_borderWidth = _borderWidth; }
+    float borderLeft() const { return m_borderLeft; }
+    void setBorderLeft(float _borderLeft) { m_borderLeft = _borderLeft; }
 
-    float borderHeight() const { return m_borderHeight; }
-    void setBorderHeight(float _borderHeight) { m_borderHeight = _borderHeight; }
+    float borderRight() const { return m_borderRight; }
+    void setBorderRight(float _borderRight) { m_borderRight = _borderRight; }
+
+    float borderTop() const { return m_borderTop; }
+    void setBorderTop(float _borderTop) { m_borderTop = _borderTop; }
+
+    float borderBottom() const { return m_borderBottom; }
+    void setBorderBottom(float _borderBottom) { m_borderBottom = _borderBottom; }
 
     float veilDistanceThreshold() const { return m_veilDistanceThreshold; }
     void setVeilDistanceThreshold(float _veilDistanceThreshold) { m_veilDistanceThreshold = _veilDistanceThreshold; }
@@ -149,8 +155,10 @@ private:
     float m_cy;
     float m_fx;
     float m_fy;
-    float m_borderWidth;
-    float m_borderHeight;
+    float m_borderLeft;
+    float m_borderRight;
+    float m_borderTop;
+    float m_borderBottom;
     float m_projectedRadiusSearch;
     float m_veilDistanceThreshold;
 };

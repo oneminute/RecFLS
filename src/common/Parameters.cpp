@@ -89,7 +89,7 @@ void Parameters::setValue(const QString& key, const QVariant& value, const QStri
 {
     QString fullKey = getFullKey(key, group);
     m_cache[fullKey] = value;
-    emit setValueSignal(key, value);
+    emit setValueSignal(fullKey, value);
 }
 
 QVariant Parameters::value(const QString& key, const QVariant& value)
