@@ -358,13 +358,34 @@ float distanceBetweenLines(const Eigen::Vector3f& line1, const Eigen::Vector3f& 
     return distance;
 }
 
-Eigen::Vector3f transBetweenLines(const Eigen::Vector3f& line1, const Eigen::Vector3f& point1, const Eigen::Vector3f& line2, const Eigen::Vector3f& point2)
+Eigen::Vector3f transBetweenLines(const Eigen::Vector3f& line1, const Eigen::Vector3f& point1, const Eigen::Vector3f& line2, const Eigen::Vector3f& point2, float& distance)
 {
-    Eigen::Vector3f cross = line1.cross(line2);
+    /*Eigen::Vector3f cross = line1.cross(line2);
     float sqrNorm = cross.squaredNorm();
     float t1 = (point2 - point1).cross(line2).dot(cross) / sqrNorm;
     float t2 = (point1 - point2).cross(line1).dot(cross) / sqrNorm;
     Eigen::Vector3f vp1 = point1 + line1 * t1;
     Eigen::Vector3f vp2 = point2 + line2 * t2;
-    return (vp2 - vp1);
+    return (vp2 - vp1);*/
+    Eigen::Vector3f vertLine = line2.cross(line1).normalized();
+    distance = 0;
+    Eigen::Vector3f diff(Eigen::Vector3f::Zero());
+    if (vertLine.isZero())
+    {
+        qDebug() << "parallel";
+        vertLine = line1.cross(point2 - point1);
+        diff = line2.cross(vertLine).normalized();
+        if (diff.dot(point2 - point1) < 0)
+            diff = -diff;
+        distance = qAbs((point1 - point2).dot(diff));
+    }
+    else
+    {
+        distance = (point2 - point1).dot(vertLine);
+        diff = vertLine * distance;
+        if (diff.dot(point2 - point1) < 0)
+            diff = -diff;
+        distance = qAbs(distance);
+    }
+    return diff;
 }

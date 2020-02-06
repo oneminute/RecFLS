@@ -12,6 +12,38 @@
 #include <Eigen/Dense>
 
 #include "LineSegment.h"
+#include "BoundaryExtractor.h"
+
+struct MSLPoint
+{
+    union
+    {
+        float props[5];
+        struct
+        {
+            float alpha;
+            float beta;
+            float x;
+            float y;
+            float z;
+        };
+    };
+    static int propsSize() { return 5; }
+    PCL_MAKE_ALIGNED_OPERATOR_NEW
+};
+
+struct MSL
+{
+    Eigen::Vector3f dir;
+    Eigen::Vector3f point;
+    float weight;
+
+    Eigen::Vector3f getEndPoint(float length)
+    {
+        return point + dir * length;
+    }
+    PCL_MAKE_ALIGNED_OPERATOR_NEW
+};
 
 class DDBPLineExtractor : public QObject
 {
@@ -22,39 +54,12 @@ public:
         TWO_DIMS = 0,
         THREE_DIMS
     };
-
-    struct MSLPoint
-    {
-        union
-        {
-            float props[5];
-            struct
-            {
-                float alpha;
-                float beta;
-                float x;
-                float y;
-                float z;
-            };
-        };
-        static int propsSize() { return 5; }
-    };
-
-    struct MSL
-    {
-        Eigen::Vector3f dir;
-        Eigen::Vector3f point;
-        float weight;
-
-        Eigen::Vector3f getEndPoint(float length)
-        {
-            return point + dir * length;
-        }
-    };
-
+    
     explicit DDBPLineExtractor(QObject* parent = nullptr);
 
     QList<LineSegment> compute(const pcl::PointCloud<pcl::PointXYZI>::Ptr& boundaryCloud);
+
+    void extractLinesFromPlanes(const QList<Plane>& planes);
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryCloud() const
     {
@@ -222,6 +227,8 @@ private:
     Eigen::Vector3f m_minPoint;
     float m_boundBoxDiameter;
 
+public:
+    PCL_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 #endif // DDBPLINEEXTRACTOR_H

@@ -127,6 +127,12 @@
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_3">
         <item>
+         <widget class="ImageViewer" name="widgetFrame1" native="true"/>
+        </item>
+        <item>
+         <widget class="ImageViewer" name="widgetFrame2" native="true"/>
+        </item>
+        <item>
          <widget class="QGroupBox" name="groupBox">
           <property name="title">
            <string>Data Set</string>
@@ -285,6 +291,14 @@
    </property>
   </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ImageViewer</class>
+   <extends>QWidget</extends>
+   <header>ui/ImageViewer.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

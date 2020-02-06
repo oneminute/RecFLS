@@ -119,6 +119,6 @@ void calculateAlphaBeta(const Eigen::Vector3f& dir, float& alpha, float& beta);
 
 float distanceBetweenLines(const Eigen::Vector3f& line1, const Eigen::Vector3f& point1, const Eigen::Vector3f& line2, const Eigen::Vector3f& point2);
 
-Eigen::Vector3f transBetweenLines(const Eigen::Vector3f& line1, const Eigen::Vector3f& point1, const Eigen::Vector3f& line2, const Eigen::Vector3f& point2);
+Eigen::Vector3f transBetweenLines(const Eigen::Vector3f& line1, const Eigen::Vector3f& point1, const Eigen::Vector3f& line2, const Eigen::Vector3f& point2, float& distance);
 
 #endif // UTILS_H

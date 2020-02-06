@@ -67,7 +67,7 @@ void ToolWindowLineExtractor::onActionParameterizedPointsAnalysis()
     QList<float> errors = extractor.errors();
     pcl::PointCloud<pcl::PointXYZI>::Ptr linedCloud = extractor.linedCloud();
     QList<int> linePointsCount = extractor.linePointsCount();
-    pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr mslCloud = extractor.mslCloud();
+    pcl::PointCloud<MSL>::Ptr mslCloud = extractor.mslCloud();
 
     m_cloudViewer1->visualizer()->removeAllPointClouds();
     m_cloudViewer1->visualizer()->removeAllShapes();
@@ -165,7 +165,7 @@ void ToolWindowLineExtractor::onActionParameterizedPointsAnalysis()
     {
         for (int i = 0; i < mslCloud->size(); i++)
         {
-            DDBPLineExtractor::MSL msl = mslCloud->points[i];
+            MSL msl = mslCloud->points[i];
             pcl::PointXYZI start, end;
             start.getVector3fMap() = msl.getEndPoint(-3);
             end.getVector3fMap() = msl.getEndPoint(3);

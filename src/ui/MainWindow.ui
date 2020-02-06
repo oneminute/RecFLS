@@ -42,9 +42,9 @@
     <property name="title">
      <string>Tools</string>
     </property>
+    <addaction name="actionBoundary_Extractor"/>
     <addaction name="actionLine_Extractor"/>
     <addaction name="actionLine_Matcher"/>
-    <addaction name="actionBoundary_Extractor"/>
    </widget>
    <addaction name="menu_File"/>
    <addaction name="menu_Device"/>

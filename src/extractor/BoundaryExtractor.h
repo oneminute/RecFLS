@@ -6,11 +6,27 @@
 #include <pcl/common/common.h>
 #include <pcl/features/eigen.h>
 #include <pcl/search/kdtree.h>
+#include <pcl/ModelCoefficients.h>
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
 #include <opencv2/opencv.hpp>
+
+struct Plane
+{
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    Plane()
+        : parameters(nullptr)
+        , weight(0)
+    {}
+
+    pcl::ModelCoefficients::Ptr parameters;
+    float weight;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;
+    Eigen::Vector3f point;
+    Eigen::Vector3f dir;
+};
 
 class BoundaryExtractor : public QObject
 {
@@ -25,6 +41,18 @@ public:
     explicit BoundaryExtractor(QObject* parent = nullptr);
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr compute();
+
+    void boundaryEstimation(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr gaussianFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr outlierRemoval(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr downSampling(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+
+    void classifyBoundaryPoints();
+
+    void classifyBoundaryPoints2();
 
     void setInputCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr& _cloud)
     {
@@ -47,10 +75,14 @@ public:
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr filteredCloud() const { return m_filteredCloud; }
 
+    cv::Mat boundaryMat() const { return m_boundaryMat; }
+
     pcl::PointCloud<pcl::PointXYZI>::Ptr projectedCloud() const { return m_projectedCloud; }
     pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryPoints() const { return m_boundaryPoints; }
     pcl::PointCloud<pcl::PointXYZI>::Ptr veilPoints() const { return m_veilPoints; }
     pcl::PointCloud<pcl::PointXYZI>::Ptr borderPoints() const { return m_borderPoints; }
+
+    QList<Plane> planes() { return m_planes; }
 
     int OutlierRemovalMeanK() const { return m_outlierRemovalMeanK; }
     void setOutlierRemovalMeanK(int _outlierRemovalMeanK) { m_outlierRemovalMeanK = _outlierRemovalMeanK; }
@@ -121,8 +153,28 @@ public:
     bool enableRemovalFilter() const { return m_enableRemovalFilter; }
     void setEnableRemovalFilter(bool _enable) { m_enableRemovalFilter = _enable; }
 
+    float crossPointsRadiusSearch() const { return m_crossPointsRadiusSearch; }
+    void setCrossPointsRadiusSearch(float _value) { m_crossPointsRadiusSearch = _value; }
+
+    float crossPointsClusterTolerance() const { return m_crossPointsClusterTolerance; }
+    void setCrossPointsClusterTolerance(float _value) { m_crossPointsClusterTolerance = _value; }
+
+    float curvatureThreshold() const { return m_curvatureThreshold; }
+    void setCurvatureThreshold(float _value) { m_curvatureThreshold = _value; }
+
+    int minNormalClusters() const { return m_minNormalClusters; }
+    void setMinNormalClusters(float _value) { m_minNormalClusters = _value; }
+
+    int maxNormalClusters() const { return m_maxNormalClusters; }
+    void setMaxNormalCulsters(float _value) { m_maxNormalClusters = _value; }
+
+    float planeDistanceThreshold() const { return m_planeDistanceThreshold; }
+    void setPlaneDistanceThreshold(float _value) { m_planeDistanceThreshold = _value; }
+
 protected:
-    void computeNormals();
+    void computeNormals(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+
+    void extractPlanes();
 
 private:
     pcl::PointCloud<pcl::PointXYZ>::Ptr m_cloud;
@@ -134,9 +186,12 @@ private:
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_allBoundary;
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_projectedCloud;
 
+    cv::Mat m_boundaryMat;
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_boundaryPoints;
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_veilPoints;
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_borderPoints;
+
+    QList<Plane> m_planes;
 
     DOWNSAMPLING_METHOD m_downsamplingMethod;
     bool m_enableRemovalFilter;
@@ -161,6 +216,14 @@ private:
     float m_borderBottom;
     float m_projectedRadiusSearch;
     float m_veilDistanceThreshold;
+    float m_crossPointsRadiusSearch;
+    float m_crossPointsClusterTolerance;
+    float m_curvatureThreshold;
+    int m_minNormalClusters;
+    int m_maxNormalClusters;
+    float m_planeDistanceThreshold;
+
+    int m_classifyRadius;
 };
 
 

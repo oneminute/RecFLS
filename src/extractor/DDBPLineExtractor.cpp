@@ -27,6 +27,7 @@ DDBPLineExtractor::DDBPLineExtractor(QObject* parent)
     , m_regionGrowingZDistanceThreshold(0.005f)
     , m_minLineLength(0.01f)
     , m_mslRadiusSearch(0.01f)
+    , m_boundBoxDiameter(2)
 {
 
 }
@@ -64,8 +65,6 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
     m_minPoint = minPoint.head(3);
     m_maxPoint = maxPoint.head(3);
     m_boundBoxDiameter = (m_maxPoint - m_minPoint).norm();
-    //m_boundBoxDiameter = 4;
-
     qDebug() << "bound box diameter:" << m_boundBoxDiameter << minPoint.x() << minPoint.y() << minPoint.z() << maxPoint.x() << maxPoint.y() << maxPoint.z() << (m_maxPoint - m_minPoint).norm();
 
     pcl::search::KdTree<pcl::PointXYZI> tree;
@@ -457,7 +456,7 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
         mslPoint.alpha = alpha / M_PI;
         mslPoint.beta = beta / M_PI;
         Eigen::Vector3f start = line.start();
-        Eigen::Vector3f closedPoint = start + dir * (-start.dot(dir));
+        Eigen::Vector3f closedPoint = closedPointOnLine(Eigen::Vector3f::Zero(), dir, start);
         mslPoint.x = closedPoint.x() / m_boundBoxDiameter;
         mslPoint.y = closedPoint.y() / m_boundBoxDiameter;
         mslPoint.z = closedPoint.z() / m_boundBoxDiameter;
@@ -513,5 +512,74 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
     }*/
 
     return lines;
+}
+
+void DDBPLineExtractor::extractLinesFromPlanes(const QList<Plane>& planes)
+{
+    //m_mslPointCloud.reset(new pcl::PointCloud<MSLPoint>);
+    //m_mslCloud.reset(new pcl::PointCloud<MSL>);
+    Eigen::Vector3f globalDir(1, 1, 1);
+
+    for (int i = 0; i < planes.size(); i++)
+    {
+        Plane plane1 = planes[i];
+        for (int j = i + 1; j < planes.size(); j++)
+        {
+            //if (i == j)
+                //continue;
+
+            Plane plane2 = planes[j];
+
+            float cos = plane1.dir.dot(plane2.dir);
+            if (qAbs(cos) > 0.98f)
+                continue;
+
+            Eigen::Vector3f crossLine = plane1.dir.cross(plane2.dir).normalized();
+            if (crossLine.dot(globalDir) < 0)
+                crossLine = -crossLine;
+            if (crossLine.isZero())
+                continue;
+
+            // 求得平面1上的点到交线的垂线方向
+            Eigen::Vector3f lineOnPlane1 = plane1.dir.cross(crossLine).normalized();
+            lineOnPlane1.normalize();
+            float dist1 = (plane2.point - plane1.point).dot(plane2.dir) / (lineOnPlane1.dot(plane2.dir));
+            // 求得平面1上的点在交线上投影的交点
+            Eigen::Vector3f crossPoint1 = plane1.point + lineOnPlane1 * dist1;
+
+            //Eigen::Vector3f lineOnPlane2 = plane2.dir.cross(crossLine).normalized();
+            //lineOnPlane2.normalize();
+            //float dist2 = (plane1.point - plane2.point).dot(plane1.dir) / (lineOnPlane2.dot(plane1.dir));
+            //Eigen::Vector3f crossPoint2 = plane2.point + lineOnPlane2 * dist2;
+
+            //Eigen::Vector3f crossPoint = (crossPoint1 + crossPoint2) / 2;
+            //Eigen::Vector3f crossPoint = crossPoint1;
+            Eigen::Vector3f closedPoint = closedPointOnLine(Eigen::Vector3f::Zero(), crossLine, crossPoint1);
+            
+            //Eigen::Vector3f point = closedPointOnLine(plane1.point, line);
+            MSLPoint mslPoint;
+            float alpha, beta;
+            calculateAlphaBeta(crossLine, alpha, beta);
+            mslPoint.alpha = alpha / M_PI;
+            mslPoint.beta = beta / M_PI;
+            mslPoint.x = closedPoint.x() / m_boundBoxDiameter;
+            mslPoint.y = closedPoint.y() / m_boundBoxDiameter;
+            mslPoint.z = closedPoint.z() / m_boundBoxDiameter;
+            m_mslPointCloud->push_back(mslPoint);
+
+            MSL msl;
+            msl.dir = crossLine;
+            msl.point = closedPoint;
+            msl.weight = 1;
+            m_mslCloud->push_back(msl);
+        }
+    }
+
+    m_mslPointCloud->width = m_mslPointCloud->points.size();
+    m_mslPointCloud->height = 1;
+    m_mslPointCloud->is_dense = true;
+    m_mslCloud->width = m_mslCloud->points.size();
+    m_mslCloud->height = 1;
+    m_mslCloud->is_dense = true;
 }
 

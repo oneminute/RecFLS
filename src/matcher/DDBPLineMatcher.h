@@ -12,8 +12,10 @@
 
 #include <extractor/DDBPLineExtractor.h>
 
-#define LINE_MATCHER_DIVISION 6
-#define LINE_MATCHER_ELEMDIMS (LINE_MATCHER_DIVISION * LINE_MATCHER_DIVISION + LINE_MATCHER_DIVISION)
+#define LINE_MATCHER_DIVISION 4
+#define LINE_MATCHER_DIST_DIVISION 6
+#define LINE_MATCHER_ANGLE_ELEMDIMS (LINE_MATCHER_DIVISION * LINE_MATCHER_DIVISION)
+#define LINE_MATCHER_ELEMDIMS (LINE_MATCHER_ANGLE_ELEMDIMS + LINE_MATCHER_DIST_DIVISION)
 
 class DDBPLineMatcher : public QObject
 {
@@ -53,43 +55,35 @@ public:
     explicit DDBPLineMatcher(QObject* parent = nullptr);
 
     Eigen::Matrix4f compute(
-        pcl::PointCloud<DDBPLineExtractor::MSLPoint>::Ptr firstPointCloud, 
-        pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr firstLineCloud, 
-        pcl::PointCloud<DDBPLineExtractor::MSLPoint>::Ptr secondPointCloud,
-        pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr secondLineCloud
+        pcl::PointCloud<MSLPoint>::Ptr firstPointCloud, 
+        pcl::PointCloud<MSL>::Ptr firstLineCloud, 
+        pcl::PointCloud<MSLPoint>::Ptr secondPointCloud,
+        pcl::PointCloud<MSL>::Ptr secondLineCloud
     );
 
     Eigen::Quaternionf stepRotation(
         float firstDiameter,
-        pcl::PointCloud<DDBPLineExtractor::MSLPoint>::Ptr firstPointCloud, 
-        pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr firstLineCloud, 
+        pcl::PointCloud<MSLPoint>::Ptr firstPointCloud, 
+        pcl::PointCloud<MSL>::Ptr firstLineCloud, 
         float secondDiameter,
-        pcl::PointCloud<DDBPLineExtractor::MSLPoint>::Ptr secondPointCloud,
-        pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr secondLineCloud,
-        pcl::KdTreeFLANN<DDBPLineExtractor::MSLPoint>::Ptr tree,
+        pcl::PointCloud<MSLPoint>::Ptr secondPointCloud,
+        pcl::PointCloud<MSL>::Ptr secondLineCloud,
+        pcl::KdTreeFLANN<MSLPoint>::Ptr tree,
         float& rotationError,
         float& translationError,
-        const Eigen::Quaternionf& initRot = Eigen::Quaternionf::Identity(),
         QMap<int, int>& pairs = QMap<int, int>()
     );
 
     Eigen::Vector3f stepTranslation(
-        float firstDiameter,
-        pcl::PointCloud<DDBPLineExtractor::MSLPoint>::Ptr firstPointCloud,
-        pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr firstLineCloud,
-        float secondDiameter,
-        pcl::PointCloud<DDBPLineExtractor::MSLPoint>::Ptr secondPointCloud,
-        pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr secondLineCloud,
-        pcl::KdTreeFLANN<DDBPLineExtractor::MSLPoint>::Ptr tree,
-        float& rotationError,
+        pcl::PointCloud<MSL>::Ptr firstLineCloud,
+        pcl::PointCloud<MSL>::Ptr secondLineCloud,
+        pcl::KdTreeFLANN<MSLPoint>::Ptr tree,
         float& translationError,
-        const Eigen::Quaternionf& initRot = Eigen::Quaternionf::Identity(),
-        const Eigen::Vector3f& initTrans = Eigen::Vector3f::Zero(),
         QMap<int, int>& pairs = QMap<int, int>()
     );
 
 protected:
-    void generateDescriptors(pcl::PointCloud<DDBPLineExtractor::MSL>::Ptr& lineCloud, 
+    void generateDescriptors(pcl::PointCloud<MSL>::Ptr& lineCloud, 
     pcl::PointCloud<LineDescriptor>::Ptr& descriptors,
     QList<LineChain>& chains);
 
