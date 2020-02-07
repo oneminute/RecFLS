@@ -47,7 +47,7 @@ BoundaryExtractor::BoundaryExtractor(QObject* parent)
     , m_borderTop(16)
     , m_borderBottom(16)
     , m_projectedRadiusSearch(M_PI / 72)
-    , m_veilDistanceThreshold(0.1f)
+    , m_veilDistanceThreshold(0.075f)
     , m_crossPointsRadiusSearch(0.05f)
     , m_crossPointsClusterTolerance(0.1f)
     , m_curvatureThreshold(0.025f)
@@ -55,12 +55,14 @@ BoundaryExtractor::BoundaryExtractor(QObject* parent)
     , m_maxNormalClusters(2)
     , m_planeDistanceThreshold(0.01)
     , m_classifyRadius(20)
+    , m_planePointsRate(0.05f)
 {
 
 }
 
 pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::compute()
 {
+    // 重置点云数据指针
     m_allBoundary.reset(new pcl::PointCloud<pcl::PointXYZI>);
     m_downsampledCloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
     m_filteredCloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
@@ -84,19 +86,28 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::compute()
         }
     }*/
 
-
+    // 计算法线
     if (!m_normals || m_normals->empty())
     {
         computeNormals(m_cloud);
     }
 
+    // 提取全部边界点
     boundaryEstimation(m_cloud);
 
+    // 对所有的点进行分类
     classifyBoundaryPoints2();
 
+    // 下采样
     m_downsampledCloud = downSampling(m_cloud);
+
+    // 去除离群点
     m_removalCloud = outlierRemoval(m_downsampledCloud);
+
+    // 高斯滤波
     m_filteredCloud = gaussianFilter(m_removalCloud);
+
+    // 抽取平面
     extractPlanes();
 
     return m_allBoundary;
@@ -105,6 +116,8 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::compute()
 void BoundaryExtractor::boundaryEstimation(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
 {
     TICK("Boundary_Estimation");
+
+    // 使用pcl的BE类提取边界点
     pcl::PointCloud<pcl::Boundary> boundary;
     pcl::BoundaryEstimation<pcl::PointXYZ, pcl::Normal, pcl::Boundary> be;
     be.setInputCloud(cloud);
@@ -115,6 +128,7 @@ void BoundaryExtractor::boundaryEstimation(pcl::PointCloud<pcl::PointXYZ>::Ptr c
     //be.setSearchMethod(tree);
     be.compute(boundary);
 
+    // 将提取的点保存到m_allBoundary中
     for (int i = 0; i < boundary.points.size(); i++)
     {
         if (boundary[i].boundary_point == 1)
@@ -229,9 +243,11 @@ void BoundaryExtractor::classifyBoundaryPoints()
         //float zRadians = qAcos((ep - yAxis * projYLength).normalized().dot(zAxis));
         float zRadians = qAcos(ep.cross(yAxis).dot(zAxis));
 
+        // 按照从深度图计算点云的公式反算回去
         int i = static_cast<int>(point.x * m_fx / point.z + m_cx);
         int j = static_cast<int>(point.y * m_fy / point.z + m_cy);
         
+        // 直接判断当前点是否在图像边缘
         if (i <= m_borderLeft || j <= m_borderTop || i >= (m_matWidth - m_borderRight) || j >= (m_matHeight - m_borderBottom))
         {
             // 图像边框点
@@ -319,16 +335,20 @@ void BoundaryExtractor::classifyBoundaryPoints2()
     for (int i = 0; i < m_allBoundary->points.size(); i++)
     {
         pcl::PointXYZI point = m_allBoundary->points[i];
+
         float z = point.z;
-        int pxX = point.x * m_fx / z + m_cx;
-        int pxY = point.y * m_fy / z + m_cy;
-        //qDebug() << i << pxX << pxY;
+        // 按照从深度图计算点云的公式反算回去
+        int pxX = static_cast<int>(point.x * m_fx / z + m_cx);
+        int pxY = static_cast<int>(point.y * m_fy / z + m_cy);
+
+        // 将计算出的像素值加入到深度图中
         m_boundaryMat.row(pxY).at<float>(pxX) = z;
+        // 同时将该像素对应的三维点序号也保存起来
         indices.row(pxY).at<float>(pxX) = i;
     }
 
     Eigen::Vector2f original(m_cx, m_cy);
-    qDebug() << "original:" << original.x() << original.y();
+    //qDebug() << "original:" << original.x() << original.y();
 
     int count = 0;
     for (int r = 0; r < m_boundaryMat.rows; r++)
@@ -342,47 +362,50 @@ void BoundaryExtractor::classifyBoundaryPoints2()
             pcl::PointXYZI point = m_allBoundary->points[pointIndex];
             if (c <= m_borderLeft || r <= m_borderTop || c >= (m_matWidth - m_borderRight) || r >= (m_matHeight - m_borderBottom))
             {
-                // 图像边框点
+                // 在图像边缘的即为图像边框点
                 m_borderPoints->push_back(point);
                 continue;
             }
 
+            // 当前点作为检查中心点
             Eigen::Vector2f coord(c, r);
-            Eigen::Vector2f ray = (coord - original).normalized();
-            Eigen::Vector2f edge = coord - ray * m_classifyRadius;
 
-            int edgeX = qRound(edge.x());
-            int edgeY = qRound(edge.y());
+            // 从当前点到图像中心点建立二维射线
+            Eigen::Vector2f ray = (original - coord ).normalized();
 
+            // 从检查的中心点，沿着射线方向，将一个光标一次向前移动一个单位向量的距离，然后计算光标位置周边的4个像素点是否为遮挡点，
+            // 只要发现有遮挡点，则当前点即为被遮挡点，即为Veil点。否则当前点为有效的边界点。
             QList<cv::Point2i> processed;
             bool veil = false;
             for (int i = 1; i < m_classifyRadius; i++)
             {
-                edge = coord - ray * i;
+                Eigen::Vector2f cursor = coord + ray * i;
                 // 检查这周围的4个像素
                 cv::Point2i adj[4];
-                adj[0] = cv::Point2i(qFloor(edge.x()), qFloor(edge.y()));
-                adj[1] = cv::Point2i(qCeil(edge.x()), qFloor(edge.y()));
-                adj[2] = cv::Point2i(qFloor(edge.x()), qCeil(edge.y()));
-                adj[3] = cv::Point2i(qCeil(edge.x()), qCeil(edge.y()));
+                adj[0] = cv::Point2i(qFloor(cursor.x()), qFloor(cursor.y()));
+                adj[1] = cv::Point2i(qCeil(cursor.x()), qFloor(cursor.y()));
+                adj[2] = cv::Point2i(qFloor(cursor.x()), qCeil(cursor.y()));
+                adj[3] = cv::Point2i(qCeil(cursor.x()), qCeil(cursor.y()));
                 for (int a = 0; a < 4; a++)
                 {
+                    // 判断是否已经检查了当前光标下的点，防止重复检查
                     if (processed.contains(adj[a]))
                         continue;
-
+                    // 把已经检查过的点放到processed集合中
                     processed.append(adj[a]);
 
+                    // 获取像素点
                     int nPtIndex = static_cast<int>(indices.row(adj[a].y).at<float>(adj[a].x));
-                    //qDebug() << "Point index:" << nPtIndex;
                     if (nPtIndex < 0)
                         continue;
 
+                    // 获取光标下像素点对应的三维点
                     pcl::PointXYZI nPt = m_allBoundary->points[nPtIndex];
 
+                    // 计算光标下像素点所对应的像素点与当前中心点的三维距离，如果该距离过小，则有可能是在同一个边界上，
+                    // 这个距离要大于一个阈值，我们才认为是一个有效的遮挡点。
                     float diff = (point.getVector3fMap() - nPt.getVector3fMap()).norm();
-
-                    //if (count == m_allBoundary->size() / 2)
-                    if (diff >= 0.075f)
+                    if (diff >= m_veilDistanceThreshold)
                     {
                         //qDebug().nospace().noquote() << "[" << c << ", " << r << "] -- [" << edgeX << ", " << edgeY << "] "
                             //<< i << ": [" << adj[a].x << ", " << adj[a].y << "] diff = " << diff;
@@ -395,10 +418,12 @@ void BoundaryExtractor::classifyBoundaryPoints2()
             }
             if (veil)
             {
+                // 阴影点
                 m_veilPoints->points.push_back(point);
             }
             else
             {
+                // 边界点
                 m_boundaryPoints->points.push_back(point);
             }
             count++;
@@ -432,6 +457,8 @@ void BoundaryExtractor::computeNormals(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud
 void BoundaryExtractor::extractPlanes()
 {
     m_planes.clear();
+
+    // 先用欧式聚集，对点云进行分割。
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
     tree->setInputCloud(m_filteredCloud);
     std::vector<pcl::PointIndices> clusterIndices;
@@ -443,9 +470,14 @@ void BoundaryExtractor::extractPlanes()
     ec.setInputCloud(m_filteredCloud);
     ec.extract(clusterIndices);
 
+    // 对分割出的点云再提取平面。因为使用SAC分割平面时，它不检测点是否连续，所以如果不先对点云分割就会取到非连续的平面。
+    // 容易引入更大的误差。
     qDebug() << "cluster size:" << clusterIndices.size();
     for (int i = 0; i < clusterIndices.size(); i++)
     {
+        // 参考以下两篇PCL官网教程
+        // http://pointclouds.org/documentation/tutorials/extract_indices.php#extract-indices
+        // http://pointclouds.org/documentation/tutorials/planar_segmentation.php
         qDebug() << "cluster" << i << ":" << clusterIndices[i].indices.size();
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud2(new pcl::PointCloud<pcl::PointXYZ>);
@@ -499,7 +531,8 @@ void BoundaryExtractor::extractPlanes()
             extract.filter(*cloud2);
             cloud.swap(cloud2);
 
-            if (plane.weight > 0.05f)
+            // 检测一下当前平面的点数比例是否超过阈值，不超过的就抛弃。
+            if (plane.weight > m_planePointsRate)
             {
                 m_planes.append(plane);
             }

@@ -5,8 +5,8 @@
 #include <QScopedPointer>
 
 #include "extractor/BoundaryExtractor.h"
-#include "extractor/DDBPLineExtractor.h"
-#include "matcher/DDBPLineMatcher.h"
+#include "extractor/LineExtractor.h"
+#include "matcher/LineMatcher.h"
 #include "device/SensorReaderDevice.h"
 #include "ui/CloudViewer.h"
 
@@ -50,8 +50,8 @@ private:
     CloudViewer* m_cloudViewer3;
     QScopedPointer<SensorReaderDevice> m_device;
     QScopedPointer<BoundaryExtractor> m_boundaryExtractor;
-    QScopedPointer<DDBPLineExtractor> m_lineExtractor;
-    QScopedPointer<DDBPLineMatcher> m_lineMatcher;
+    QScopedPointer<LineExtractor> m_lineExtractor;
+    QScopedPointer<LineMatcher> m_lineMatcher;
 
     bool m_isStepMode;
     bool m_isInit;
@@ -70,6 +70,8 @@ private:
     pcl::PointCloud<MSLPoint>::Ptr m_mslPointCloud2;
     QList<Plane> m_planes1;
     QList<Plane> m_planes2;
+    QList<LineMatcher::LineChain> m_chains1;
+    QList<LineMatcher::LineChain> m_chains2;
 
     float m_diameter1;
     float m_diameter2;

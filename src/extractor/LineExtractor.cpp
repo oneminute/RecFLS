@@ -1,4 +1,4 @@
-#include "DDBPLineExtractor.h"
+#include "LineExtractor.h"
 
 #include <QtMath>
 #include <QDebug>
@@ -15,7 +15,7 @@
 
 #include "util/Utils.h"
 
-DDBPLineExtractor::DDBPLineExtractor(QObject* parent)
+LineExtractor::LineExtractor(QObject* parent)
     : QObject(parent)
     , m_angleMappingMethod(TWO_DIMS)
     , m_searchRadius(0.05f)
@@ -32,7 +32,7 @@ DDBPLineExtractor::DDBPLineExtractor(QObject* parent)
 
 }
 
-QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>::Ptr& boundaryCloud)
+QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>::Ptr& boundaryCloud)
 {
     qDebug() << "angleMappingMethod" << m_angleMappingMethod;
     qDebug() << "searchRadius:" << m_searchRadius;
@@ -60,6 +60,7 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
 
     QList<LineSegment> lines;
 
+    // 计算当前点云外包盒的最大直径，该值将用于对直线长度进行归一化的分母。
     Eigen::Vector4f minPoint, maxPoint;
     pcl::getMinMax3D<pcl::PointXYZI>(*boundaryCloud, minPoint, maxPoint);
     m_minPoint = minPoint.head(3);
@@ -70,12 +71,14 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
     pcl::search::KdTree<pcl::PointXYZI> tree;
     tree.setInputCloud(boundaryCloud);
 
+    // globalDir用于统一所有的直线方向
     Eigen::Vector3f globalDir(1, 1, 1);
     globalDir.normalize();
     Eigen::Vector3f xAxis(1, 0, 0);
     Eigen::Vector3f yAxis(0, 1, 0);
     Eigen::Vector3f zAxis(0, 0, 1);
 
+    // 计算每一个边界点的PCA主方向，
     int index = 0;
     for (int i = 0; i < boundaryCloud->size(); i++)
     {
@@ -170,6 +173,7 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
             radiansZ = (M_PI * 2) - radiansZ;
         }
 
+        // 建立点主方向角度值点云
         pcl::PointXYZI anglePt;
         anglePt.x = eulerAngles.x();
         anglePt.y = eulerAngles.y();
@@ -177,11 +181,13 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
         anglePt.intensity = index;
         m_angleCloud->push_back(anglePt);
         
+        // 建立主方向点云，主要是为了保留主方向，供后续计算使用。
         pcl::PointXYZI dirPt;
         dirPt.getVector3fMap() = primeDir;
         dirPt.intensity = index;
         m_dirCloud->push_back(dirPt);
 
+        // 用主方向原点垂距、主方向垂面夹角和主方向单维距离这三个数据形成一个新的映射点云，用于使用聚集抽取连续的直线。
         pcl::PointXYZI mappingPt;
         mappingPt.x = distance / m_boundBoxDiameter * 2;
         mappingPt.y = radiansZ / (M_PI * 2);
@@ -189,11 +195,13 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
         mappingPt.intensity = index;
         m_mappingCloud->push_back(mappingPt);
 
+        // 将计算出的质心单独保存成一个点云，方便后续计算。
         pcl::PointXYZI centerPt;
         centerPt.getVector3fMap() = meanPoint;
         centerPt.intensity = index;
         m_centerCloud->push_back(centerPt);
 
+        // 将计算出的点云密度单独保存成一个点云，方便后续计算。
         pcl::PointXYZI pt = ptIn;
         pt.intensity = 0;
         m_boundaryIndices->push_back(index);
@@ -224,12 +232,13 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
 
     qDebug() << "Input cloud size:" << boundaryCloud->size() << ", filtered cloud size:" << m_boundaryCloud->size();
 
-    // 创建参数化点云的查找树
+    // 创建参数化点云的查找树，该树用于通过角度值点云来查找主方向相同的聚集
     pcl::search::KdTree<pcl::PointXYZI> angleCloudTree;
-    tree.setInputCloud(m_angleCloud);
+    angleCloudTree.setInputCloud(m_angleCloud);
 
-    float maxDensity = 0;
-    float minDensity = m_angleCloud->size();
+    // 下面这个循环用于查找主方向相同的点，但并不使用区域增长，否则会产生较大的偏离
+    //float maxDensity = 0;
+    //float minDensity = m_angleCloud->size();
     QMap<int, std::vector<int>> neighbours;
     for (int i = 0; i < m_angleCloud->size(); i++)
     {
@@ -238,20 +247,20 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
         // 查找近邻
         std::vector<int> neighbourIndices;
         std::vector<float> neighbourDistances;
-        tree.radiusSearch(ptAngle, m_angleSearchRadius, neighbourIndices, neighbourDistances);
+        angleCloudTree.radiusSearch(ptAngle, m_angleSearchRadius, neighbourIndices, neighbourDistances);
         neighbours.insert(i, neighbourIndices);
         
         // 计算密度值
         float density = neighbourIndices.size();
 
-        if (density > maxDensity)
+        /*if (density > maxDensity)
         {
             maxDensity = density;
         }
         if (density < minDensity)
         {
             minDensity = density;
-        }
+        }*/
 
         m_density.append(density);
 
@@ -514,7 +523,7 @@ QList<LineSegment> DDBPLineExtractor::compute(const pcl::PointCloud<pcl::PointXY
     return lines;
 }
 
-void DDBPLineExtractor::extractLinesFromPlanes(const QList<Plane>& planes)
+void LineExtractor::extractLinesFromPlanes(const QList<Plane>& planes)
 {
     //m_mslPointCloud.reset(new pcl::PointCloud<MSLPoint>);
     //m_mslCloud.reset(new pcl::PointCloud<MSL>);

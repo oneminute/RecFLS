@@ -1,5 +1,5 @@
-#ifndef DDBPLINEEXTRACTOR_H
-#define DDBPLINEEXTRACTOR_H
+#ifndef LINEEXTRACTOR_H
+#define LINEEXTRACTOR_H
 
 #include <QObject>
 #include <QList>
@@ -45,7 +45,7 @@ struct MSL
     PCL_MAKE_ALIGNED_OPERATOR_NEW
 };
 
-class DDBPLineExtractor : public QObject
+class LineExtractor : public QObject
 {
     Q_OBJECT
 public:
@@ -55,7 +55,7 @@ public:
         THREE_DIMS
     };
     
-    explicit DDBPLineExtractor(QObject* parent = nullptr);
+    explicit LineExtractor(QObject* parent = nullptr);
 
     QList<LineSegment> compute(const pcl::PointCloud<pcl::PointXYZI>::Ptr& boundaryCloud);
 
@@ -231,4 +231,4 @@ public:
     PCL_MAKE_ALIGNED_OPERATOR_NEW
 };
 
-#endif // DDBPLINEEXTRACTOR_H
+#endif // LINEEXTRACTOR_H

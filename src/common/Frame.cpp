@@ -25,23 +25,59 @@ public:
 
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    // 来自设备的数据序号
     qint64 deviceFrameIndex;
+
+    // 帧序号
     qint64 frameIndex;
+
+    // 关键帧序号
     qint64 keyFrameIndex;
+
+    // RGB图像像素宽度
     int colorWidth;
+
+    // RGB图像像素高度
     int colorHeight;
+
+    // 深度图像像素宽度
     int depthWidth;
+
+    // 深度图像像素高度
     int depthHeight;
+
+    // 当前这一帧的全局全换矩阵
     Eigen::Matrix4f cameraToWorld;
+
+    // RGB图像到达的时间戳
     quint64 timeStampColor;
+
+    // 深度图像到达的时间戳
     quint64 timeStampDepth;
+
+    // 压缩的RGB图像数据
     QByteArray colorCompressed;
+
+    // 压缩的深度图像数据
     QByteArray depthCompressed;
+
+    // RGB图像数据，用cv::Mat管理
     cv::Mat colorMat;
+
+    // 深度图像数据，用cv::Mat管理
     cv::Mat depthMat;
+
+    // 当前帧RGB图像的压缩类型
     Frame::COMPRESSION_TYPE_COLOR colorCompressionType;
+
+    // 当前帧深度图像的压缩类型
     Frame::COMPRESSION_TYPE_DEPTH depthCompressionType;
+
+    // 当前帧处理过程中的计时器数据
     QList<QPair<QString, qreal>> durations;
+
+    // 获取当前帧数据的设备指针
     Device* device;
 };
 

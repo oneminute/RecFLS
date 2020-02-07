@@ -1,4 +1,4 @@
-#include "DDBPLineMatcher.h"
+#include "LineMatcher.h"
 
 #include <QDebug>
 #include <QtMath>
@@ -11,13 +11,13 @@
 
 #include "util/Utils.h"
 
-DDBPLineMatcher::DDBPLineMatcher(QObject* parent)
+LineMatcher::LineMatcher(QObject* parent)
     : QObject(parent)
 {
 
 }
 
-Eigen::Matrix4f DDBPLineMatcher::compute(
+Eigen::Matrix4f LineMatcher::compute(
     pcl::PointCloud<MSLPoint>::Ptr firstPointCloud,
     pcl::PointCloud<MSL>::Ptr firstLineCloud,
     pcl::PointCloud<MSLPoint>::Ptr secondPointCloud,
@@ -99,7 +99,7 @@ Eigen::Matrix4f DDBPLineMatcher::compute(
     return finalPose;
 }
 
-Eigen::Quaternionf DDBPLineMatcher::stepRotation(
+Eigen::Quaternionf LineMatcher::stepRotation(
     float firstDiameter,
     pcl::PointCloud<MSLPoint>::Ptr firstPointCloud,
     pcl::PointCloud<MSL>::Ptr firstLineCloud,
@@ -221,7 +221,7 @@ Eigen::Quaternionf DDBPLineMatcher::stepRotation(
     return rotOut;
 }
 
-Eigen::Vector3f DDBPLineMatcher::stepTranslation(
+Eigen::Vector3f LineMatcher::stepTranslation(
     pcl::PointCloud<MSL>::Ptr firstLineCloud,
     pcl::PointCloud<MSL>::Ptr secondLineCloud,
     pcl::KdTreeFLANN<MSLPoint>::Ptr tree,
@@ -350,7 +350,7 @@ Eigen::Vector3f DDBPLineMatcher::stepTranslation(
     return trans;
 }
 
-void DDBPLineMatcher::generateDescriptors(pcl::PointCloud<MSL>::Ptr& lineCloud, 
+void LineMatcher::generateDescriptors(pcl::PointCloud<MSL>::Ptr& lineCloud, 
     pcl::PointCloud<LineDescriptor>::Ptr& descriptors,
     QList<LineChain>& chains)
 {
@@ -381,12 +381,37 @@ void DDBPLineMatcher::generateDescriptors(pcl::PointCloud<MSL>::Ptr& lineCloud,
             lc.yLocal = msl1.dir.cross(msl2.dir).normalized();
             lc.zLocal = lc.xLocal.cross(lc.yLocal).normalized();
 
-            Eigen::Vector3f cross12 = msl1.dir.cross(msl2.dir);
-            Eigen::Vector3f cross21 = msl2.dir.cross(msl1.dir);
-            float t1 = (msl2.point - msl1.point).cross(msl2.dir).dot(cross21) / cross21.squaredNorm();
-            float t2 = (msl1.point - msl2.point).cross(msl1.dir).dot(cross12) / cross12.squaredNorm();
-            lc.point1 = msl1.point + msl1.dir * t1;
-            lc.point2 = msl2.point + msl2.dir * t2;
+            // 计算最近点
+            Eigen::Vector3f p1;     // 表示直线1上的一个点
+            Eigen::Vector3f p2;     // 表示直线2上的一个点
+            Eigen::Vector3f c1;     // 表示两条直线的叉乘直线方向，P1-P2
+            Eigen::Vector3f c2;     // 表示两条直线的叉乘直线方向，P2-P1
+            Eigen::Vector3f d1;     // 表示线1的方向
+            Eigen::Vector3f d2;     // 表示线2的方向
+            float t1;               // P1到cross1的距离
+            float t2;               // P2到cross2的距离
+            Eigen::Vector3f cross1; // 线1上的最近点
+            Eigen::Vector3f cross2; // 线2上的最近点
+            float l;                // 两条直线间的垂线距离
+
+            p1 = msl1.point;
+            p2 = msl2.point;
+            d1 = msl1.dir.normalized();
+            d2 = msl2.dir.normalized();
+            c1 = d1.cross(d2).normalized();
+            if (c1.dot(p1 - p2) < 0)
+                c1 = -c1;
+            c2 = -c1;
+            l = qAbs((p1 - p2).dot(c1));
+
+            t1 = ((p2 - p1).cross(d2) + c1.cross(d2) * l).dot(d1.cross(d2)) / d1.cross(d2).squaredNorm();
+            t2 = ((p1 - p2).cross(d1) + c2.cross(d1) * l).dot(d2.cross(d1)) / d2.cross(d1).squaredNorm();
+
+            cross1 = p1 + d1 * t1;
+            cross2 = p2 + d2 * t2;
+
+            lc.point1 = cross1;
+            lc.point2 = cross2;
 
             chains.append(lc);
         }

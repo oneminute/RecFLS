@@ -9,7 +9,7 @@
 
 #include "common/Parameters.h"
 #include "util/Utils.h"
-#include "extractor/DDBPLineExtractor.h"
+#include "extractor/LineExtractor.h"
 
 #include <pcl/io/ply_io.h>
 #include <pcl/io/obj_io.h>
@@ -45,7 +45,7 @@ ToolWindowLineExtractor::~ToolWindowLineExtractor()
 
 void ToolWindowLineExtractor::onActionParameterizedPointsAnalysis()
 {
-    DDBPLineExtractor extractor;
+    LineExtractor extractor;
     extractor.setSearchRadius(m_ui->doubleSpinBoxSearchRadius->value());
     extractor.setMinNeighbours(m_ui->spinBoxMinNeighbours->value());
     extractor.setSearchErrorThreshold(m_ui->doubleSpinBoxSearchErrorThreshold->value());

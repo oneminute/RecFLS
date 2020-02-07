@@ -25,8 +25,8 @@ ToolWindowBoundaryExtractor::ToolWindowBoundaryExtractor(QWidget *parent)
 
     m_cloudViewer = new CloudViewer;
     m_cloudViewer->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, -1, 0);
-    //m_projectedCloudViewer = new CloudViewer;
-    //m_projectedCloudViewer->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, 1, 0);
+    m_projectedCloudViewer = new CloudViewer;
+    m_projectedCloudViewer->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, 1, 0);
     m_planeViewer = new CloudViewer;
     m_planeViewer->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, -1, 0);
     m_depthViewer = new ImageViewer;
@@ -34,7 +34,7 @@ ToolWindowBoundaryExtractor::ToolWindowBoundaryExtractor(QWidget *parent)
 
     m_ui->verticalLayout1->addWidget(m_cloudViewer);
     m_ui->verticalLayout1->addWidget(m_planeViewer);
-    //m_ui->verticalLayout2->addWidget(m_projectedCloudViewer);
+    m_ui->verticalLayout2->addWidget(m_projectedCloudViewer);
     m_ui->verticalLayout2->addWidget(m_depthViewer);
     m_ui->verticalLayout2->addWidget(m_depthViewer2);
 
@@ -63,7 +63,6 @@ ToolWindowBoundaryExtractor::ToolWindowBoundaryExtractor(QWidget *parent)
     m_ui->doubleSpinBoxProjectedRadiusSearch->setValue(qDegreesToRadians(PARAMETERS.floatValue("projected_radius_search", 5, "BoundaryExtractor")));
     m_ui->doubleSpinBoxVeilDistanceThreshold->setValue(PARAMETERS.floatValue("veil_distance_threshold", 0.1f, "BoundaryExtractor"));
     m_ui->doubleSpinBoxPlaneDistanceThreshold->setValue(PARAMETERS.floatValue("plane_distance_threshold", 0.01f, "BoundaryExtractor"));
-
 }
 
 ToolWindowBoundaryExtractor::~ToolWindowBoundaryExtractor()
@@ -97,7 +96,7 @@ void ToolWindowBoundaryExtractor::onActionCompute()
     m_boundaryExtractor->setMaxNormalCulsters(m_ui->spinBoxMaxNormalClusters->value());
     m_boundaryExtractor->setPlaneDistanceThreshold(m_ui->doubleSpinBoxPlaneDistanceThreshold->value());
 
-    m_lineExtractor.reset(new DDBPLineExtractor);
+    m_lineExtractor.reset(new LineExtractor);
     m_lineExtractor->setSearchRadius(PARAMETERS.floatValue("search_radius", 0.1f, "LineExtractor"));
     m_lineExtractor->setMinNeighbours(PARAMETERS.intValue("min_neighbours", 3, "LineExtractor"));
     m_lineExtractor->setSearchErrorThreshold(PARAMETERS.floatValue("search_error_threshold", 0.05f, "LineExtractor"));
@@ -111,8 +110,8 @@ void ToolWindowBoundaryExtractor::onActionCompute()
 
     m_cloudViewer->visualizer()->removeAllPointClouds();
     m_cloudViewer->visualizer()->removeAllShapes();
-    //m_projectedCloudViewer->visualizer()->removeAllPointClouds();
-    //m_projectedCloudViewer->visualizer()->removeAllShapes();
+    m_projectedCloudViewer->visualizer()->removeAllPointClouds();
+    m_projectedCloudViewer->visualizer()->removeAllShapes();
     m_planeViewer->visualizer()->removeAllPointClouds();
     m_planeViewer->visualizer()->removeAllShapes();
 
@@ -160,11 +159,11 @@ void ToolWindowBoundaryExtractor::onActionCompute()
         m_cloudViewer->visualizer()->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(filteredCloud, normalsCloud, 10, 0.02f);
     }
 
-    /*if (m_projectedCloud) {
+    if (m_projectedCloud) {
         pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(m_projectedCloud, "intensity");
         m_projectedCloudViewer->visualizer()->addPointCloud(m_projectedCloud, iColor, "projected cloud");
         m_projectedCloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "projected cloud");
-    }*/
+    }
 
     if (m_boundaryPoints) {
         pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> rColor(m_boundaryPoints, 255, 0, 0);

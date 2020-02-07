@@ -1,5 +1,5 @@
-#ifndef DDBPLINEMATCHER_H
-#define DDBPLINEMATCHER_H
+#ifndef LINEMATCHER_H
+#define LINEMATCHER_H
 
 #include <QObject>
 
@@ -10,14 +10,14 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#include <extractor/DDBPLineExtractor.h>
+#include <extractor/LineExtractor.h>
 
 #define LINE_MATCHER_DIVISION 4
 #define LINE_MATCHER_DIST_DIVISION 6
 #define LINE_MATCHER_ANGLE_ELEMDIMS (LINE_MATCHER_DIVISION * LINE_MATCHER_DIVISION)
 #define LINE_MATCHER_ELEMDIMS (LINE_MATCHER_ANGLE_ELEMDIMS + LINE_MATCHER_DIST_DIVISION)
 
-class DDBPLineMatcher : public QObject
+class LineMatcher : public QObject
 {
     Q_OBJECT
 public:
@@ -52,7 +52,7 @@ public:
         static int elemsSize() { return LINE_MATCHER_ELEMDIMS; }
     };
 
-    explicit DDBPLineMatcher(QObject* parent = nullptr);
+    explicit LineMatcher(QObject* parent = nullptr);
 
     Eigen::Matrix4f compute(
         pcl::PointCloud<MSLPoint>::Ptr firstPointCloud, 
@@ -82,6 +82,9 @@ public:
         QMap<int, int>& pairs = QMap<int, int>()
     );
 
+    QList<LineChain> chains1() const { return m_chains1; }
+    QList<LineChain> chains2() const { return m_chains2; }
+
 protected:
     void generateDescriptors(pcl::PointCloud<MSL>::Ptr& lineCloud, 
     pcl::PointCloud<LineDescriptor>::Ptr& descriptors,
@@ -96,4 +99,4 @@ private:
     Eigen::MatrixXf m_descMat2;
 };
 
-#endif // DDBPLINEMATCHER_H
+#endif // LINEMATCHER_H

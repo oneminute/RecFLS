@@ -64,12 +64,12 @@ void ToolWindowLineMatcher::initCompute()
 
     if (!m_lineExtractor)
     {
-        m_lineExtractor.reset(new DDBPLineExtractor);
+        m_lineExtractor.reset(new LineExtractor);
     }
 
     if (!m_lineMatcher)
     {
-        m_lineMatcher.reset(new DDBPLineMatcher);
+        m_lineMatcher.reset(new LineMatcher);
     }
 
     m_boundaryExtractor->setDownsamplingMethod(PARAMETERS.intValue("downsampling_method", 0, "BoundaryExtractor"));
@@ -198,7 +198,31 @@ void ToolWindowLineMatcher::compute()
 {
     initCompute();
     m_lineMatcher->compute(m_mslPointCloud1, m_mslCloud1, m_mslPointCloud2, m_mslCloud2);
+    m_chains1 = m_lineMatcher->chains1();
+    m_chains2 = m_lineMatcher->chains2();
     //m_rotation = m_lineMatcher->stepRotation(m_diameter1, m_mslPointCloud1, m_mslCloud1, m_diameter2, m_mslPointCloud2, m_mslCloud2, m_tree, m_rotationError, m_translationError);
+    for (int i = 0; i < m_chains1.size(); i++)
+    {
+        LineMatcher::LineChain chain = m_chains1[i];
+        QString ptName = QString("%1-%2").arg(chain.line1).arg(chain.line2);
+        QString textName = ptName + "_txt";
+        pcl::PointXYZ center;
+        center.getVector3fMap() = (chain.point1 + chain.point2) / 2;
+
+        m_cloudViewer2->visualizer()->addSphere(center, 0.025f, 255, 0, 0, ptName.toStdString());
+        m_cloudViewer2->visualizer()->addText3D(ptName.toStdString(), center, 0.05, 1, 1, 1, textName.toStdString());
+    }
+    for (int i = 0; i < m_chains2.size(); i++)
+    {
+        LineMatcher::LineChain chain = m_chains2[i];
+        QString ptName = QString("%1-%2").arg(chain.line1).arg(chain.line2);
+        QString textName = ptName + "_txt";
+        pcl::PointXYZ center;
+        center.getVector3fMap() = (chain.point1 + chain.point2) / 2;
+
+        m_cloudViewer3->visualizer()->addSphere(center, 0.025f, 255, 0, 0, ptName.toStdString());
+        m_cloudViewer3->visualizer()->addText3D(ptName.toStdString(), center, 0.05, 1, 1, 1, textName.toStdString());
+    }
     updateWidgets();
 }
 
@@ -228,45 +252,41 @@ void ToolWindowLineMatcher::showCloudAndLines(CloudViewer* viewer, QList<Plane>&
         viewer->visualizer()->addLine(center, end, 255, 0, 0, normalName.toStdString());
     }
 
+    for (int i = 0; i < lines.size()/* && errors[i]*/; i++)
     {
-        for (int i = 0; i < lines.size()/* && errors[i]*/; i++)
-        {
-            color.setHsv(i * 255 / lines.size(), 255, 255);
-            double r = color.red();
-            double g = color.green();
-            double b = color.blue();
-            LineSegment line = lines[i];
-            std::string lineNo = "line_" + std::to_string(i);
-            pcl::PointXYZI start, end;
-            start.getVector3fMap() = line.start();
-            end.getVector3fMap() = line.end();
-            Eigen::Vector3f dir = line.direction();
-            //m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
-            viewer->visualizer()->addLine(start, end, r, g, b, lineNo);
-            //viewer->visualizer()->addText3D(std::to_string(i), middle, 0.025, 1, 1, 1, textNo);
-            viewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
-        }
+        color.setHsv(i * 255 / lines.size(), 255, 255);
+        double r = color.red();
+        double g = color.green();
+        double b = color.blue();
+        LineSegment line = lines[i];
+        std::string lineNo = "line_" + std::to_string(i);
+        pcl::PointXYZI start, end;
+        start.getVector3fMap() = line.start();
+        end.getVector3fMap() = line.end();
+        Eigen::Vector3f dir = line.direction();
+        //m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
+        viewer->visualizer()->addLine(start, end, r, g, b, lineNo);
+        //viewer->visualizer()->addText3D(std::to_string(i), middle, 0.025, 1, 1, 1, textNo);
+        viewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
     }
 
+    for (int i = 0; i < mslCloud->size(); i++)
     {
-        for (int i = 0; i < mslCloud->size(); i++)
-        {
-            color.setHsv(i * 255 / mslCloud->size(), 255, 255);
-            double r = color.red();
-            double g = color.green();
-            double b = color.blue();
-            MSL msl = mslCloud->points[i];
-            pcl::PointXYZI start, end, middle;
-            start.getVector3fMap() = msl.getEndPoint(-3);
-            end.getVector3fMap() = msl.getEndPoint(3);
-            middle.getVector3fMap() = msl.point;
-            QString lineName = QString("msl_%1").arg(i);
-            std::string textNo = "text_" + std::to_string(i);
-            viewer->visualizer()->addText3D(std::to_string(i), middle, 0.05, r, g, b, textNo);
-            //viewer->visualizer()->addLine(start, end, r, g, b, lineName.toStdString());
-            viewer->visualizer()->addArrow(start, end, r, g, b, false, lineName.toStdString());
-            viewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 1, lineName.toStdString());
-        }
+        color.setHsv(i * 255 / mslCloud->size(), 255, 255);
+        double r = color.red();
+        double g = color.green();
+        double b = color.blue();
+        MSL msl = mslCloud->points[i];
+        pcl::PointXYZI start, end, middle;
+        start.getVector3fMap() = msl.getEndPoint(-3);
+        end.getVector3fMap() = msl.getEndPoint(3);
+        middle.getVector3fMap() = msl.point;
+        QString lineName = QString("msl_%1").arg(i);
+        std::string textNo = "text_" + std::to_string(i);
+        viewer->visualizer()->addText3D(std::to_string(i), middle, 0.05, r, g, b, textNo);
+        //viewer->visualizer()->addLine(start, end, r, g, b, lineName.toStdString());
+        viewer->visualizer()->addArrow(start, end, r, g, b, false, lineName.toStdString());
+        viewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 1, lineName.toStdString());
     }
 }
 

@@ -70,7 +70,10 @@ void DefaultController::saveCurrentFrame()
 
 void DefaultController::onFrameFetched(Frame &frame)
 {
+    // 处理来自设备的数据帧
     m_odometry->setCloudViewer(m_cloudViewer);
+
+    // 里程计处理单帧数据
     m_odometry->process(frame);
 
     // emit signal

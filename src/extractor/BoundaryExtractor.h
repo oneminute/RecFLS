@@ -171,26 +171,50 @@ public:
     float planeDistanceThreshold() const { return m_planeDistanceThreshold; }
     void setPlaneDistanceThreshold(float _value) { m_planeDistanceThreshold = _value; }
 
+    float planePointsRate() const { return m_planePointsRate; }
+    void setPlanePointsRate(float _value) { m_planePointsRate = _value; }
+
 protected:
     void computeNormals(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
 
     void extractPlanes();
 
 private:
+    // 输入点云
     pcl::PointCloud<pcl::PointXYZ>::Ptr m_cloud;
     //pcl::IndicesPtr m_indices;
+
+    // 下采样后的点云
     pcl::PointCloud<pcl::PointXYZ>::Ptr m_downsampledCloud;
+
+    // 高斯过滤后的点云
     pcl::PointCloud<pcl::PointXYZ>::Ptr m_filteredCloud;
+
+    // 离群点移除后的点云
     pcl::PointCloud<pcl::PointXYZ>::Ptr m_removalCloud;
+
+    // 法线
     pcl::PointCloud<pcl::Normal>::Ptr m_normals;
+
+    // 抽取出的所有边界点
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_allBoundary;
+
+    // 投影点云
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_projectedCloud;
 
+    // 用于分类边界点的深度图片，该图片由边界点反向投影到二维深度图上
     cv::Mat m_boundaryMat;
+
+    // 真正的边界图片
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_boundaryPoints;
+
+    // 阴影图片
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_veilPoints;
+
+    // 屏幕边缘图片
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_borderPoints;
 
+    // 抽取出的平面
     QList<Plane> m_planes;
 
     DOWNSAMPLING_METHOD m_downsamplingMethod;
@@ -224,6 +248,7 @@ private:
     float m_planeDistanceThreshold;
 
     int m_classifyRadius;
+    float m_planePointsRate;
 };
 
 
