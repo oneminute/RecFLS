@@ -110,8 +110,8 @@ void ToolWindowLineMatcher::initCompute()
     m_ui->widgetFrame1->setImage(cvMat2QImage(frame1.colorMat()));
     m_ui->widgetFrame2->setImage(cvMat2QImage(frame2.colorMat()));
 
-    pcl::IndicesPtr indices1(new pcl::Indices);
-    pcl::IndicesPtr indices2(new pcl::Indices);
+    pcl::IndicesPtr indices1(new std::vector<int>);
+    pcl::IndicesPtr indices2(new std::vector<int>);
     m_cloud1.reset(new pcl::PointCloud<pcl::PointXYZ>);
     m_cloud2.reset(new pcl::PointCloud<pcl::PointXYZ>);
 

@@ -29,7 +29,7 @@ struct MSLPoint
         };
     };
     static int propsSize() { return 5; }
-    PCL_MAKE_ALIGNED_OPERATOR_NEW
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 struct MSL
@@ -42,7 +42,7 @@ struct MSL
     {
         return point + dir * length;
     }
-    PCL_MAKE_ALIGNED_OPERATOR_NEW
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 class LineExtractor : public QObject
@@ -228,7 +228,7 @@ private:
     float m_boundBoxDiameter;
 
 public:
-    PCL_MAKE_ALIGNED_OPERATOR_NEW
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 #endif // LINEEXTRACTOR_H
