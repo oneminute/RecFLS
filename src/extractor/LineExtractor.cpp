@@ -540,7 +540,7 @@ void LineExtractor::extractLinesFromPlanes(const QList<Plane>& planes)
             Plane plane2 = planes[j];
 
             float cos = plane1.dir.dot(plane2.dir);
-            if (qAbs(cos) > 0.98f)
+            if (qAbs(cos) > 0.95f)
                 continue;
 
             Eigen::Vector3f crossLine = plane1.dir.cross(plane2.dir).normalized();

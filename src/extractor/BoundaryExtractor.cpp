@@ -463,7 +463,7 @@ void BoundaryExtractor::extractPlanes()
     tree->setInputCloud(m_filteredCloud);
     std::vector<pcl::PointIndices> clusterIndices;
     pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-    ec.setClusterTolerance(0.02); 
+    ec.setClusterTolerance(0.015); 
     ec.setMinClusterSize(m_filteredCloud->size() * 0.05);
     ec.setMaxClusterSize(m_filteredCloud->size());
     ec.setSearchMethod(tree);

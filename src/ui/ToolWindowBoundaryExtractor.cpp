@@ -117,7 +117,7 @@ void ToolWindowBoundaryExtractor::onActionCompute()
 
     int frameIndex = m_ui->comboBoxFrameIndex->currentIndex();
     Frame frame = m_device->getFrame(frameIndex);
-    pcl::IndicesPtr indices(new pcl::Indices);
+    pcl::IndicesPtr indices(new std::vector<int>);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr colorCloud;
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
