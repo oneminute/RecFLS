@@ -9,6 +9,8 @@
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/kdtree/impl/kdtree_flann.hpp>
 
+#include <Eigen/SVD>
+
 #include "util/Utils.h"
 
 LineMatcher::LineMatcher(QObject* parent)
@@ -18,84 +20,308 @@ LineMatcher::LineMatcher(QObject* parent)
 }
 
 Eigen::Matrix4f LineMatcher::compute(
-    pcl::PointCloud<MSLPoint>::Ptr firstPointCloud,
-    pcl::PointCloud<MSL>::Ptr firstLineCloud,
-    pcl::PointCloud<MSLPoint>::Ptr secondPointCloud,
-    pcl::PointCloud<MSL>::Ptr secondLineCloud
+    QList<LineChain>& chains1,
+    pcl::PointCloud<MSL>::Ptr& lines1,
+    pcl::PointCloud<LineDescriptor2>::Ptr& desc1,
+    QList<LineChain>& chains2,
+    pcl::PointCloud<MSL>::Ptr& lines2,
+    pcl::PointCloud<LineDescriptor2>::Ptr& desc2
 )
 {
     Eigen::Matrix4f finalPose(Eigen::Matrix4f::Identity());
 
-    // 生成Line-Chain 
-    generateDescriptors(firstLineCloud, m_descriptors1, m_chains1); 
-    generateDescriptors(secondLineCloud, m_descriptors2, m_chains2); 
-
-    m_descMat1.resize(m_descriptors1->size(), LINE_MATCHER_ELEMDIMS); 
-    for (int i = 0; i < m_descriptors1->size(); i++) 
-    { 
-        for (int j = 0; j < LineDescriptor::elemsSize(); j++) 
-        { 
-            m_descMat1.row(i)[j] = m_descriptors1->points[i].elems[j]; 
-            m_descMat1.row(i).normalize(); 
-        } 
-    } 
-
-    m_descMat2.resize(m_descriptors2->size(), LINE_MATCHER_ELEMDIMS); 
-    for (int i = 0; i < m_descriptors2->size(); i++) 
-    { 
-        for (int j = 0; j < LineDescriptor::elemsSize(); j++) 
-        { 
-            m_descMat2.row(i)[j] = m_descriptors2->points[i].elems[j]; 
-            m_descMat2.row(i).normalize(); 
-        } 
-    } 
-    //m_descMat1.normalize(); 
-    //m_descMat2.normalize(); 
-
-    qDebug() << "chains1 size:" << m_chains1.size() << ", chains2 size:" << m_chains2.size(); 
-
-    Eigen::MatrixXf result = m_descMat1 * m_descMat2.transpose(); 
-    for (int i = 0; i < result.rows(); i++) 
-    { 
-        int otherIndex; 
-        float maxValue = result.row(i).maxCoeff(&otherIndex); 
-
-        qDebug().nospace().noquote() << i << "(" << m_chains1[i].line1 << "," << m_chains1[i].line2 << ") --> " << otherIndex << "(" << m_chains2[otherIndex].line1 << "," << m_chains2[otherIndex].line2 << ") " << maxValue; 
-    } 
-
     qDebug() << "------------------"; 
+    qDebug() << "desc1 size:" << desc1->size() << "desc2 size:" << desc2->size();
 
-    for (int i = 0; i < m_descMat1.rows(); i++) 
-    { 
-        float minDistance = std::numeric_limits<float>::max(); 
-        int otherIndex = 0; 
-        for (int j = 0; j < m_descMat2.rows(); j++) 
-        { 
-            float dist = (m_descMat1.row(i) - m_descMat2.row(j)).norm(); 
-            if (dist < minDistance) 
-            { 
-                minDistance = dist; 
-                otherIndex = j; 
-            } 
-        } 
-        qDebug().nospace().noquote() << i << "(" << m_chains1[i].line1 << "," << m_chains1[i].line2 << ") --> " << otherIndex << "(" << m_chains2[otherIndex].line1 << "," << m_chains2[otherIndex].line2 << ") " << minDistance; 
-    } 
+    //Eigen::MatrixXf mat1, mat2;
+    //mat1.resize(LineDescriptor2::elemsSize(), desc1->size());
+    //mat2.resize(LineDescriptor2::elemsSize(), desc2->size());
 
-    qDebug() << "------------------"; 
+    //for (int i = 0; i < desc1->size(); i++)
+    //{
+    //    Eigen::VectorXf col;
+    //    col.resize(LineDescriptor2::elemsSize(), 1);
+    //    for (int j = 0; j < LineDescriptor2::elemsSize(); j++)
+    //    {
+    //        col[j] = desc1->points[i].elems[j];
+    //    }
+    //    mat1.col(i) = col;// .normalized();
+    //}
 
-    pcl::KdTreeFLANN<LineDescriptor> descTree; 
-    descTree.setInputCloud(m_descriptors2); 
+    //for (int i = 0; i < desc1->size(); i++)
+    //{
+    //    Eigen::VectorXf col;
+    //    col.resize(LineDescriptor2::elemsSize(), 1);
+    //    for (int j = 0; j < LineDescriptor2::elemsSize(); j++)
+    //    {
+    //        col[j] = desc2->points[i].elems[j];
+    //    }
+    //    mat2.col(i) = col;// .normalized();
+    //}
 
-    for (int i = 0; i < m_descriptors1->size(); i++) 
-    { 
-        std::vector<int> indices; 
-        std::vector<float> distances; 
-        indices.resize(2); 
-        distances.resize(2); 
-        descTree.nearestKSearch(m_descriptors1->points[i], 2, indices, distances); 
-        qDebug() << "chain" << i << "-->" << indices[0] << distances[0]; 
-    } 
+    //Eigen::MatrixXf result = mat1.transpose() * mat2;
+    //for (int i = 0; i < result.rows(); i++)
+    //{
+    //    Eigen::Index j;
+    //    float maxValue = result.row(i).maxCoeff(&j);
+    //    std::cout << mat1.col(i).transpose() << std::endl;
+    //    std::cout << mat2.col(j).transpose() << std::endl;
 
+    //    LineChain& lc1 = chains1[i];
+    //    LineChain& lc2 = chains2[j];
+    //    qDebug().nospace() << i << "[" << lc1.line1 << ", " << lc1.line2 << "] --> " << j << "[" << lc2.line1 << ", " << lc2.line2 << "], max value:" << maxValue;
+
+    //    MSL& msl11 = lines1->points[lc1.line1];
+    //    MSL& msl12 = lines1->points[lc1.line2];
+    //    MSL& msl21 = lines2->points[lc2.line1];
+    //    MSL& msl22 = lines2->points[lc2.line2];
+
+    //    std::cout << "line11:" << msl11.dir.transpose() << std::endl;
+    //    std::cout << "line21:" << msl21.dir.transpose() << std::endl;
+    //    std::cout << "line12:" << msl12.dir.transpose() << std::endl;
+    //    std::cout << "line22:" << msl22.dir.transpose() << std::endl;
+
+    //    float angleDiff11 = qAbs(qAcos(msl11.dir.dot(msl21.dir)));
+    //    float angleDiff12 = qAbs(qAcos(msl12.dir.dot(msl22.dir)));
+
+    //    qDebug() << i << "-->" << j << qRadiansToDegrees(qAbs(angleDiff11 - angleDiff12)) << qRadiansToDegrees(angleDiff11) << qRadiansToDegrees(angleDiff12);
+
+    //    if (qAbs(angleDiff11 - angleDiff12) >= (M_PI / 4))
+    //        continue;
+
+    //    if (angleDiff11 > (M_PI / 8))
+    //        continue;
+    //    if (angleDiff12 > (M_PI / 8))
+    //        continue;
+
+    //    //float angleDiff21 = qAbs(qAcos(msl11.dir.dot(msl22.dir)));
+    //    //float angleDiff22 = qAbs(qAcos(msl12.dir.dot(msl21.dir)));
+
+    //    float dist = (lc1.point - lc2.point).norm();
+    //    if (dist >= 0.1f)
+    //        continue;
+
+    //    if (m_pairs.contains(j))
+    //    {
+    //        if (maxValue >= coefs[j])
+    //            continue;
+    //    }
+
+    //    m_pairs[j] = i;
+    //    coefs[j] = maxValue;
+    //}
+
+    pcl::KdTreeFLANN<LineDescriptor2> descTree; 
+    descTree.setInputCloud(desc2); 
+    Eigen::Matrix3f rOut(Eigen::Matrix3f::Identity());
+    Eigen::Vector3f tOut(Eigen::Vector3f::Zero());
+    float error = 0;
+
+    QMap<int, float> coefs;
+    m_pairs.clear();
+    for (int i = 0; i < desc1->size(); i++)
+    {
+        std::vector<int> indices;
+        std::vector<float> distances;
+        descTree.nearestKSearch(desc1->points[i], 2, indices, distances);
+        qDebug() << i << "-->" << indices[0] << distances[0];
+
+        LineChain& lc1 = chains1[i];
+        LineChain& lc2 = chains2[indices[0]];
+
+        MSL& msl11 = lines1->points[lc1.line1];
+        MSL& msl12 = lines1->points[lc1.line2];
+        MSL& msl21 = lines2->points[lc2.line1];
+        MSL& msl22 = lines2->points[lc2.line2];
+
+        float angleDiff11 = qAbs(qAcos(msl11.dir.dot(msl21.dir)));
+        float angleDiff12 = qAbs(qAcos(msl12.dir.dot(msl22.dir)));
+
+        qDebug() << i << "-->" << indices[0] << qRadiansToDegrees(qAbs(angleDiff11 - angleDiff12)) << qRadiansToDegrees(angleDiff11) << qRadiansToDegrees(angleDiff12);
+
+        if (qAbs(angleDiff11 - angleDiff12) >= (M_PI / 4))
+            continue;
+
+        if (angleDiff11 > (M_PI / 8))
+            continue;
+        if (angleDiff12 > (M_PI / 8))
+            continue;
+
+        //float angleDiff21 = qAbs(qAcos(msl11.dir.dot(msl22.dir)));
+        //float angleDiff22 = qAbs(qAcos(msl12.dir.dot(msl21.dir)));
+
+        float dist = (lc1.point - lc2.point).norm();
+        if (dist >= 0.1f)
+            continue;
+
+        qDebug() << i << "-->" << indices[0] << ": distance:" << distances[0];
+
+        if (m_pairs.contains(indices[0]))
+        {
+            if (distances[0] >= coefs[indices[0]])
+                continue;
+        }
+
+        m_pairs[indices[0]] = i;
+        coefs[indices[0]] = distances[0];
+    }
+
+    m_pairIndices = m_pairs.keys();
+    qSort(m_pairIndices.begin(), m_pairIndices.end(), [=](int a, int b) -> bool
+        {
+            return coefs[a] < coefs[b];
+        }
+    );
+
+    for (int iteration = 0; iteration < 10; iteration++)
+    {
+        // 使用SVD求解，H是前后帧两个直线方向向量样本集合的协方差矩阵
+        Eigen::Matrix3f H(Eigen::Matrix3f::Zero());
+        Eigen::Vector3f dirAvg1(Eigen::Vector3f::Zero());
+        Eigen::Vector3f dirAvg2(Eigen::Vector3f::Zero());
+        Eigen::VectorXf weights;
+        weights.resize(m_pairIndices.size() * 2);
+        for (int i = 0; i < m_pairIndices.size(); i++)
+        {
+            int index2 = m_pairIndices[i];
+            int index1 = m_pairs[index2];
+
+            LineChain lc1 = chains1[index1];
+            LineChain lc2 = chains2[index2];
+
+            MSL& msl11 = lines1->points[lc1.line1];
+            MSL& msl12 = lines1->points[lc1.line2];
+            MSL& msl21 = lines2->points[lc2.line1];
+            MSL& msl22 = lines2->points[lc2.line2];
+            //std::cout << "line11:" << msl11.dir.transpose() << std::endl;
+            //std::cout << "line21:" << msl21.dir.transpose() << std::endl;
+            //std::cout << "line12:" << msl12.dir.transpose() << std::endl;
+            //std::cout << "line22:" << msl22.dir.transpose() << std::endl;
+
+            dirAvg1 += msl11.dir;
+            dirAvg1 += msl12.dir;
+            dirAvg2 += msl21.dir;
+            dirAvg2 += msl22.dir;
+
+            //W.col(i * 2)[i * 2] = W.col(i * 2 + 1)[i * 2 + 1] = 1.f / m_pairIndices.size();
+            //weights[i * 2] = weights[i * 2 + 1] = 1 / coefs[index2];
+            weights[i * 2] = weights[i * 2 + 1] = 1 - coefs[index2];
+            //weights[i * 2] = weights[i * 2 + 1] = -qLn(coefs[index2]);
+
+            qDebug() << "inlines:" << index1 << "-->" << index2 << coefs[index2];
+        }
+        dirAvg1 /= (m_pairIndices.size() * 2);
+        dirAvg2 /= (m_pairIndices.size() * 2);
+        std::cout << "dirAvg1:" << dirAvg1.transpose() << std::endl;
+        std::cout << "dirAvg2:" << dirAvg2.transpose() << std::endl;
+
+        weights /= weights.sum();
+        // W是各样本的权值主对角矩阵，它的迹应为1
+        Eigen::MatrixXf W(weights.asDiagonal());
+        std::cout << "W:" << std::endl << W << std::endl;
+
+        Eigen::Vector3f p1(Eigen::Vector3f::Zero());
+        Eigen::Vector3f p2(Eigen::Vector3f::Zero());
+        Eigen::MatrixXf X;
+        Eigen::MatrixXf Y;
+        X.resize(3, m_pairIndices.size() * 2);
+        Y.resize(3, m_pairIndices.size() * 2);
+        for (int i = 0; i < m_pairIndices.size(); i++)
+        {
+            int index2 = m_pairIndices[i];
+            int index1 = m_pairs[index2];
+
+            LineChain lc1 = chains1[index1];
+            LineChain lc2 = chains2[index2];
+
+            MSL& msl11 = lines1->points[lc1.line1];
+            MSL& msl12 = lines1->points[lc1.line2];
+            MSL& msl21 = lines2->points[lc2.line1];
+            MSL& msl22 = lines2->points[lc2.line2];
+
+            Eigen::Vector3f dir11 = msl11.dir - dirAvg1;
+            Eigen::Vector3f dir12 = msl12.dir - dirAvg1;
+            Eigen::Vector3f dir21 = msl21.dir - dirAvg2;
+            Eigen::Vector3f dir22 = msl22.dir - dirAvg2;
+
+            //H += dir11 * dir21.transpose();
+            //H += dir12 * dir22.transpose();
+            //H += msl11.dir * msl21.dir.transpose();
+            //H += msl21.dir * msl22.dir.transpose();
+            X.col(i * 2) = dir11;
+            X.col(i * 2 + 1) = dir12;
+            Y.col(i * 2) = dir21;
+            Y.col(i * 2 + 1) = dir22;
+
+            p1 += lc1.point * weights[i * 2] * 2;
+            p2 += lc2.point * weights[i * 2 + 1] * 2;
+            //p1 += lc1.point;
+            //p2 += lc2.point;
+        }
+        std::cout << "X:" << std::endl << X << std::endl;
+        std::cout << "Y:" << std::endl << Y << std::endl;
+        H = X * W * Y.transpose();
+        //H /= (m_pairIndices.size() * 2);
+        std::cout << "H:" << std::endl << H << std::endl;
+        //p1 = p1 / m_pairIndices.size();
+        //p2 = p2 / m_pairIndices.size();
+
+        Eigen::JacobiSVD<Eigen::MatrixXf> svd(H, Eigen::ComputeThinU | Eigen::ComputeThinV);
+        Eigen::Matrix3f V = svd.matrixV();
+        Eigen::Matrix3f U = svd.matrixU();
+        Eigen::Vector3f sigma = svd.singularValues();
+        Eigen::Matrix3f S = Eigen::Matrix3f::Identity();
+        Eigen::Matrix3f tmp = V * U.transpose();
+        std::cout << "sigma: " << sigma.transpose() << std::endl;
+        float det = tmp.determinant();
+        if (det < 0)
+            det = -1;
+        S.col(2)[2] = det;
+        qDebug() << "det =" << det;
+        std::cout << "V:" << std::endl << V << std::endl;
+        std::cout << "S:" << std::endl << S << std::endl;
+        std::cout << "U:" << std::endl << U << std::endl;
+        Eigen::Matrix3f R = V * S * U.transpose();
+
+        //Eigen::Vector3f t = posAvg1 - R * posAvg2;
+        Eigen::Vector3f t = p2 - R * p1;
+
+        std::cout << "         p1: " << p1.transpose() << std::endl;
+        std::cout << "         p2: " << p2.transpose() << std::endl;
+        std::cout << "R * posAvg1: " << (R * p1).transpose() << std::endl;
+
+        std::cout << "R:" << std::endl;
+        std::cout << R << std::endl;
+        std::cout << "t: " << t.transpose() << std::endl;
+
+        rOut = R * rOut ;
+        tOut += t;
+
+        // 更新数据
+        for (int i = 0; i < lines1->size(); i++)
+        {
+            lines1->points[i].dir = R * lines1->points[i].dir;
+            lines1->points[i].point = R * lines1->points[i].point + t;
+        }
+        for (int i = 0; i < m_pairIndices.size(); i++)
+        {
+            int index2 = m_pairIndices[i];
+            int index1 = m_pairs[index2];
+
+            LineChain& lc1 = chains1[index1];
+
+            lc1.point = R * lc1.point + t;
+            lc1.point1 = R * lc1.point1 + t;
+            lc1.point2 = R * lc1.point2 + t;
+            lc1.xLocal = R * lc1.xLocal;
+            lc1.yLocal = R * lc1.yLocal;
+            lc1.zLocal = R * lc1.zLocal;
+        }
+    }
+
+    finalPose.topLeftCorner(3, 3) = rOut;
+    finalPose.topRightCorner(3, 1) = tOut;
+    std::cout << "finalPose:" << std::endl << finalPose << std::endl;
     return finalPose;
 }
 
@@ -140,9 +366,9 @@ Eigen::Quaternionf LineMatcher::stepRotation(
         float angularDistance = rot.angularDistance(Eigen::Quaternionf::Identity());
         float distance = distanceBetweenLines(msl1.dir, msl1.point, msl2.dir, msl2.point);
 
-        if (pairs.contains(indices[0]) || distance >= 0.2f)
+        if (pairs.contains(indices[0]))
         {
-            if (distances[0] > errors[indices[0]])
+            if (distances[0] > errors[indices[0]] || distance >= 0.2f)
             {
                 continue;
             }
@@ -260,7 +486,8 @@ Eigen::Vector3f LineMatcher::stepTranslation(
         if (i == 0)
         {
             float dist;
-            lastDir = transBetweenLines(firstLineCloud->points[pairs[keys[0]]].dir, firstLineCloud->points[pairs[keys[0]]].point, secondLineCloud->points[keys[0]].dir, secondLineCloud->points[keys[0]].point, dist);
+            lastDir = transBetweenLines(firstLineCloud->points[pairs[keys[0]]].dir, firstLineCloud->points[pairs[keys[0]]].point, 
+                secondLineCloud->points[keys[0]].dir, secondLineCloud->points[keys[0]].point, dist);
             index = 0;
         }
         else
@@ -348,129 +575,5 @@ Eigen::Vector3f LineMatcher::stepTranslation(
     qDebug().noquote() << distAvg << "[" << trans.x() << trans.y() << trans.z() << "]";
 
     return trans;
-}
-
-void LineMatcher::generateDescriptors(pcl::PointCloud<MSL>::Ptr& lineCloud, 
-    pcl::PointCloud<LineDescriptor>::Ptr& descriptors,
-    QList<LineChain>& chains)
-{
-    chains.clear();
-    descriptors.reset(new pcl::PointCloud<LineDescriptor>);
-    for (int i1 = 0; i1 < lineCloud->size(); i1++)
-    {
-        MSL msl1 = lineCloud->points[i1];
-
-        int otherIndex = -1;
-        float minCos = 1;
-        for (int i2 = 0; i2 < lineCloud->size(); i2++)
-        {
-            if (i1 == i2)
-                continue;
-
-            MSL msl2 = lineCloud->points[i2];
-            float cos = qAbs(msl1.dir.dot(msl2.dir));
-            if (cos > 0.9f)
-                continue;
-
-            LineChain lc;
-            lc.line1 = i1;
-            lc.line2 = i2;
-
-            // 建立局部坐标系
-            lc.xLocal = msl1.dir;
-            lc.yLocal = msl1.dir.cross(msl2.dir).normalized();
-            lc.zLocal = lc.xLocal.cross(lc.yLocal).normalized();
-
-            // 计算最近点
-            Eigen::Vector3f p1;     // 表示直线1上的一个点
-            Eigen::Vector3f p2;     // 表示直线2上的一个点
-            Eigen::Vector3f c1;     // 表示两条直线的叉乘直线方向，P1-P2
-            Eigen::Vector3f c2;     // 表示两条直线的叉乘直线方向，P2-P1
-            Eigen::Vector3f d1;     // 表示线1的方向
-            Eigen::Vector3f d2;     // 表示线2的方向
-            float t1;               // P1到cross1的距离
-            float t2;               // P2到cross2的距离
-            Eigen::Vector3f cross1; // 线1上的最近点
-            Eigen::Vector3f cross2; // 线2上的最近点
-            float l;                // 两条直线间的垂线距离
-
-            p1 = msl1.point;
-            p2 = msl2.point;
-            d1 = msl1.dir.normalized();
-            d2 = msl2.dir.normalized();
-            c1 = d1.cross(d2).normalized();
-            if (c1.dot(p1 - p2) < 0)
-                c1 = -c1;
-            c2 = -c1;
-            l = qAbs((p1 - p2).dot(c1));
-
-            t1 = ((p2 - p1).cross(d2) + c1.cross(d2) * l).dot(d1.cross(d2)) / d1.cross(d2).squaredNorm();
-            t2 = ((p1 - p2).cross(d1) + c2.cross(d1) * l).dot(d2.cross(d1)) / d2.cross(d1).squaredNorm();
-
-            cross1 = p1 + d1 * t1;
-            cross2 = p2 + d2 * t2;
-
-            lc.point1 = cross1;
-            lc.point2 = cross2;
-
-            chains.append(lc);
-        }
-    }
-
-    qDebug() << "chains size:" << chains.size();
-
-    for (int i = 0; i < chains.size(); i++)
-    {
-        LineChain& lc1 = chains[i];
-        Eigen::Vector3f origin = (lc1.point1 + lc1.point2) / 2;
-        MSL msl1 = lineCloud->points[lc1.line1];
-
-        float maxDistance = 0;
-        for (int j = 0; j < chains.size(); j++)
-        {
-            if (i == j)
-                continue;
-
-            LineChain& lc2 = chains[j];
-            Eigen::Vector3f middle = (lc2.point1 + lc2.point2) / 2;
-            float distance = (middle - origin).norm();
-
-            if (distance > maxDistance)
-            {
-                maxDistance = distance;
-            }
-        }
-
-        float distTick = maxDistance / (LINE_MATCHER_DIST_DIVISION - 1);
-        LineDescriptor descriptor;
-        for (int j = 0; j < chains.size(); j++)
-        {
-            if (i == j)
-                continue;
-
-            LineChain& lc2 = chains[j];
-            Eigen::Vector3f middle = (lc2.point1 + lc2.point2) / 2;
-
-            Eigen::Vector3f dir = middle - origin;
-            float cosY = lc2.yLocal.dot(lc1.yLocal);
-            float radiansY = qAcos(cosY);
-            float radiansX = qAcos(lc2.yLocal.cross(lc1.yLocal).dot(lc1.zLocal));
-            int x = static_cast<int>(radiansX / (M_PI / (LINE_MATCHER_DIVISION - 1)));
-            int y = static_cast<int>(radiansY / (M_PI / (LINE_MATCHER_DIVISION - 1)));
-            int dim = y * LINE_MATCHER_DIVISION + x;
-            int dim2 = LINE_MATCHER_ANGLE_ELEMDIMS + static_cast<int>(dir.norm() / distTick);
-            descriptor.elems[dim] = descriptor.elems[dim] + 1;
-            descriptor.elems[dim2] = descriptor.elems[dim2] + 2;
-        }
-        QString line;
-        for (int i = 0; i < LineDescriptor::elemsSize(); i++)
-        {
-            line.append(QString::number(descriptor.elems[i]));
-            line.append(" ");
-        }
-        qDebug().noquote() << i << lc1.name() << ":" << line << maxDistance;
-        descriptors->points.push_back(descriptor);
-    }
-    qDebug() << "end";
 }
 

@@ -341,6 +341,15 @@ void BoundaryExtractor::classifyBoundaryPoints2()
         int pxX = static_cast<int>(point.x * m_fx / z + m_cx);
         int pxY = static_cast<int>(point.y * m_fy / z + m_cy);
 
+        // 在生成边界点的深度图片时一并判断当前点是否为图像边缘点，如果是图像边缘点，
+        // 则直接放入图像边缘点的分类点云中。这样在进行Veil点判断时，不必再次考虑像
+        // 素坐标是否超出图像边缘的问题。
+        if (pxX <= m_borderLeft || pxY <= m_borderTop || pxX >= (m_matWidth - m_borderRight) || pxY >= (m_matHeight - m_borderBottom))
+        {
+            // 在图像边缘的即为图像边框点
+            m_borderPoints->push_back(point);
+            continue;
+        }
         // 将计算出的像素值加入到深度图中
         m_boundaryMat.row(pxY).at<float>(pxX) = z;
         // 同时将该像素对应的三维点序号也保存起来
@@ -360,18 +369,13 @@ void BoundaryExtractor::classifyBoundaryPoints2()
                 continue;
 
             pcl::PointXYZI point = m_allBoundary->points[pointIndex];
-            if (c <= m_borderLeft || r <= m_borderTop || c >= (m_matWidth - m_borderRight) || r >= (m_matHeight - m_borderBottom))
-            {
-                // 在图像边缘的即为图像边框点
-                m_borderPoints->push_back(point);
-                continue;
-            }
+            
 
             // 当前点作为检查中心点
             Eigen::Vector2f coord(c, r);
 
             // 从当前点到图像中心点建立二维射线
-            Eigen::Vector2f ray = (original - coord ).normalized();
+            Eigen::Vector2f ray = (original - coord).normalized();
 
             // 从检查的中心点，沿着射线方向，将一个光标一次向前移动一个单位向量的距离，然后计算光标位置周边的4个像素点是否为遮挡点，
             // 只要发现有遮挡点，则当前点即为被遮挡点，即为Veil点。否则当前点为有效的边界点。
@@ -381,37 +385,47 @@ void BoundaryExtractor::classifyBoundaryPoints2()
             {
                 Eigen::Vector2f cursor = coord + ray * i;
                 // 检查这周围的4个像素
-                cv::Point2i adj[4];
-                adj[0] = cv::Point2i(qFloor(cursor.x()), qFloor(cursor.y()));
+                //cv::Point2i adj[4];
+                int cursorX = qFloor(cursor.x());
+                int cursorY = qFloor(cursor.y());
+
+                /*adj[0] = cv::Point2i(qFloor(cursor.x()), qFloor(cursor.y()));
                 adj[1] = cv::Point2i(qCeil(cursor.x()), qFloor(cursor.y()));
                 adj[2] = cv::Point2i(qFloor(cursor.x()), qCeil(cursor.y()));
-                adj[3] = cv::Point2i(qCeil(cursor.x()), qCeil(cursor.y()));
-                for (int a = 0; a < 4; a++)
+                adj[3] = cv::Point2i(qCeil(cursor.x()), qCeil(cursor.y()));*/
+                for (int a = cursorY - 1; a <= cursorY + 1; a++)
                 {
-                    // 判断是否已经检查了当前光标下的点，防止重复检查
-                    if (processed.contains(adj[a]))
-                        continue;
-                    // 把已经检查过的点放到processed集合中
-                    processed.append(adj[a]);
-
-                    // 获取像素点
-                    int nPtIndex = static_cast<int>(indices.row(adj[a].y).at<float>(adj[a].x));
-                    if (nPtIndex < 0)
-                        continue;
-
-                    // 获取光标下像素点对应的三维点
-                    pcl::PointXYZI nPt = m_allBoundary->points[nPtIndex];
-
-                    // 计算光标下像素点所对应的像素点与当前中心点的三维距离，如果该距离过小，则有可能是在同一个边界上，
-                    // 这个距离要大于一个阈值，我们才认为是一个有效的遮挡点。
-                    float diff = (point.getVector3fMap() - nPt.getVector3fMap()).norm();
-                    if (diff >= m_veilDistanceThreshold)
+                    for (int b = cursorX - 1; b <= cursorX + 1; b++)
                     {
-                        //qDebug().nospace().noquote() << "[" << c << ", " << r << "] -- [" << edgeX << ", " << edgeY << "] "
-                            //<< i << ": [" << adj[a].x << ", " << adj[a].y << "] diff = " << diff;
-                        veil = true;
-                        break;
+                        cv::Point2i block(b, a);
+
+                        // 判断是否已经检查了当前光标下的点，防止重复检查
+                        if (processed.contains(block))
+                            continue;
+                        // 把已经检查过的点放到processed集合中
+                        processed.append(block);
+
+                        // 获取像素点
+                        int nPtIndex = static_cast<int>(indices.row(a).at<float>(b));
+                        if (nPtIndex < 0)
+                            continue;
+
+                        // 获取光标下像素点对应的三维点
+                        pcl::PointXYZI nPt = m_allBoundary->points[nPtIndex];
+
+                        // 计算光标下像素点所对应的像素点与当前中心点的三维距离，如果该距离过小，则有可能是在同一个边界上，
+                        // 这个距离要大于一个阈值，我们才认为是一个有效的遮挡点。
+                        float diff = (point.getVector3fMap() - nPt.getVector3fMap()).norm();
+                        if (diff >= m_veilDistanceThreshold)
+                        {
+                            //qDebug().nospace().noquote() << "[" << c << ", " << r << "] -- [" << edgeX << ", " << edgeY << "] "
+                                //<< i << ": [" << adj[a].x << ", " << adj[a].y << "] diff = " << diff;
+                            veil = true;
+                            break;
+                        }
                     }
+                    if (veil)
+                        break;
                 }
                 if (veil)
                     break;

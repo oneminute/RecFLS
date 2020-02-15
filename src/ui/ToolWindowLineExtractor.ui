@@ -88,6 +88,29 @@
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_2">
          <item>
+          <widget class="QGroupBox" name="groupBox_3">
+           <property name="title">
+            <string>Data Set</string>
+           </property>
+           <layout class="QFormLayout" name="formLayout_3">
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_14">
+              <property name="text">
+               <string>FrameIndex</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QComboBox" name="comboBoxFrameIndex">
+              <property name="editable">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
           <widget class="QGroupBox" name="groupBox">
            <property name="title">
             <string>Parameterized Points Analysis</string>
@@ -426,15 +449,27 @@
          <item>
           <widget class="QGroupBox" name="groupBox_2">
            <property name="title">
-            <string>GroupBox</string>
+            <string>Line Chain</string>
            </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QGroupBox" name="groupBox_3">
-           <property name="title">
-            <string>GroupBox</string>
-           </property>
+           <layout class="QFormLayout" name="formLayout_2">
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_13">
+              <property name="text">
+               <string>Line Chains</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QComboBox" name="comboBoxLineChains"/>
+            </item>
+            <item row="1" column="1">
+             <widget class="QPushButton" name="pushButtonShowLineChain">
+              <property name="text">
+               <string>Show Line Chain</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </widget>
          </item>
          <item>
@@ -488,6 +523,7 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <addaction name="actionLoad_Data_Set"/>
    <addaction name="actionLoad_Point_Cloud"/>
    <addaction name="actionParameterized_Points_Analysis"/>
    <addaction name="actionSave_Config"/>
@@ -523,6 +559,14 @@
   <action name="actionSave_Config">
    <property name="text">
     <string>Save Config</string>
+   </property>
+  </action>
+  <action name="actionLoad_Data_Set">
+   <property name="text">
+    <string>Load Data Set</string>
+   </property>
+   <property name="toolTip">
+    <string>Load Data Set</string>
    </property>
   </action>
  </widget>

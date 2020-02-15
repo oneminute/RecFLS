@@ -55,7 +55,7 @@ ToolWindowBoundaryExtractor::ToolWindowBoundaryExtractor(QWidget *parent)
     m_ui->doubleSpinBoxGaussianRadiusSearch->setValue(PARAMETERS.floatValue("gaussian_radius_search", 0.05f, "BoundaryExtractor"));
     m_ui->doubleSpinBoxNormalsRadiusSearch->setValue(PARAMETERS.floatValue("normals_radius_search", 0.05f, "BoundaryExtractor"));
     m_ui->doubleSpinBoxRadiusSearch->setValue(PARAMETERS.floatValue("boundary_radius_search", 0.1f, "BoundaryExtractor"));
-    m_ui->spinBoxAngleThresholdDivision->setValue(M_PI / PARAMETERS.floatValue("boundary_angle_threshold", M_PI_2, "BoundaryExtractor"));
+    m_ui->spinBoxAngleThresholdDivision->setValue(qRound(M_PI / PARAMETERS.floatValue("boundary_angle_threshold", M_PI_2, "BoundaryExtractor")));
     m_ui->spinBoxBorderLeft->setValue(PARAMETERS.floatValue("border_left", 26, "BoundaryExtractor"));
     m_ui->spinBoxBorderRight->setValue(PARAMETERS.floatValue("border_right", 22, "BoundaryExtractor"));
     m_ui->spinBoxBorderTop->setValue(PARAMETERS.floatValue("border_top", 16, "BoundaryExtractor"));

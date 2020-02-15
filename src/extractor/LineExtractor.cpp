@@ -121,6 +121,7 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
         }
         error /= neighbourIndices.size();
 
+        //qDebug() << i << "error =" << error << (error < m_searchErrorThreshold);
         // 如果误差值太大，则跳过
         if (error >= m_searchErrorThreshold)
         {
@@ -429,7 +430,7 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
                             }
                         }
                         error /= indices.indices.size();
-                        qDebug() << "    error:" << error;
+                        //qDebug() << "    error:" << error;
 
                         LineSegment ls(start, end);
                         if (ls.length() > m_minLineLength)
@@ -540,7 +541,7 @@ void LineExtractor::extractLinesFromPlanes(const QList<Plane>& planes)
             Plane plane2 = planes[j];
 
             float cos = plane1.dir.dot(plane2.dir);
-            if (qAbs(cos) > 0.95f)
+            if (qAbs(qRadiansToDegrees(qAcos(cos))) < 30.f)
                 continue;
 
             Eigen::Vector3f crossLine = plane1.dir.cross(plane2.dir).normalized();
@@ -590,5 +591,295 @@ void LineExtractor::extractLinesFromPlanes(const QList<Plane>& planes)
     m_mslCloud->width = m_mslCloud->points.size();
     m_mslCloud->height = 1;
     m_mslCloud->is_dense = true;
+}
+
+void LineExtractor::generateLineChains()
+{
+    m_chains.clear();
+
+    // 计算所有直线方向的协方差矩阵
+    Eigen::VectorXf meanDir;
+    Eigen::MatrixXf mat;
+    mat.resize(3, m_mslCloud->size());
+    for (int i = 0; i < m_mslCloud->size(); i++)
+    {
+        mat.col(i) = m_mslCloud->points[i].dir;
+        //avgDir += m_mslCloud->points[i].dir;
+    }
+    meanDir = mat.rowwise().mean();
+    //Eigen::RowVectorXf meanVecRow(Eigen::RowVectorXf::Map(meanDir.data(), mat.rows()));
+    //Eigen::MatrixXf zeroMeanMat = mat;
+    //zeroMeanMat.colwise() -= meanDir;
+    //Eigen::MatrixXf covMat = (zeroMeanMat * zeroMeanMat.adjoint()) / double(mat.cols() - 1);
+    //Eigen::MatrixXf covMatInv = covMat.inverse();
+    //qDebug() << "meanVecRow size:" << meanVecRow.cols() << meanVecRow.rows();
+    //std::cout << "mat\n" << mat << std::endl;
+    //std::cout << "meanDir\n" << meanDir << std::endl;
+    //std::cout << "meanVecRow\n" << meanVecRow << std::endl;
+    //std::cout << "zeroMeanMat\n" << zeroMeanMat << std::endl;
+    //std::cout << "zeroMeanMat.adjoint()\n" << zeroMeanMat.adjoint() << std::endl;
+    //std::cout << "covMat\n" << covMat << std::endl;
+    //std::cout << "covMatInv\n" << covMatInv << std::endl;
+    //qDebug() << covMatInv.col(0).norm() << covMatInv.col(1).norm() << covMatInv.col(2).norm();
+ 
+    m_maxLineChainLength = 0;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr middlePointCloud(new pcl::PointCloud<pcl::PointXYZ>);
+    for (int i = 0; i < m_mslCloud->size(); i++)
+    {
+        for (int j = i + 1; j < m_mslCloud->size(); j++)
+        {
+            MSL msl1 = m_mslCloud->points[i];
+            MSL msl2 = m_mslCloud->points[j];
+
+            int index1 = i;
+            int index2 = j;
+
+            if (msl2.dir.dot(Eigen::Vector3f::UnitX()) > msl1.dir.dot(Eigen::Vector3f::UnitX()))
+            {
+                qDebug() << "revert";
+
+                index1 = j;
+                index2 = i;
+                msl1 = m_mslCloud->points[index1];
+                msl2 = m_mslCloud->points[index2];
+            }
+
+            float radians = qAbs(qAcos(msl1.dir.dot(msl2.dir)));
+            //bool valid = true;
+            if (radians < M_PI / 4)
+                continue;
+
+            //if (valid)
+            //{
+            LineChain lc;
+            lc.line1 = index1;
+            lc.line2 = index2;
+            lc.radians = radians;
+
+            // 建立局部坐标系
+            lc.xLocal = msl1.dir;
+            lc.yLocal = msl1.dir.cross(msl2.dir).normalized();
+            lc.zLocal = lc.xLocal.cross(lc.yLocal).normalized();
+
+            // 计算最近点
+            Eigen::Vector3f p1;     // 表示直线1上的一个点
+            Eigen::Vector3f p2;     // 表示直线2上的一个点
+            Eigen::Vector3f c1;     // 表示两条直线的叉乘直线方向，P1-P2
+            Eigen::Vector3f c2;     // 表示两条直线的叉乘直线方向，P2-P1
+            Eigen::Vector3f d1;     // 表示线1的方向
+            Eigen::Vector3f d2;     // 表示线2的方向
+            float t1;               // P1到cross1的距离
+            float t2;               // P2到cross2的距离
+            Eigen::Vector3f cross1; // 线1上的最近点
+            Eigen::Vector3f cross2; // 线2上的最近点
+            float l;                // 两条直线间的垂线距离
+
+            p1 = msl1.point;
+            p2 = msl2.point;
+            d1 = msl1.dir.normalized();
+            d2 = msl2.dir.normalized();
+            c1 = d1.cross(d2).normalized();
+            if (c1.dot(p1 - p2) < 0)
+                c1 = -c1;
+            c2 = -c1;
+            l = qAbs((p1 - p2).dot(c1));
+
+            t1 = ((p2 - p1).cross(d2) + c1.cross(d2) * l).dot(d1.cross(d2)) / d1.cross(d2).squaredNorm();
+            t2 = ((p1 - p2).cross(d1) + c2.cross(d1) * l).dot(d2.cross(d1)) / d2.cross(d1).squaredNorm();
+
+            cross1 = p1 + d1 * t1;
+            cross2 = p2 + d2 * t2;
+
+            lc.point1 = cross1;
+            lc.point2 = cross2;
+            lc.point = (cross1 + cross2) / 2;
+            lc.length = (lc.point1 - lc.point2).norm();
+            if (lc.length >= 0.1f)
+                continue;
+
+            lc.plane.reset(new pcl::ModelCoefficients);
+            lc.plane->values.push_back(lc.yLocal.x());
+            lc.plane->values.push_back(lc.yLocal.y());
+            lc.plane->values.push_back(lc.yLocal.z());
+            lc.plane->values.push_back(-lc.yLocal.x() * lc.point.x() - lc.yLocal.y() * lc.point.y() - lc.zLocal.z() * lc.point.z());
+
+            if (lc.length > m_maxLineChainLength)
+            {
+                m_maxLineChainLength = lc.length;
+            }
+
+            m_chains.append(lc);
+            pcl::PointXYZ pt;
+            pt.getVector3fMap() = lc.point;
+            middlePointCloud->points.push_back(pt);
+            //}
+            qDebug().nospace().noquote() << index1 << "-->" << index2 << ": degrees = " << qRadiansToDegrees(radians);// << ", valid = " << valid;
+        }
+    }
+
+    if (m_chains.isEmpty())
+        return;
+
+    qDebug() << "Sorting line chains.";
+    qSort(m_chains.begin(), m_chains.end(), [=](const LineChain& lc1, const LineChain& lc2) -> bool
+        {
+            return qAbs(lc1.radians - M_PI / 2) < qAbs(lc2.radians - M_PI / 2);
+        }
+    );
+
+    for (int i = 0; i < m_chains.size(); i++)
+    {
+        LineChain& lc = m_chains[i];
+        qDebug().nospace().noquote() << lc.line1 << "-->" << lc.line2 << ": degrees = " << qRadiansToDegrees(lc.radians);
+    }
+
+    /*pcl::PCA<pcl::PointXYZ> pca;
+    pca.setInputCloud(middlePointCloud);
+    Eigen::Vector3f eigenValues = pca.getEigenValues();
+    Eigen::Vector3f::Index maxIndex, minIndex;
+    eigenValues.maxCoeff(&maxIndex);
+    eigenValues.minCoeff(&minIndex);
+    QList<int> dims = { 0, 1, 2 };
+    dims.removeOne(minIndex);
+    dims.removeOne(maxIndex);
+
+    m_lcLocalMiddle = pca.getMean().head(3);
+    Eigen::Vector3f rot;
+    rot.col(0) = pca.getEigenVectors().col(maxIndex).normalized();
+    rot.col(1) = pca.getEigenVectors().col(dims[0]).normalized();
+    rot.col(2) = pca.getEigenVectors().col(minIndex).normalized();
+
+    m_lcLocalTransform = Eigen::Matrix4f::Identity();
+    m_lcLocalTransform.topLeftCorner(3, 3) = pca.getEigenVectors();
+    m_lcLocalTransform.col(3) = pca.getMean();*/
+}
+
+void LineExtractor::generateDescriptors()
+{
+    if (m_chains.size() < 2)
+        return;
+
+    m_descriptors.reset(new pcl::PointCloud<LineDescriptor>);
+    float distTick = m_boundBoxDiameter / 2 / (LINE_MATCHER_DIVISION - 1);
+    qDebug() << "distTick =" << distTick;
+    for (int i = 0; i < m_chains.size(); i++)
+    {
+        LineChain& lc1 = m_chains[i];
+        LineDescriptor descriptor;
+        QString out;
+        for (int j = 0; j < m_chains.size(); j++)
+        {
+            if (j == i)
+                continue;
+
+            LineChain& lc2 = m_chains[j];
+            Eigen::Vector3f dir = lc2.point - lc1.point;
+            Eigen::Vector3f normal = dir.normalized();
+
+            float cosY = normal.dot(lc1.yLocal);
+            float radiansY = qAcos(cosY);
+            float radiansX = qAcos(normal.cross(lc1.yLocal).dot(lc1.zLocal));
+            int x = static_cast<int>(radiansX / (M_PI / (LINE_MATCHER_DIVISION - 1)));
+            int y = static_cast<int>(radiansY / (M_PI / (LINE_MATCHER_DIVISION - 1)));
+            int z = static_cast<int>(dir.norm() / distTick);
+            //int dim = y * LINE_MATCHER_DIVISION + x;
+            //int dim2 = LINE_MATCHER_ANGLE_ELEMDIMS + static_cast<int>(dir.norm() / distTick);
+            //descriptor.elems[dim] = descriptor.elems[dim] + 1;
+            //descriptor.elems[dim2] = descriptor.elems[dim2] + 2; 
+            //out.append(QString("[%1, %2, %3]").arg(radiansX).arg(radiansY).arg(dir.norm()));
+            descriptor.elems[x * LINE_MATCHER_DIVISION * LINE_MATCHER_DIVISION + y * LINE_MATCHER_DIVISION + z] += 1;
+        }
+        QString line;
+        for (int i = 0; i < LineDescriptor::elemsSize(); i++)
+        {
+            line.append(QString::number(descriptor.elems[i]));
+            line.append(" ");
+        }
+        qDebug().noquote() << i << "." << lc1.name() << ":" << line;
+        //qDebug().noquote() << i << "." << lc1.name() << ":" << out;
+        m_descriptors->points.push_back(descriptor);
+    }
+}
+
+void LineExtractor::generateDescriptors2()
+{
+    if (m_chains.size() < 2)
+        return;
+
+    float distTick = m_boundBoxDiameter / 2 / (LINE_MATCHER_DIVISION - 1);
+
+    m_descriptors2.reset(new pcl::PointCloud<LineDescriptor2>);
+    for (int i = 0; i < m_chains.size(); i++)
+    {
+        LineDescriptor2 descriptor;
+        LineChain& lc = m_chains[i];
+
+        Eigen::Matrix3f localMat;
+        localMat.col(0) = lc.xLocal;
+        localMat.col(1) = lc.yLocal;
+        localMat.col(2) = lc.zLocal;
+
+        ////Eigen::Vector3f dir(Eigen::Vector3f::Zero());
+        ////Eigen::Vector3f normal(Eigen::Vector3f::Zero());
+        //for (int j = 0; j < m_chains.size(); j++)
+        //{
+        //    if (j == i)
+        //        continue;
+
+        //    LineChain& lc2 = m_chains[j];
+
+        //    Eigen::Vector3f dir = lc2.point - lc.point;
+        //    //dir = localMat * dir;
+        //    //Eigen::Vector3f normal = dir.normalized();
+
+        //    int x = static_cast<int>(dir.x() / distTick);
+        //    int y = static_cast<int>(dir.y() / distTick);
+        //    int z = static_cast<int>(dir.z() / distTick);
+        //    //descriptor.elems[x * LINE_MATCHER_DIVISION * LINE_MATCHER_DIVISION + y * LINE_MATCHER_DIVISION + z + 5] += 1;
+
+        //    //dir += (lc2.point - lc.point);
+        //    //normal += localMat * lc2.yLocal;
+        //}
+        //dir /= (m_chains.size() - 1);
+        //normal /= (m_chains.size() - 1);
+
+        //qDebug() << m_lcLocalMiddle;
+        //Eigen::Vector3f lcPos = (lc.point - m_lcLocalMiddle) / m_boundBoxDiameter;
+        //qDebug() << lcPos;
+
+        descriptor.elems[0] = lc.radians;// / (M_PI * 2);
+        descriptor.elems[1] = lc.length;
+        descriptor.elems[2] = lc.point.x();
+        descriptor.elems[3] = lc.point.y();
+        descriptor.elems[4] = lc.point.z();
+        descriptor.elems[5] = m_mslCloud->points[lc.line1].dir.x();
+        descriptor.elems[6] = m_mslCloud->points[lc.line1].dir.y();
+        descriptor.elems[7] = m_mslCloud->points[lc.line1].dir.z();
+        descriptor.elems[8] = m_mslCloud->points[lc.line2].dir.x();
+        descriptor.elems[9] = m_mslCloud->points[lc.line2].dir.y();
+        descriptor.elems[10] = m_mslCloud->points[lc.line2].dir.z();
+        /*descriptor.elems[2] = dir.x() / m_boundBoxDiameter;
+        descriptor.elems[3] = dir.y() / m_boundBoxDiameter;
+        descriptor.elems[4] = dir.z() / m_boundBoxDiameter;
+        descriptor.elems[5] = normal.x() * 5;
+        descriptor.elems[6] = normal.y() * 5;
+        descriptor.elems[7] = normal.z() * 5;
+        descriptor.elems[8] = lcPos.x();
+        descriptor.elems[9] = lcPos.y();
+        descriptor.elems[10] = lcPos.z();*/
+
+        QString line;
+        for (int i = 0; i < LineDescriptor2::elemsSize(); i++)
+        {
+            line.append(QString::number(static_cast<double>(descriptor.elems[i]), 'g', 3));
+            line.append(" ");
+        }
+
+        qDebug().noquote() << i << line;
+        m_descriptors2->points.push_back(descriptor);
+    }
+    m_descriptors2->width = m_descriptors2->points.size();
+    m_descriptors2->height = 1;
+    m_descriptors2->is_dense = true;
 }
 

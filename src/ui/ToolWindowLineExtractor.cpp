@@ -6,6 +6,7 @@
 #include <QtMath>
 #include <QFileDialog>
 #include <QDir>
+#include <QPushButton>
 
 #include "common/Parameters.h"
 #include "util/Utils.h"
@@ -15,10 +16,12 @@
 #include <pcl/io/obj_io.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/common/pca.h>
 
 ToolWindowLineExtractor::ToolWindowLineExtractor(QWidget* parent)
     : QMainWindow(parent)
     , m_ui(new Ui::ToolWindowLineExtractor)
+    , m_fromDataSet(false)
 {
     m_ui->setupUi(this);
 
@@ -37,10 +40,103 @@ ToolWindowLineExtractor::ToolWindowLineExtractor(QWidget* parent)
     connect(m_ui->actionGenerate_Line_Point_Cloud, &QAction::triggered, this, &ToolWindowLineExtractor::onActionGenerateLinePointCloud);
     connect(m_ui->actionParameterized_Points_Analysis, &QAction::triggered, this, &ToolWindowLineExtractor::onActionParameterizedPointsAnalysis);
     connect(m_ui->actionSave_Config, &QAction::triggered, this, &ToolWindowLineExtractor::onActionSaveConfig);
+    connect(m_ui->actionLoad_Data_Set, &QAction::triggered, this, &ToolWindowLineExtractor::onActionLoadDataSet);
+    connect(m_ui->pushButtonShowLineChain, &QPushButton::clicked, this, &ToolWindowLineExtractor::onActionShowLineChain);
+
+    m_ui->doubleSpinBoxSearchRadius->setValue(PARAMETERS.floatValue("search_radius", 0.05f, "LineExtractor"));
+    m_ui->spinBoxMinNeighbours->setValue(PARAMETERS.intValue("min_neighbours", 3, "LineExtractor"));
+    m_ui->doubleSpinBoxSearchErrorThreshold->setValue(PARAMETERS.floatValue("search_error_threshold", 0.025f, "LineExtractor"));
+    m_ui->doubleSpinBoxAngleSearchRadius->setValue(qRadiansToDegrees(PARAMETERS.floatValue("angle_search_radius", qDegreesToRadians(20.0) * M_1_PI, "LineExtractor") * M_PI));
+    m_ui->spinBoxAngleMinNeighbours->setValue(PARAMETERS.intValue("angle_min_neighbours", 10, "LineExtractor"));
+    m_ui->doubleSpinBoxClusterTolerance->setValue(PARAMETERS.floatValue("mapping_tolerance", 0.01f, "LineExtractor"));
+    m_ui->comboBoxAngleMappingMethod->setCurrentIndex(PARAMETERS.intValue("angle_mapping_method", 0, "LineExtractor"));
+    m_ui->doubleSpinBoxMinLineLength->setValue(PARAMETERS.floatValue("min_line_length", 0.01f, "LineExtractor"));
+    m_ui->doubleSpinBoxZDistanceThreshold->setValue(PARAMETERS.floatValue("region_growing_z_distance_threshold", 0.005f, "LineExtractor"));
+    m_ui->doubleSpinBoxMSLRadiusSearch->setValue(PARAMETERS.floatValue("msl_radius_search", 0.01f, "LineExtractor"));
 }
 
 ToolWindowLineExtractor::~ToolWindowLineExtractor()
 {
+}
+
+void ToolWindowLineExtractor::showLines()
+{
+    m_cloudViewer1->visualizer()->removeAllShapes();
+    int lineNo = m_ui->comboBoxLineChains->currentIndex();
+    qDebug() << "showLines:" << lineNo << m_chains.size();
+    LineChain lc = m_chains[lineNo];
+
+    for (int i = 0; i < m_chains.size(); i++)
+    {
+        LineChain& lc0 = m_chains[i];
+        QString planeName = QString("plane_%1").arg(i);
+        m_cloudViewer1->visualizer()->addPlane(*lc0.plane, lc0.point.x(), lc0.point.y(), lc0.point.z(), planeName.toStdString());
+    }
+
+    for (int i = 0; i < m_lines.size()/* && errors[i]*/; i++)
+    {
+        double r = rand() * 1.0 / RAND_MAX;
+        double g = rand() * 1.0 / RAND_MAX;
+        double b = rand() * 1.0 / RAND_MAX;
+        LineSegment line = m_lines[i];
+        std::string lineNo = "line_" + std::to_string(i);
+        std::string textNo = "text_" + std::to_string(i);
+        //qDebug() << QString::fromStdString(lineNo) << line.length() << errors[i] << linePointsCount[i];
+        pcl::PointXYZI start, end, middle;
+        start.getVector3fMap() = line.start();
+        end.getVector3fMap() = line.end();
+        Eigen::Vector3f dir = line.direction();
+        middle.getVector3fMap() = line.middle();
+        //m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
+        m_cloudViewer1->visualizer()->addLine(start, end, r, g, b, lineNo);
+        m_cloudViewer1->visualizer()->addText3D(std::to_string(i), middle, 0.025, 1, 1, 1, textNo);
+        m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
+    }
+
+    for (int i = 0; i < m_mslCloud->size(); i++)
+    {
+        MSL msl = m_mslCloud->points[i];
+        pcl::PointXYZ start, end;
+        start.getVector3fMap() = msl.getEndPoint(-3);
+        end.getVector3fMap() = msl.getEndPoint(3);
+        QString lineName = QString("msl_%1").arg(i);
+
+        QColor color(0, 0, 255);
+        int width = 1;
+        if (i == lc.line1)
+        {
+            color = QColor(255, 0, 0);
+            width = 3;
+        }
+        else if (i == lc.line2)
+        {
+            color = QColor(0, 0, 255);
+            width = 3;
+        }
+
+        qDebug() << lineName;
+
+        m_cloudViewer1->visualizer()->addLine(start, end, color.red(), color.green(), color.blue(), lineName.toStdString());
+        m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, width, lineName.toStdString());
+    }
+
+    qDebug() << "line chain" << lc.name();
+    {
+        pcl::PointXYZI start, end;
+        start.getVector3fMap() = lc.point1;
+        end.getVector3fMap() = lc.point2;
+        m_cloudViewer1->visualizer()->addLine(start, end, 0, 255, 0, lc.name().toStdString());
+        m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, lc.name().toStdString());
+
+        end.getVector3fMap() = lc.point;
+        start.getVector3fMap() = lc.point + lc.xLocal * 0.2f;
+        m_cloudViewer1->visualizer()->addArrow(start, end, 255, 0, 0, false, "xaxis");
+        start.getVector3fMap() = lc.point + lc.yLocal * 0.2f;
+        m_cloudViewer1->visualizer()->addArrow(start, end, 0, 255, 0, false, "yaxis");
+        start.getVector3fMap() = lc.point + lc.zLocal * 0.2f;
+        m_cloudViewer1->visualizer()->addArrow(start, end, 0, 0, 255, false, "zaxis");
+    }
+    
 }
 
 void ToolWindowLineExtractor::onActionParameterizedPointsAnalysis()
@@ -57,8 +153,62 @@ void ToolWindowLineExtractor::onActionParameterizedPointsAnalysis()
     extractor.setRegionGrowingZDistanceThreshold(m_ui->doubleSpinBoxZDistanceThreshold->value());
     extractor.setMslRadiusSearch(m_ui->doubleSpinBoxMSLRadiusSearch->value());
 
-    QList<LineSegment> lines = extractor.compute(m_cloud);
+    m_boundaryExtractor.reset(new BoundaryExtractor);
+    m_boundaryExtractor->setDownsamplingMethod(PARAMETERS.intValue("downsampling_method", 0, "BoundaryExtractor"));
+    m_boundaryExtractor->setEnableRemovalFilter(PARAMETERS.boolValue("enable_removal_filter", false, "BoundaryExtractor"));
+    m_boundaryExtractor->setDownsampleLeafSize(PARAMETERS.floatValue("downsample_leaf_size", 0.0075f, "BoundaryExtractor"));
+    m_boundaryExtractor->setOutlierRemovalMeanK(PARAMETERS.floatValue("outlier_removal_mean_k", 20.f, "BoundaryExtractor"));
+    m_boundaryExtractor->setStddevMulThresh(PARAMETERS.floatValue("std_dev_mul_thresh", 1.f, "BoundaryExtractor"));
+    m_boundaryExtractor->setGaussianSigma(PARAMETERS.floatValue("gaussian_sigma", 4.f, "BoundaryExtractor"));
+    m_boundaryExtractor->setGaussianRSigma(PARAMETERS.floatValue("gaussian_r_sigma", 4.f, "BoundaryExtractor"));
+    m_boundaryExtractor->setGaussianRadiusSearch(PARAMETERS.floatValue("gaussian_radius_search", 0.05f, "BoundaryExtractor"));
+    m_boundaryExtractor->setNormalsRadiusSearch(PARAMETERS.floatValue("normals_radius_search", 0.05f, "BoundaryExtractor"));
+    m_boundaryExtractor->setBoundaryRadiusSearch(PARAMETERS.floatValue("boundary_radius_search", 0.1f, "BoundaryExtractor"));
+    m_boundaryExtractor->setBoundaryAngleThreshold(PARAMETERS.floatValue("boundary_angle_threshold", M_PI_2, "BoundaryExtractor"));
+    m_boundaryExtractor->setBorderLeft(PARAMETERS.floatValue("border_left", 26, "BoundaryExtractor"));
+    m_boundaryExtractor->setBorderRight(PARAMETERS.floatValue("border_right", 22, "BoundaryExtractor"));
+    m_boundaryExtractor->setBorderTop(PARAMETERS.floatValue("border_top", 16, "BoundaryExtractor"));
+    m_boundaryExtractor->setBorderBottom(PARAMETERS.floatValue("border_bottom", 16, "BoundaryExtractor"));
+    m_boundaryExtractor->setProjectedRadiusSearch(qDegreesToRadians(PARAMETERS.floatValue("projected_radius_search", 5, "BoundaryExtractor")));
+    m_boundaryExtractor->setVeilDistanceThreshold(PARAMETERS.floatValue("veil_distance_threshold", 0.1f, "BoundaryExtractor"));
+    m_boundaryExtractor->setPlaneDistanceThreshold(PARAMETERS.floatValue("plane_distance_threshold", 0.01f, "BoundaryExtractor"));
 
+    if (m_fromDataSet)
+    {
+        int frameIndex = m_ui->comboBoxFrameIndex->currentIndex();
+        Frame frame = m_device->getFrame(frameIndex);
+        pcl::IndicesPtr indices(new std::vector<int>);
+        m_dataCloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryPoints;
+        m_cloud.reset(new pcl::PointCloud<pcl::PointXYZI>);
+
+        m_colorCloud = frame.getCloud(*indices);
+        pcl::copyPointCloud<pcl::PointXYZRGB, pcl::PointXYZ>(*m_colorCloud, *m_dataCloud);
+
+        m_boundaryExtractor->setInputCloud(m_dataCloud);
+        m_boundaryExtractor->setMatWidth(frame.getDepthWidth());
+        m_boundaryExtractor->setMatHeight(frame.getDepthHeight());
+        m_boundaryExtractor->setCx(frame.getDevice()->cx());
+        m_boundaryExtractor->setCy(frame.getDevice()->cy());
+        m_boundaryExtractor->setFx(frame.getDevice()->fx());
+        m_boundaryExtractor->setFy(frame.getDevice()->fy());
+        m_boundaryExtractor->setNormals(nullptr);
+        m_boundaryExtractor->compute();
+        m_cloud = m_boundaryExtractor->boundaryPoints();
+        m_filteredCloud = m_boundaryExtractor->filteredCloud();
+        m_planes = m_boundaryExtractor->planes();
+    }
+
+    m_lines = extractor.compute(m_cloud);
+    if (m_fromDataSet)
+    {
+        extractor.extractLinesFromPlanes(m_planes);
+    }
+    extractor.generateLineChains();
+    extractor.generateDescriptors();
+    extractor.generateDescriptors2();
+
+    m_chains = extractor.chains();
     pcl::PointCloud<pcl::PointXYZI>::Ptr angleCloud = extractor.angleCloud();
     QList<float> densityList = extractor.densityList();
     QList<int> angleCloudIndices = extractor.angleCloudIndices();
@@ -67,7 +217,7 @@ void ToolWindowLineExtractor::onActionParameterizedPointsAnalysis()
     QList<float> errors = extractor.errors();
     pcl::PointCloud<pcl::PointXYZI>::Ptr linedCloud = extractor.linedCloud();
     QList<int> linePointsCount = extractor.linePointsCount();
-    pcl::PointCloud<MSL>::Ptr mslCloud = extractor.mslCloud();
+    m_mslCloud = extractor.mslCloud();
 
     m_cloudViewer1->visualizer()->removeAllPointClouds();
     m_cloudViewer1->visualizer()->removeAllShapes();
@@ -75,6 +225,13 @@ void ToolWindowLineExtractor::onActionParameterizedPointsAnalysis()
     m_cloudViewer2->visualizer()->removeAllShapes();
     m_cloudViewer3->visualizer()->removeAllPointClouds();
     m_cloudViewer3->visualizer()->removeAllShapes();
+
+    m_ui->comboBoxLineChains->clear();
+    for (int i = 0; i < m_chains.size(); i++)
+    {
+        m_ui->comboBoxLineChains->addItem(QString::number(i));
+    }
+    m_ui->comboBoxLineChains->setCurrentIndex(0);
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr densityCloud(new pcl::PointCloud<pcl::PointXYZI>);
     for (int i = 0; i < densityList.size(); i++)
@@ -140,40 +297,8 @@ void ToolWindowLineExtractor::onActionParameterizedPointsAnalysis()
         pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(mappingCloud, "intensity");
         m_cloudViewer3->visualizer()->addPointCloud(mappingCloud, iColor, "mapping cloud");
         m_cloudViewer3->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "mapping cloud");
-
-        for (int i = 0; i < lines.size()/* && errors[i]*/; i++)
-        {
-            double r = rand() * 1.0 / RAND_MAX;
-            double g = rand() * 1.0 / RAND_MAX;
-            double b = rand() * 1.0 / RAND_MAX;
-            LineSegment line = lines[i];
-            std::string lineNo = "line_" + std::to_string(i);
-            std::string textNo = "text_" + std::to_string(i);
-            qDebug() << QString::fromStdString(lineNo) << line.length() << errors[i] << linePointsCount[i];
-            pcl::PointXYZI start, end, middle;
-            start.getVector3fMap() = line.start();
-            end.getVector3fMap() = line.end();
-            Eigen::Vector3f dir = line.direction();
-            middle.getVector3fMap() = line.middle();
-            //m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
-            m_cloudViewer1->visualizer()->addLine(start, end, r, g, b, lineNo);
-            m_cloudViewer1->visualizer()->addText3D(std::to_string(i), middle, 0.025, 1, 1, 1, textNo);
-            m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
-        }
     }
-
-    {
-        for (int i = 0; i < mslCloud->size(); i++)
-        {
-            MSL msl = mslCloud->points[i];
-            pcl::PointXYZI start, end;
-            start.getVector3fMap() = msl.getEndPoint(-3);
-            end.getVector3fMap() = msl.getEndPoint(3);
-            QString lineName = QString("msl_%1").arg(i);
-            m_cloudViewer1->visualizer()->addLine(start, end, 255, 0, 0, lineName.toStdString());
-            m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 1, lineName.toStdString());
-        }
-    }
+    showLines();
 }
 
 void ToolWindowLineExtractor::onActionSaveConfig()
@@ -192,6 +317,29 @@ void ToolWindowLineExtractor::onActionSaveConfig()
     PARAMETERS.save();
 }
 
+void ToolWindowLineExtractor::onActionShowLineChain(bool checked)
+{
+    showLines();
+}
+
+void ToolWindowLineExtractor::onActionLoadDataSet()
+{
+    m_device.reset(new SensorReaderDevice);
+    if (!m_device->open())
+    {
+        qDebug() << "Open device failed.";
+        return;
+    }
+
+    m_ui->comboBoxFrameIndex->clear();
+    for (int i = 0; i < m_device->totalFrames(); i++)
+    {
+        m_ui->comboBoxFrameIndex->addItem(QString::number(i));
+    }
+    m_ui->comboBoxFrameIndex->setCurrentIndex(0);
+    m_fromDataSet = true;
+}
+
 void ToolWindowLineExtractor::onActionLoadPointCloud()
 {
     QString fileName = QFileDialog::getOpenFileName(this, tr("Point Cloud"), QDir::current().absolutePath(), tr("Polygon Files (*.obj *.ply *.pcd)"));
@@ -201,7 +349,7 @@ void ToolWindowLineExtractor::onActionLoadPointCloud()
     }
     QFileInfo info(fileName);
 
-    m_cloud = pcl::PointCloud<pcl::PointXYZI>::Ptr(new pcl::PointCloud<pcl::PointXYZI>);
+    m_cloud.reset(new pcl::PointCloud<pcl::PointXYZI>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>);
     if (info.completeSuffix().contains("obj"))
     {
@@ -244,6 +392,8 @@ void ToolWindowLineExtractor::onActionLoadPointCloud()
     pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(m_cloud, "intensity");
     m_cloudViewer1->visualizer()->addPointCloud(m_cloud, iColor, "original cloud");
     m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "original cloud");
+
+    m_fromDataSet = false;
 }
 
 void ToolWindowLineExtractor::onActionGenerateLinePointCloud()

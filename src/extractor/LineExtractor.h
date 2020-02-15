@@ -14,6 +14,11 @@
 #include "LineSegment.h"
 #include "BoundaryExtractor.h"
 
+#define LINE_MATCHER_DIVISION 4
+#define LINE_MATCHER_DIST_DIVISION 6
+#define LINE_MATCHER_ANGLE_ELEMDIMS (LINE_MATCHER_DIVISION * LINE_MATCHER_DIVISION)
+#define LINE_MATCHER_ELEMDIMS (LINE_MATCHER_ANGLE_ELEMDIMS + LINE_MATCHER_DIST_DIVISION)
+
 struct MSLPoint
 {
     union
@@ -45,6 +50,57 @@ struct MSL
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
+struct LineChain
+{
+    int line1;
+    int line2;
+    Eigen::Vector3f xLocal;
+    Eigen::Vector3f yLocal;
+    Eigen::Vector3f zLocal;
+    Eigen::Vector3f point1;
+    Eigen::Vector3f point2;
+    Eigen::Vector3f point;
+    float radians;
+    float length;
+    pcl::ModelCoefficients::Ptr plane;
+
+    QString name()
+    {
+        return QString("[%1 %2]").arg(line1).arg(line2);
+    }
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+
+struct LineDescriptor
+{
+    LineDescriptor()
+    {
+        for (int i = 0; i < elemsSize(); i++)
+        {
+            elems[i] = 0;
+        }
+    }
+
+    float elems[LINE_MATCHER_DIVISION * LINE_MATCHER_DIVISION * LINE_MATCHER_DIVISION];
+
+    static int elemsSize() { return LINE_MATCHER_DIVISION * LINE_MATCHER_DIVISION * LINE_MATCHER_DIVISION; }
+};
+
+struct LineDescriptor2
+{
+    LineDescriptor2()
+    {
+        for (int i = 0; i < elemsSize(); i++)
+        {
+            elems[i] = 0;
+        }
+    }
+
+    float elems[/*LINE_MATCHER_DIVISION * LINE_MATCHER_DIVISION * LINE_MATCHER_DIVISION + */ 11];
+
+    static int elemsSize() { return /*LINE_MATCHER_DIVISION * LINE_MATCHER_DIVISION * LINE_MATCHER_DIVISION + */11; }
+};
+
 class LineExtractor : public QObject
 {
     Q_OBJECT
@@ -60,6 +116,11 @@ public:
     QList<LineSegment> compute(const pcl::PointCloud<pcl::PointXYZI>::Ptr& boundaryCloud);
 
     void extractLinesFromPlanes(const QList<Plane>& planes);
+
+    void generateLineChains();
+
+    void generateDescriptors();
+    void generateDescriptors2();
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryCloud() const
     {
@@ -130,6 +191,13 @@ public:
     {
         return m_linePointsCount;
     }
+
+    pcl::PointCloud<LineDescriptor>::Ptr descriptors() const { return m_descriptors; }
+    pcl::PointCloud<LineDescriptor2>::Ptr descriptors2() const { return m_descriptors2; }
+
+    QList<LineChain> chains() const { return m_chains; }
+
+    Eigen::Vector3f lcLocalMiddle() const { return m_lcLocalMiddle; }
 
     float boundBoxDiameter() const { return m_boundBoxDiameter; }
 
@@ -206,6 +274,11 @@ private:
 
     QList<int> m_linePointsCount;
 
+    QList<LineChain> m_chains;
+
+    pcl::PointCloud<LineDescriptor>::Ptr m_descriptors;
+    pcl::PointCloud<LineDescriptor2>::Ptr m_descriptors2;
+
     ANGLE_MAPPING_METHOD m_angleMappingMethod;
 
     float m_searchRadius;
@@ -226,6 +299,11 @@ private:
     Eigen::Vector3f m_maxPoint;
     Eigen::Vector3f m_minPoint;
     float m_boundBoxDiameter;
+
+    float m_maxLineChainLength;
+
+    Eigen::Vector3f m_lcLocalMiddle;
+    Eigen::Matrix4f m_lcLocalTransform;
 
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW

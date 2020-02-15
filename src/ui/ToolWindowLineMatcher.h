@@ -33,11 +33,12 @@ protected:
     void onActionLoadDataSet();
     void onActionMatch();
     void onActionBeginStep();
-    void onActionStepRotaionMatch();
+    void onActionStepRotationMatch();
     void onActionStepTranslationMatch();
     void onActionReset();
 
     void onComboBox1CurrentIndexChanged(int index);
+    void onActionShowPair(bool isChecked = false);
 
 protected:
     void updateWidgets();
@@ -70,18 +71,21 @@ private:
     pcl::PointCloud<MSLPoint>::Ptr m_mslPointCloud2;
     QList<Plane> m_planes1;
     QList<Plane> m_planes2;
-    QList<LineMatcher::LineChain> m_chains1;
-    QList<LineMatcher::LineChain> m_chains2;
+    QList<LineChain> m_chains1;
+    QList<LineChain> m_chains2;
+    pcl::PointCloud<LineDescriptor2>::Ptr m_desc1;
+    pcl::PointCloud<LineDescriptor2>::Ptr m_desc2;
+    QMap<int, int> m_pairs;
+    QList<int> m_pairIndices;
 
     float m_diameter1;
     float m_diameter2;
     Eigen::Quaternionf m_rotationDelta;
     Eigen::Vector3f m_translationDelta;
-    Eigen::Quaternionf m_rotation;
+    Eigen::Matrix3f m_rotation;
     Eigen::Vector3f m_translation;
     float m_rotationError;
     float m_translationError;
-    QMap<int, int> m_pairs;
 
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
