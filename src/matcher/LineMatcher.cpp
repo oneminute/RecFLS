@@ -33,89 +33,13 @@ Eigen::Matrix4f LineMatcher::compute(
     qDebug() << "------------------"; 
     qDebug() << "desc1 size:" << desc1->size() << "desc2 size:" << desc2->size();
 
-    //Eigen::MatrixXf mat1, mat2;
-    //mat1.resize(LineDescriptor2::elemsSize(), desc1->size());
-    //mat2.resize(LineDescriptor2::elemsSize(), desc2->size());
-
-    //for (int i = 0; i < desc1->size(); i++)
-    //{
-    //    Eigen::VectorXf col;
-    //    col.resize(LineDescriptor2::elemsSize(), 1);
-    //    for (int j = 0; j < LineDescriptor2::elemsSize(); j++)
-    //    {
-    //        col[j] = desc1->points[i].elems[j];
-    //    }
-    //    mat1.col(i) = col;// .normalized();
-    //}
-
-    //for (int i = 0; i < desc1->size(); i++)
-    //{
-    //    Eigen::VectorXf col;
-    //    col.resize(LineDescriptor2::elemsSize(), 1);
-    //    for (int j = 0; j < LineDescriptor2::elemsSize(); j++)
-    //    {
-    //        col[j] = desc2->points[i].elems[j];
-    //    }
-    //    mat2.col(i) = col;// .normalized();
-    //}
-
-    //Eigen::MatrixXf result = mat1.transpose() * mat2;
-    //for (int i = 0; i < result.rows(); i++)
-    //{
-    //    Eigen::Index j;
-    //    float maxValue = result.row(i).maxCoeff(&j);
-    //    std::cout << mat1.col(i).transpose() << std::endl;
-    //    std::cout << mat2.col(j).transpose() << std::endl;
-
-    //    LineChain& lc1 = chains1[i];
-    //    LineChain& lc2 = chains2[j];
-    //    qDebug().nospace() << i << "[" << lc1.line1 << ", " << lc1.line2 << "] --> " << j << "[" << lc2.line1 << ", " << lc2.line2 << "], max value:" << maxValue;
-
-    //    MSL& msl11 = lines1->points[lc1.line1];
-    //    MSL& msl12 = lines1->points[lc1.line2];
-    //    MSL& msl21 = lines2->points[lc2.line1];
-    //    MSL& msl22 = lines2->points[lc2.line2];
-
-    //    std::cout << "line11:" << msl11.dir.transpose() << std::endl;
-    //    std::cout << "line21:" << msl21.dir.transpose() << std::endl;
-    //    std::cout << "line12:" << msl12.dir.transpose() << std::endl;
-    //    std::cout << "line22:" << msl22.dir.transpose() << std::endl;
-
-    //    float angleDiff11 = qAbs(qAcos(msl11.dir.dot(msl21.dir)));
-    //    float angleDiff12 = qAbs(qAcos(msl12.dir.dot(msl22.dir)));
-
-    //    qDebug() << i << "-->" << j << qRadiansToDegrees(qAbs(angleDiff11 - angleDiff12)) << qRadiansToDegrees(angleDiff11) << qRadiansToDegrees(angleDiff12);
-
-    //    if (qAbs(angleDiff11 - angleDiff12) >= (M_PI / 4))
-    //        continue;
-
-    //    if (angleDiff11 > (M_PI / 8))
-    //        continue;
-    //    if (angleDiff12 > (M_PI / 8))
-    //        continue;
-
-    //    //float angleDiff21 = qAbs(qAcos(msl11.dir.dot(msl22.dir)));
-    //    //float angleDiff22 = qAbs(qAcos(msl12.dir.dot(msl21.dir)));
-
-    //    float dist = (lc1.point - lc2.point).norm();
-    //    if (dist >= 0.1f)
-    //        continue;
-
-    //    if (m_pairs.contains(j))
-    //    {
-    //        if (maxValue >= coefs[j])
-    //            continue;
-    //    }
-
-    //    m_pairs[j] = i;
-    //    coefs[j] = maxValue;
-    //}
-
     pcl::KdTreeFLANN<LineDescriptor2> descTree; 
     descTree.setInputCloud(desc2); 
     Eigen::Matrix3f rOut(Eigen::Matrix3f::Identity());
     Eigen::Vector3f tOut(Eigen::Vector3f::Zero());
-    float error = 0;
+    float errorOutT = 0;
+    float errorOutR = 0;
+    float errorOut = 0;
 
     QMap<int, float> coefs;
     m_pairs.clear();
@@ -124,27 +48,22 @@ Eigen::Matrix4f LineMatcher::compute(
         std::vector<int> indices;
         std::vector<float> distances;
         descTree.nearestKSearch(desc1->points[i], 2, indices, distances);
-        qDebug() << i << "-->" << indices[0] << distances[0];
 
-        LineChain& lc1 = chains1[i];
+        LineChain lc1 = chains1[i];
         LineChain& lc2 = chains2[indices[0]];
+        qDebug() << i << lc1.name() << "-->" << indices[0] << lc2.name() << ", distance:" << distances[0];
 
-        MSL& msl11 = lines1->points[lc1.line1];
-        MSL& msl12 = lines1->points[lc1.line2];
-        MSL& msl21 = lines2->points[lc2.line1];
-        MSL& msl22 = lines2->points[lc2.line2];
-
-        float angleDiff11 = qAbs(qAcos(msl11.dir.dot(msl21.dir)));
-        float angleDiff12 = qAbs(qAcos(msl12.dir.dot(msl22.dir)));
+        float angleDiff11 = qAbs(qAcos(lc1.line1.dir.dot(lc2.line1.dir)));
+        float angleDiff12 = qAbs(qAcos(lc1.line2.dir.dot(lc2.line2.dir)));
 
         qDebug() << i << "-->" << indices[0] << qRadiansToDegrees(qAbs(angleDiff11 - angleDiff12)) << qRadiansToDegrees(angleDiff11) << qRadiansToDegrees(angleDiff12);
 
         if (qAbs(angleDiff11 - angleDiff12) >= (M_PI / 4))
             continue;
 
-        if (angleDiff11 > (M_PI / 8))
+        if (angleDiff11 > (M_PI / 20))
             continue;
-        if (angleDiff12 > (M_PI / 8))
+        if (angleDiff12 > (M_PI / 20))
             continue;
 
         //float angleDiff21 = qAbs(qAcos(msl11.dir.dot(msl22.dir)));
@@ -173,7 +92,8 @@ Eigen::Matrix4f LineMatcher::compute(
         }
     );
 
-    for (int iteration = 0; iteration < 10; iteration++)
+    int totalIterations = 1;
+    for (int iteration = 0; iteration < totalIterations; iteration++)
     {
         // 使用SVD求解，H是前后帧两个直线方向向量样本集合的协方差矩阵
         Eigen::Matrix3f H(Eigen::Matrix3f::Zero());
@@ -189,19 +109,10 @@ Eigen::Matrix4f LineMatcher::compute(
             LineChain lc1 = chains1[index1];
             LineChain lc2 = chains2[index2];
 
-            MSL& msl11 = lines1->points[lc1.line1];
-            MSL& msl12 = lines1->points[lc1.line2];
-            MSL& msl21 = lines2->points[lc2.line1];
-            MSL& msl22 = lines2->points[lc2.line2];
-            //std::cout << "line11:" << msl11.dir.transpose() << std::endl;
-            //std::cout << "line21:" << msl21.dir.transpose() << std::endl;
-            //std::cout << "line12:" << msl12.dir.transpose() << std::endl;
-            //std::cout << "line22:" << msl22.dir.transpose() << std::endl;
-
-            dirAvg1 += msl11.dir;
-            dirAvg1 += msl12.dir;
-            dirAvg2 += msl21.dir;
-            dirAvg2 += msl22.dir;
+            dirAvg1 += lc1.line1.dir;
+            dirAvg1 += lc1.line2.dir;
+            dirAvg2 += lc2.line1.dir;
+            dirAvg2 += lc2.line2.dir;
 
             //W.col(i * 2)[i * 2] = W.col(i * 2 + 1)[i * 2 + 1] = 1.f / m_pairIndices.size();
             //weights[i * 2] = weights[i * 2 + 1] = 1 / coefs[index2];
@@ -234,20 +145,11 @@ Eigen::Matrix4f LineMatcher::compute(
             LineChain lc1 = chains1[index1];
             LineChain lc2 = chains2[index2];
 
-            MSL& msl11 = lines1->points[lc1.line1];
-            MSL& msl12 = lines1->points[lc1.line2];
-            MSL& msl21 = lines2->points[lc2.line1];
-            MSL& msl22 = lines2->points[lc2.line2];
+            Eigen::Vector3f dir11 = lc1.line1.dir - dirAvg1;
+            Eigen::Vector3f dir12 = lc1.line2.dir - dirAvg1;
+            Eigen::Vector3f dir21 = lc2.line1.dir - dirAvg2;
+            Eigen::Vector3f dir22 = lc2.line2.dir - dirAvg2;
 
-            Eigen::Vector3f dir11 = msl11.dir - dirAvg1;
-            Eigen::Vector3f dir12 = msl12.dir - dirAvg1;
-            Eigen::Vector3f dir21 = msl21.dir - dirAvg2;
-            Eigen::Vector3f dir22 = msl22.dir - dirAvg2;
-
-            //H += dir11 * dir21.transpose();
-            //H += dir12 * dir22.transpose();
-            //H += msl11.dir * msl21.dir.transpose();
-            //H += msl21.dir * msl22.dir.transpose();
             X.col(i * 2) = dir11;
             X.col(i * 2 + 1) = dir12;
             Y.col(i * 2) = dir21;
@@ -261,7 +163,6 @@ Eigen::Matrix4f LineMatcher::compute(
         std::cout << "X:" << std::endl << X << std::endl;
         std::cout << "Y:" << std::endl << Y << std::endl;
         H = X * W * Y.transpose();
-        //H /= (m_pairIndices.size() * 2);
         std::cout << "H:" << std::endl << H << std::endl;
         //p1 = p1 / m_pairIndices.size();
         //p2 = p2 / m_pairIndices.size();
@@ -309,19 +210,43 @@ Eigen::Matrix4f LineMatcher::compute(
             int index1 = m_pairs[index2];
 
             LineChain& lc1 = chains1[index1];
+            LineChain& lc2 = chains2[index2];
 
+            lc1.line1.dir = R * lc1.line1.dir;
+            lc1.line1.point = R * lc1.line1.point + t;
+            lc1.line2.dir = R * lc1.line2.dir;
+            lc1.line2.point = R * lc1.line2.point + t;
             lc1.point = R * lc1.point + t;
             lc1.point1 = R * lc1.point1 + t;
             lc1.point2 = R * lc1.point2 + t;
             lc1.xLocal = R * lc1.xLocal;
             lc1.yLocal = R * lc1.yLocal;
             lc1.zLocal = R * lc1.zLocal;
+
+            float errorT = 0;
+            float errorR = 0;
+
+            errorT = (lc2.point - lc1.point).norm();
+            //errorR += (lc1.line1.dir - lc2.line1.dir).norm();
+            //errorR += (lc1.line2.dir - lc2.line2.dir).norm();
+            errorR += qAbs(qAcos(lc1.line1.dir.dot(lc2.line1.dir)));
+            errorR += qAbs(qAcos(lc1.line2.dir.dot(lc2.line2.dir)));
+
+            errorOutT += errorT;
+            errorOutR += errorR;
+
+            qDebug() << index1 << "-->" << index2 << ": errorT:" << errorT << ", errorR:" << errorR;
         }
     }
+
+    errorOutT /= (totalIterations * m_pairIndices.size());
+    errorOutR /= (totalIterations * m_pairIndices.size() * 2);
+    errorOut = errorOutT + errorOutR;
 
     finalPose.topLeftCorner(3, 3) = rOut;
     finalPose.topRightCorner(3, 1) = tOut;
     std::cout << "finalPose:" << std::endl << finalPose << std::endl;
+    qDebug() << "error:" << errorOut;
     return finalPose;
 }
 

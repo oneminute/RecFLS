@@ -52,8 +52,11 @@ struct MSL
 
 struct LineChain
 {
-    int line1;
-    int line2;
+    QString group;
+    int lineNo1;
+    int lineNo2;
+    MSL line1;
+    MSL line2;
     Eigen::Vector3f xLocal;
     Eigen::Vector3f yLocal;
     Eigen::Vector3f zLocal;
@@ -66,7 +69,7 @@ struct LineChain
 
     QString name()
     {
-        return QString("[%1 %2]").arg(line1).arg(line2);
+        return QString("[%1 %2]").arg(lineNo1).arg(lineNo2);
     }
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
@@ -118,6 +121,8 @@ public:
     void extractLinesFromPlanes(const QList<Plane>& planes);
 
     void generateLineChains();
+
+    bool generateLineChain(LineChain& lc);
 
     void generateDescriptors();
     void generateDescriptors2();

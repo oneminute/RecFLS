@@ -66,12 +66,12 @@ void ToolWindowLineExtractor::showLines()
     qDebug() << "showLines:" << lineNo << m_chains.size();
     LineChain lc = m_chains[lineNo];
 
-    for (int i = 0; i < m_chains.size(); i++)
+    /*for (int i = 0; i < m_chains.size(); i++)
     {
         LineChain& lc0 = m_chains[i];
         QString planeName = QString("plane_%1").arg(i);
         m_cloudViewer1->visualizer()->addPlane(*lc0.plane, lc0.point.x(), lc0.point.y(), lc0.point.z(), planeName.toStdString());
-    }
+    }*/
 
     for (int i = 0; i < m_lines.size()/* && errors[i]*/; i++)
     {
@@ -89,26 +89,28 @@ void ToolWindowLineExtractor::showLines()
         middle.getVector3fMap() = line.middle();
         //m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
         m_cloudViewer1->visualizer()->addLine(start, end, r, g, b, lineNo);
-        m_cloudViewer1->visualizer()->addText3D(std::to_string(i), middle, 0.025, 1, 1, 1, textNo);
+        //m_cloudViewer1->visualizer()->addText3D(std::to_string(i), middle, 0.025, 1, 1, 1, textNo);
         m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
     }
 
     for (int i = 0; i < m_mslCloud->size(); i++)
     {
         MSL msl = m_mslCloud->points[i];
-        pcl::PointXYZ start, end;
+        pcl::PointXYZ start, end, middle;
         start.getVector3fMap() = msl.getEndPoint(-3);
         end.getVector3fMap() = msl.getEndPoint(3);
+        middle.getVector3fMap() = msl.point;
         QString lineName = QString("msl_%1").arg(i);
+        std::string textNo = "text_" + std::to_string(i);
 
         QColor color(0, 0, 255);
         int width = 1;
-        if (i == lc.line1)
+        if (i == lc.lineNo1)
         {
             color = QColor(255, 0, 0);
             width = 3;
         }
-        else if (i == lc.line2)
+        else if (i == lc.lineNo2)
         {
             color = QColor(0, 0, 255);
             width = 3;
@@ -117,6 +119,7 @@ void ToolWindowLineExtractor::showLines()
         qDebug() << lineName;
 
         m_cloudViewer1->visualizer()->addLine(start, end, color.red(), color.green(), color.blue(), lineName.toStdString());
+        m_cloudViewer1->visualizer()->addText3D(std::to_string(i), middle, 0.05, 1, 1, 1, textNo);
         m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, width, lineName.toStdString());
     }
 
@@ -229,7 +232,7 @@ void ToolWindowLineExtractor::onActionParameterizedPointsAnalysis()
     m_ui->comboBoxLineChains->clear();
     for (int i = 0; i < m_chains.size(); i++)
     {
-        m_ui->comboBoxLineChains->addItem(QString::number(i));
+        m_ui->comboBoxLineChains->addItem(QString("%1[%2-%3]").arg(i).arg(m_chains[i].lineNo1).arg(m_chains[i].lineNo2));
     }
     m_ui->comboBoxLineChains->setCurrentIndex(0);
 
