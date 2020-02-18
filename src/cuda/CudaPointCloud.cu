@@ -1,9 +1,11 @@
 #include "CudaInternal.h"
-#include "cutil_math.h"
+//#include "cutil_math.h"
 #include "cutil_math2.h"
 
+#include <QtMath>
 #include <opencv2/opencv.hpp>
 #include <pcl/gpu/containers/device_array.h>
+#include <pcl/cuda/common/eigen.h>
 #include <math.h>
 #include <float.h>
 
@@ -568,12 +570,7 @@ namespace cuda
         return 0;
     }
 
-
-
-
-
     /////// __global__ interface,column major for matlab
-
     __device__ void eig2(const float* M, float* V, float* L) {
         dsyev2(M[0], M[1], M[3], &L[3], &L[0], &V[1], &V[3]);
         V[2] = V[1];
@@ -636,7 +633,6 @@ namespace cuda
         }
     }
 
-
     struct ExtractPointCloud
     {
         Parameters parameters;
@@ -644,18 +640,13 @@ namespace cuda
         pcl::gpu::PtrSz<float3> normals;
         pcl::gpu::PtrStepSz<uchar3> colorImage;
         pcl::gpu::PtrStepSz<ushort> depthImage;
-        int neighbourRadius;
-        float neighbourDistance;
+        pcl::gpu::PtrSz<uchar> boundaries;
+        pcl::gpu::PtrStepSz<uchar> boundaryImage;
+        pcl::gpu::PtrStepSz<int> boundaryIndices;
 
         __device__ __forceinline__ void extracPointCloud()
         {
             size_t index = blockIdx.x * blockDim.x + threadIdx.x;
-            //int iz = blockIdx.z * blockDim.z + threadIdx.z;
-
-            //printf("ix: %d, iy: %d, iz: %d, threadIdx: (%d, %d, %d) blockIdx: (%d, %d, %d) blockDim: (%d, %d, %d) gridDim: (%d, %d, %d)\n",
-               //ix, iy, iz,
-               //threadIdx.x, threadIdx.y, threadIdx.z, blockIdx.x, blockIdx.y, blockIdx.z,
-               //blockDim.x, blockDim.y, blockDim.z, gridDim.x, gridDim.y, gridDim.z);
 
             if (index == 0)
             {
@@ -676,31 +667,30 @@ namespace cuda
             //pt.r = colorMat.at<cv::Vec3b>(cv::Point(j, i))[2];
             const float qnan = std::numeric_limits<float>::quiet_NaN();
 
-            //            if(zValue > 0 && !qIsNaN(zValue)) {
-                        /*if (x > 0.1f && y > 0.1f && z > 0.1f) {
-                        }
-                        else
-                        {
-                            x = qnan;
-                            y = qnan;
-                            z = qnan;
-                        }*/
+            //if(zValue > 0 && !qIsNaN(zValue)) {
+            /*if (x > 0.1f && y > 0.1f && z > 0.1f) {
+            }
+            else
+            {
+                x = qnan;
+                y = qnan;
+                z = qnan;
+            }*/
 
-                        /*if (index % 1024 == 0)
-                        {
-                            printf("index: %d, ix: %d, iy: %d, x: %f, y: %f, z: %f, depth: %d\n", index, ix, iy, x, y, z, depthImage[index]);
-                        }*/
+            //if (index % 1024 == 0)
+            //{
+                //printf("index: %d, ix: %d, iy: %d, x: %f, y: %f, z: %f, depth: %d\n", index, ix, iy, x, y, z, depthImage[index]);
+            //}
+
+            if (z < 0.4f || z > 8.0f)
+                z = 0;
 
             points[index].x = x;
             points[index].y = y;
             points[index].z = z;
-
-            //points[index].x = x;
-            //points[index].y = y;
-            //points[index].z = z;
         }
 
-        __device__ void estimateNormals() 
+        __device__ void estimateNormals()
         {
             size_t index = blockIdx.x * blockDim.x + threadIdx.x;
             int ix = index % parameters.depthWidth;
@@ -712,12 +702,12 @@ namespace cuda
 
             int nN = 0;
 
-            for (int j = max(0, iy - neighbourRadius); j < min(iy + neighbourRadius + 1, parameters.depthHeight); j++) {
-                for (int i = max(0, ix - neighbourRadius); i < min(ix + neighbourRadius + 1, parameters.depthWidth); i++) {
+            for (int j = max(0, iy - parameters.normalKernelHalfSize); j < min(iy + parameters.normalKernelHalfSize + 1, parameters.depthHeight); j++) {
+                for (int i = max(0, ix - parameters.normalKernelHalfSize); i < min(ix + parameters.normalKernelHalfSize + 1, parameters.depthWidth); i++) {
                     size_t neighbourIndex = j * parameters.depthWidth + i;
                     float3 diff3 = points[neighbourIndex] - points[index];
                     float norm = sqrt(dot(diff3, diff3));
-                    if (norm < neighbourDistance) {
+                    if (norm < parameters.normalKernelMaxDistance) {
                         nN++;
                         m += points[neighbourIndex];
                         outerAdd(points[neighbourIndex], C); //note: instead of pts[ind]-m, we demean afterwards
@@ -747,6 +737,178 @@ namespace cuda
             normals[index].y = -Q[1][0];
             normals[index].z = -Q[2][0];
         }
+
+        __device__ void extractBoundaries()
+        {
+            size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+            int ix = index % parameters.depthWidth;
+            int iy = index / parameters.depthWidth;
+
+            //float* angles = (float*)malloc(neighbourRadius * neighbourRadius * sizeof(float));
+            float angles[360] = { 0 };
+            int count = 0;
+
+            float3 point = points[index];
+            if (point.z <= 0.4f)
+                return;
+
+            float3 normal = normals[index];
+            float3 u, v;
+            v = pcl::cuda::unitOrthogonal(normal);
+            u = cross(normal, v);
+
+            int maxAngleIndex = -1000;
+
+            for (int j = max(0, iy - parameters.boundaryEstimationRadius); j < min(iy + parameters.boundaryEstimationRadius + 1, parameters.depthHeight); j++) 
+            {
+                for (int i = max(0, ix - parameters.boundaryEstimationRadius); i < min(ix + parameters.boundaryEstimationRadius + 1, parameters.depthWidth); i++) 
+                {
+                    size_t neighbourIndex = j * parameters.depthWidth + i;
+                    float3 neighbourPoint = points[neighbourIndex];
+                    if (neighbourPoint.z <= 0.4f)
+                        continue;
+
+                    float3 delta = neighbourPoint - point;
+                    float distance = sqrt(dot(delta, delta));
+
+                    if (distance < parameters.boundaryEstimationDistance) 
+                    {
+                        float angle = atan2(dot(v, delta), dot(u, delta));
+                        int angleIndex = (int)(angle * 180 / M_PI) + 180;
+                        if (maxAngleIndex < angleIndex)
+                            maxAngleIndex = angleIndex;
+                        angles[angleIndex] += 1;
+                        count++;
+                    }
+                }
+            }
+
+            float angleDiff = 0;
+            float maxDiff = 0;
+            int lastAngle = angles[0];
+            int firstAngle = lastAngle;
+            for (int i = 1; i < 360; i++)
+            {
+                if (angles[i] == 0)
+                    continue;
+
+                if (firstAngle == 0)
+                {
+                    firstAngle = i;
+                }
+
+                if (lastAngle == 0)
+                {
+                    lastAngle = i;
+                    continue;
+                }
+
+                angleDiff = i - lastAngle;
+                if (maxDiff < angleDiff)
+                    maxDiff = angleDiff;
+
+                lastAngle = i;
+            }
+
+            angleDiff = 360 - lastAngle + firstAngle;
+            if (maxDiff < angleDiff)
+                maxDiff = angleDiff;
+
+            int pxX = (int)(point.x * parameters.fx / point.z + parameters.cx);
+            int pxY = (int)(point.y * parameters.fy / point.z + parameters.cy);
+
+            //if (index % 1024 == 0)
+            //{
+                //printf("index: %d, ix: %d, iy: %d, count: %d, maxAngleIndex: %d, maxDiff: %d, pxX: %d, pxY: %d\n", index, ix, iy, count, maxAngleIndex, maxDiff, pxX, pxY);
+            //}
+
+            if (maxDiff > parameters.boundaryAngleThreshold)
+            {
+                boundaries[index] = 3;
+
+                if (pxX <= parameters.borderLeft || pxY <= parameters.borderTop || pxX >= (parameters.depthWidth - parameters.borderRight) || pxY >= (parameters.depthHeight - parameters.borderBottom))
+                {
+                    boundaries[index] = 1;
+                    boundaryImage[pxY * parameters.depthWidth + pxX] = 1;
+                }
+                else
+                {
+                    boundaryImage[pxY * parameters.depthWidth + pxX] = 3;
+                    boundaryIndices[pxY * parameters.depthWidth + pxX] = index;
+                }
+            }
+        }
+
+        __device__ void classifyBoundaries()
+        {
+            size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+            int ix = index % parameters.depthWidth;
+            int iy = index / parameters.depthWidth;
+
+            /*if (index % 1000 == 0)
+            {
+                printf("index: %d, ix: %d, iy: %d, boundary type: %d, point index: %d, point z: %f\n", index, ix, iy, boundaryImage[index], boundaryIndices[index], points[boundaryIndices[index]].z);
+            }*/
+
+            if (boundaryImage[index] <= 1)
+                return;
+
+            int pointIndex = boundaryIndices[index];
+            if (pointIndex < 0)
+                return;
+
+            float3 point = points[pointIndex];
+            if (point.z < 0.4f || point.z > 8.0f)
+                return;
+
+            float2 original = { parameters.cx, parameters.cy };
+            float2 coord = { ix, iy };
+
+            float2 ray = normalize(original - coord);
+
+            bool veil = false;
+            for (int i = 1; i < parameters.classifyRadius; i++)
+            {
+                float2 cursor = coord + ray * i;
+                int cursorX = floor(cursor.x);
+                int cursorY = floor(cursor.y);
+
+                for (int a = cursorY - 1; a <= cursorY + 1; a++)
+                {
+                    for (int b = cursorX - 1; b <= cursorX + 1; b++)
+                    {
+                        int nPxIndex = a * parameters.depthWidth + b;
+                        int nPtIndex = static_cast<int>(boundaryIndices[nPxIndex]);
+                        if (nPtIndex < 0)
+                            continue;
+
+                        float3 nPt = points[nPtIndex];
+
+                        float3 diff = point - nPt;
+                        float dist = sqrt(dot(diff, diff));
+                        if (dist >= parameters.classifyDistance)
+                        {
+                            veil = true;
+                            break;
+                        }
+                    }
+                    if (veil)
+                        break;
+                }
+                if (veil)
+                    break;
+            }
+            if (veil)
+            {
+                boundaries[pointIndex] = 2;
+                boundaryImage[index] = 2;
+            }
+            
+            //if (index % 1000 == 0)
+            //{
+                //printf("index: %d, ix: %d, iy: %d, ray.x: %f, ray.y: %f, veil: %d\n", index, ix, iy, ray.x, ray.y, veil);
+            //}
+        }
     };
 
     __global__ void extractPointCloud(ExtractPointCloud epc)
@@ -759,24 +921,41 @@ namespace cuda
         epc.estimateNormals();
     }
 
-    void generatePointCloud(Parameters& parameters, Frame& frame)
+    __global__ void extractBoundaries(ExtractPointCloud epc)
     {
-        dim3 grid(parameters.depthWidth * parameters.depthHeight / 256);
+        epc.extractBoundaries();
+    }
+
+    __global__ void classifyBoundaries(ExtractPointCloud epc)
+    {
+        epc.classifyBoundaries();
+    }
+
+    void generatePointCloud(GpuFrame& frame)
+    {
+        dim3 grid(frame.parameters.depthWidth * frame.parameters.depthHeight / 256);
         dim3 block(256);
 
         ExtractPointCloud epc;
-        epc.parameters = parameters;
+        epc.parameters = frame.parameters;
         epc.points = frame.pointCloud;
         epc.normals = frame.pointCloudNormals;
         epc.colorImage = frame.colorImage;
         epc.depthImage = frame.depthImage;
-        epc.neighbourRadius = 5;
-        epc.neighbourDistance = 0.05f;
+        epc.boundaries = frame.boundaries;
+        epc.boundaryImage = frame.boundaryImage;
+        epc.boundaryIndices = frame.boundaryIndices;
 
         extractPointCloud<<<grid, block>>>(epc);
         safeCall(cudaDeviceSynchronize());
 
-        estimateNormals<<<grid, block>>> (epc);
+        estimateNormals<<<grid, block>>>(epc);
+        safeCall(cudaDeviceSynchronize());
+
+        extractBoundaries<<<grid, block>>>(epc);
+        safeCall(cudaDeviceSynchronize());
+
+        classifyBoundaries<<<grid, block>>>(epc);
         safeCall(cudaDeviceSynchronize());
     }
 }

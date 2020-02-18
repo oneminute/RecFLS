@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1098</width>
-    <height>829</height>
+    <height>919</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -643,6 +643,7 @@
    </attribute>
    <addaction name="actionLoad_Data_Set"/>
    <addaction name="actionCompute"/>
+   <addaction name="actionCompute_GPU"/>
    <addaction name="actionSave"/>
    <addaction name="actionSave_Config"/>
   </widget>
@@ -664,6 +665,11 @@
   <action name="actionSave_Config">
    <property name="text">
     <string>Save Config</string>
+   </property>
+  </action>
+  <action name="actionCompute_GPU">
+   <property name="text">
+    <string>Compute GPU</string>
    </property>
   </action>
  </widget>

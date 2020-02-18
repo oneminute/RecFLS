@@ -13,6 +13,8 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "cuda/CudaInternal.h"
+
 struct Plane
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -42,6 +44,8 @@ public:
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr compute();
 
+    pcl::PointCloud<pcl::PointXYZI>::Ptr computeCUDA(cuda::GpuFrame& frame);
+
     void boundaryEstimation(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr gaussianFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
@@ -58,6 +62,8 @@ public:
     {
         m_cloud = _cloud;
     }
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud() const { return m_cloud; }
 
     /*void setIndices(const pcl::IndicesPtr& _indices)
     {
@@ -116,6 +122,9 @@ public:
 
     float matHeight() const { return m_matHeight; }
     void setMatHeight(int _matHeight) { m_matHeight = _matHeight; }
+
+    float depthShift() const { return m_depthShift; }
+    void setDepthShift(float _value) { m_depthShift = _value; }
 
     float cx() const { return m_cx; }
     void setCx(float _cx) { m_cx = _cx; }
@@ -230,6 +239,7 @@ private:
     float m_boundaryAngleThreshold;
     int m_matWidth;
     int m_matHeight;
+    float m_depthShift;
     float m_cx;
     float m_cy;
     float m_fx;

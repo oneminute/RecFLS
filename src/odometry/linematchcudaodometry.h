@@ -39,14 +39,9 @@ public:
 private:
     cv::cuda::GpuMat m_colorMatGpu;
     cv::cuda::GpuMat m_depthMatGpu;
-    pcl::gpu::DeviceArray<float3> m_pointCloudGpu;
-    pcl::gpu::DeviceArray<float3> m_pointCloudNormalsGpu;
-    pcl::gpu::DeviceArray2D<uchar3> m_colorBuffer;
-    pcl::gpu::DeviceArray2D<ushort> m_depthBuffer;
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_boundaryCloud;
 
-    cuda::Parameters m_parameters;
-    cuda::Frame m_frameGpu;
+    cuda::GpuFrame m_frameGpu;
 
     bool m_init;
 

@@ -37,23 +37,18 @@ bool LineMatchCudaOdometry::beforeProcessing(Frame& frame)
     if (!m_init)
     {
         m_init = true;
-        m_colorBuffer.create(frame.getColorHeight(), frame.getColorWidth());
-        m_depthBuffer.create(frame.getDepthHeight(), frame.getDepthWidth());
-        m_pointCloudGpu.create(frame.getDepthWidth() * frame.getDepthHeight());
-        m_pointCloudNormalsGpu.create(frame.getDepthWidth() * frame.getDepthHeight());
 
-        m_colorMatGpu = cv::cuda::GpuMat(frame.getColorHeight(), frame.getColorWidth(), CV_8UC3, m_colorBuffer);
-        m_depthMatGpu = cv::cuda::GpuMat(frame.getDepthHeight(), frame.getDepthWidth(), CV_16U, m_depthBuffer);
 
-        m_parameters.cx = frame.getDevice()->cx();
-        m_parameters.cy = frame.getDevice()->cy();
-        m_parameters.fx = frame.getDevice()->fx();
-        m_parameters.fy = frame.getDevice()->fy();
-        m_parameters.colorWidth = frame.getColorWidth();
-        m_parameters.colorHeight = frame.getColorHeight();
-        m_parameters.depthWidth = frame.getDepthWidth();
-        m_parameters.depthHeight = frame.getDepthHeight();
-        m_parameters.depthShift = frame.getDevice()->depthShift();
+        m_frameGpu.allocate();
+        m_frameGpu.parameters.cx = frame.getDevice()->cx();
+        m_frameGpu.parameters.cy = frame.getDevice()->cy();
+        m_frameGpu.parameters.fx = frame.getDevice()->fx();
+        m_frameGpu.parameters.fy = frame.getDevice()->fy();
+        m_frameGpu.parameters.colorWidth = frame.getColorWidth();
+        m_frameGpu.parameters.colorHeight = frame.getColorHeight();
+        m_frameGpu.parameters.depthWidth = frame.getDepthWidth();
+        m_frameGpu.parameters.depthHeight = frame.getDepthHeight();
+        m_frameGpu.parameters.depthShift = frame.getDevice()->depthShift();
 
         m_cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr(new pcl::PointCloud<pcl::PointXYZRGB>());
         m_normals = pcl::PointCloud<pcl::Normal>::Ptr(new pcl::PointCloud<pcl::Normal>());
@@ -87,10 +82,12 @@ void LineMatchCudaOdometry::doProcessing(Frame& frame)
     m_normals->clear();
     m_cloudIndices->clear();
     TICK("odometry_uploading");
+    m_colorMatGpu = cv::cuda::GpuMat(frame.getColorHeight(), frame.getColorWidth(), CV_8UC3, m_frameGpu.colorImage);
+    m_depthMatGpu = cv::cuda::GpuMat(frame.getDepthHeight(), frame.getDepthWidth(), CV_16U, m_frameGpu.depthImage);
     m_colorMatGpu.upload(frame.colorMat());
     m_depthMatGpu.upload(frame.depthMat());
     TOCK("odometry_uploading");
-
+    
     //TICK("odometry_bilateral_filter");
     //cv::cuda::bilateralFilter(m_depthMatGpu, m_depthMatGpu, m_bilateralFilterKernelSize, m_bilateralFilterSigmaColor, m_bilateralFilterSigmaSpatial);
     //cv::Ptr<cv::cuda::Filter> gaussianFilter = cv::cuda::createGaussianFilter(CV_16U, CV_16U, cv::Size(5, 5), 2.0, 1.0);
@@ -98,11 +95,7 @@ void LineMatchCudaOdometry::doProcessing(Frame& frame)
     //TOCK("odometry_bilateral_filter");
     
     TICK("odometry_generate_point_cloud");
-    m_frameGpu.colorImage = m_colorBuffer;
-    m_frameGpu.depthImage = m_depthBuffer;
-    m_frameGpu.pointCloud = m_pointCloudGpu;
-    m_frameGpu.pointCloudNormals = m_pointCloudNormalsGpu;
-    cuda::generatePointCloud(m_parameters, m_frameGpu);
+    cuda::generatePointCloud(m_frameGpu);
     TOCK("odometry_generate_point_cloud");
 
     TICK("odometry_downloading");

@@ -38,6 +38,7 @@ BoundaryExtractor::BoundaryExtractor(QObject* parent)
     , m_boundaryAngleThreshold(M_PI_4)
     , m_matWidth(640)
     , m_matHeight(480)
+    , m_depthShift(1000.f)
     , m_cx(320)
     , m_cy(240)
     , m_fx(583)
@@ -110,6 +111,123 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::compute()
     // 抽取平面
     extractPlanes();
 
+    return m_allBoundary;
+}
+
+pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::computeCUDA(cuda::GpuFrame& frame)
+{
+    frame.parameters.cx = m_cx;
+    frame.parameters.cy = m_cy;
+    frame.parameters.fx = m_fx;
+    frame.parameters.fy = m_fy;
+    frame.parameters.borderLeft = m_borderLeft;
+    frame.parameters.borderRight = m_borderRight;
+    frame.parameters.borderTop = m_borderTop;
+    frame.parameters.borderBottom = m_borderBottom;
+    frame.parameters.depthShift = m_depthShift;
+    frame.parameters.normalKernelHalfSize = 20;
+    frame.parameters.normalKernelMaxDistance = m_normalsRadiusSearch;
+    frame.parameters.boundaryEstimationRadius = 20;
+    frame.parameters.boundaryEstimationDistance = m_boundaryRadiusSearch;
+    frame.parameters.boundaryAngleThreshold = m_boundaryAngleThreshold * 180 / M_PI;
+    frame.parameters.classifyRadius = m_classifyRadius;
+    frame.parameters.classifyDistance = 0.1f;
+
+    cv::cuda::GpuMat boundaryMatGpu(m_matHeight, m_matWidth, CV_8U, frame.boundaryImage);
+    cv::cuda::GpuMat boundaryIndicesMatGpu(m_matHeight, m_matWidth, CV_32S, frame.boundaryIndices);
+    boundaryMatGpu.setTo(cv::Scalar(0));
+    boundaryIndicesMatGpu.setTo(cv::Scalar(-1));
+
+    TICK("extracting_boundaries");
+    cuda::generatePointCloud(frame);
+    TOCK("extracting_boundaries");
+
+    TICK("boundaries_downloading");
+    boundaryMatGpu.download(m_boundaryMat);
+    std::vector<float3> points;
+    frame.pointCloud.download(points);
+    std::vector<float3> normals;
+    frame.pointCloudNormals.download(normals);
+    std::vector<uchar> boundaries;
+    frame.boundaries.download(boundaries);
+
+    m_cloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    m_allBoundary.reset(new pcl::PointCloud<pcl::PointXYZI>);
+    m_boundaryPoints.reset(new pcl::PointCloud<pcl::PointXYZI>);
+    m_veilPoints.reset(new pcl::PointCloud<pcl::PointXYZI>);
+    m_borderPoints.reset(new pcl::PointCloud<pcl::PointXYZI>);
+    m_normals.reset(new pcl::PointCloud<pcl::Normal>);
+    for(int i = 0; i < m_matHeight; i++) 
+    {
+        for(int j = 0; j < m_matWidth; j++) 
+        {
+            int index = i * m_matWidth + j;
+            float3 value = points[index];
+            uchar pointType = boundaries[index];
+            pcl::PointXYZ pt;
+            pcl::PointXYZI ptI;
+            pcl::Normal normal;
+
+            pt.x = value.x;
+            pt.y = value.y;
+            pt.z = value.z;
+            ptI.x = value.x;
+            ptI.y = value.y;
+            ptI.z = value.z;
+            ptI.intensity = 1;
+
+            normal.normal_x = normals[index].x;
+            normal.normal_y = normals[index].y;
+            normal.normal_z = normals[index].z;
+
+            if (index % 1024 == 0)
+            {
+                //qDebug() << value.x << value.y << value.z;
+            }
+
+            if (pt.z > 0.4f && pt.z <= 8.0f) {
+                m_cloud->push_back(pt);
+                m_normals->push_back(normal);
+            }
+
+            if (pointType > 0)
+            {
+                m_allBoundary->points.push_back(ptI);
+                if (pointType == 1)
+                {
+                    m_borderPoints->points.push_back(ptI);
+                }
+                else if (pointType == 2)
+                {
+                    m_veilPoints->points.push_back(ptI);
+                }
+                else if (pointType == 3)
+                {
+                    m_boundaryPoints->points.push_back(ptI);
+                }
+            }
+        }
+    }
+    m_cloud->width = m_cloud->points.size();
+    m_cloud->height = 1;
+    m_cloud->is_dense = true;
+    m_normals->width = m_normals->points.size();
+    m_normals->height = 1;
+    m_normals->is_dense = true;
+    m_allBoundary->width = m_allBoundary->points.size();
+    m_allBoundary->height = 1;
+    m_allBoundary->is_dense = true;
+    m_boundaryPoints->width = m_boundaryPoints->points.size();
+    m_boundaryPoints->height = 1;
+    m_boundaryPoints->is_dense = true;
+    m_veilPoints->width = m_veilPoints->points.size();
+    m_veilPoints->height = 1;
+    m_veilPoints->is_dense = true;
+    m_borderPoints->width = m_borderPoints->points.size();
+    m_borderPoints->height = 1;
+    m_borderPoints->is_dense = true;
+    TOCK("boundaries_downloading");
+    
     return m_allBoundary;
 }
 
@@ -369,7 +487,6 @@ void BoundaryExtractor::classifyBoundaryPoints2()
                 continue;
 
             pcl::PointXYZI point = m_allBoundary->points[pointIndex];
-            
 
             // 当前点作为检查中心点
             Eigen::Vector2f coord(c, r);

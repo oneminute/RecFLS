@@ -9,6 +9,7 @@
 #include "extractor/BoundaryExtractor.h"
 #include "extractor/LineExtractor.h"
 #include "device/SensorReaderDevice.h"
+#include "cuda/CudaInternal.h"
 
 namespace Ui {
 class ToolWindowBoundaryExtractor;
@@ -23,8 +24,10 @@ public:
     ~ToolWindowBoundaryExtractor();
 
 private slots:
+    void init();
     void onActionLoadDataSet();
     void onActionCompute();
+    void onActionComputeGPU();
     void onActionSave();
     void onActionSaveConfig();
 
@@ -41,6 +44,9 @@ private:
     QScopedPointer<SensorReaderDevice> m_device;
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_allBoundary;
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_boundaryPoints;
+
+    cuda::GpuFrame m_frameGpu;
+    bool m_init;
 };
 
 #endif // TOOLWINDOWBOUNDARYEXTRACTOR_H

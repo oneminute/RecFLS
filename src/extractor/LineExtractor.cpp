@@ -165,9 +165,9 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
             xCoord = -xCoord;
         }
 
-        // 当前点与投影到穿过原点的主方向直线的投影点所形成的直线，计算该直线与深度方向的角度
+        // 当前点与投影到穿过原点的主方向直线的投影点所形成的直线，计算该直线与深度方向叉乘pca主方向的角度
         Eigen::Vector3f lineVertProj = (point - pointProjToPrimeDir).normalized();
-        float cosZ = lineVertProj.dot(zAxis);
+        float cosZ = lineVertProj.dot(zAxis.cross(primeDir).normalized());
         float radiansZ = qAcos(cosZ);
         if (lineVertProj.cross(zAxis).dot(primeDir) < 0)
         {
