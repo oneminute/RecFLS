@@ -10,6 +10,7 @@
 #include "extractor/BoundaryExtractor.h"
 #include "extractor/LineExtractor.h"
 #include "device/SensorReaderDevice.h"
+#include "cuda/CudaInternal.h"
 
 namespace Ui {
 class ToolWindowLineExtractor;
@@ -26,16 +27,20 @@ public:
     void showLines();
 
 private slots:
+    void init();
+    void compute();
     void onActionLoadDataSet();
     void onActionLoadPointCloud();
     void onActionGenerateLinePointCloud();
     void onActionParameterizedPointsAnalysis();
+    void onActionComputeGPU();
     void onActionSaveConfig();
     void onActionShowLineChain(bool checked = false);
 
 private:
     QScopedPointer<Ui::ToolWindowLineExtractor> m_ui;
     QScopedPointer<SensorReaderDevice> m_device;
+    QScopedPointer<LineExtractor> m_lineExtractor;
     QScopedPointer<BoundaryExtractor> m_boundaryExtractor;
 
     CloudViewer *m_cloudViewer1;
@@ -48,9 +53,12 @@ private:
     QList<Plane> m_planes;
     QList<LineChain> m_chains;
     QList<LineSegment> m_lines;
-    pcl::PointCloud<MSL>::Ptr m_mslCloud;
+    pcl::PointCloud<Line>::Ptr m_mslCloud;
+    cuda::GpuFrame m_frameGpu;
 
     bool m_fromDataSet;
+    bool m_useCuda;
+    bool m_init;
 };
 
 #endif  // TOOLWINDOWLINEEXTRACTOR_H

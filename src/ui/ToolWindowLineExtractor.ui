@@ -82,11 +82,21 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>498</width>
-          <height>717</height>
+          <width>481</width>
+          <height>848</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_2">
+         <item>
+          <widget class="ImageViewer" name="widgetRGBFrame" native="true">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>160</height>
+            </size>
+           </property>
+          </widget>
+         </item>
          <item>
           <widget class="QGroupBox" name="groupBox_3">
            <property name="title">
@@ -191,6 +201,9 @@
             </item>
             <item row="4" column="1">
              <widget class="QSpinBox" name="spinBoxMinNeighbours">
+              <property name="maximum">
+               <number>1000</number>
+              </property>
               <property name="value">
                <number>3</number>
               </property>
@@ -245,6 +258,9 @@
             </item>
             <item row="7" column="1">
              <widget class="QSpinBox" name="spinBoxAngleMinNeighbours">
+              <property name="maximum">
+               <number>1000</number>
+              </property>
               <property name="value">
                <number>10</number>
               </property>
@@ -526,6 +542,7 @@
    <addaction name="actionLoad_Data_Set"/>
    <addaction name="actionLoad_Point_Cloud"/>
    <addaction name="actionParameterized_Points_Analysis"/>
+   <addaction name="actionCompute_GPU"/>
    <addaction name="actionSave_Config"/>
   </widget>
   <action name="actionLoad_Point_Cloud">
@@ -569,7 +586,20 @@
     <string>Load Data Set</string>
    </property>
   </action>
+  <action name="actionCompute_GPU">
+   <property name="text">
+    <string>Compute GPU</string>
+   </property>
+  </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ImageViewer</class>
+   <extends>QWidget</extends>
+   <header>ui/ImageViewer.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

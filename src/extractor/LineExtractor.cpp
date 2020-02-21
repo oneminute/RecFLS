@@ -58,7 +58,8 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
     m_errors.clear();
     m_linePointsCount.clear();
 
-    QList<LineSegment> lines;
+    //QList<LineSegment> lines;
+    m_lineSegments.clear();
 
     // 计算当前点云外包盒的最大直径，该值将用于对直线长度进行归一化的分母。
     Eigen::Vector4f minPoint, maxPoint;
@@ -299,6 +300,7 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
 
     // 从密度最大的值开始挑出每一个映射点，每一个映射点及其近邻点即为一组同方向的点，但这些点的方向
     // 可能仅仅是平行而相距很远。
+    m_lineCloud.reset(new pcl::PointCloud<PointLine>);
     QVector<bool> processed(m_angleCloud->size(), false);
     for (int i = 0; i < m_angleCloudIndices.size(); i++)
     {
@@ -337,7 +339,9 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
 
                 std::vector<pcl::PointIndices> clusterIndices;
 
-                // 使用条件化欧式聚集来进行区域增长，重点在Z方向的增长，而限制在XY方向的增长。
+                int count = 0;
+                Eigen::Vector3f cecDir(Eigen::Vector3f::Zero());
+                // 使用条件化欧式聚集来进行区域增长，重点在x方向的增长，而限制在yz方向的增长。
                 pcl::ConditionalEuclideanClustering<pcl::PointXYZI> cec(true);
                 cec.setConditionFunction([=](const pcl::PointXYZI& ptSeed, const pcl::PointXYZI& ptCandidate, float sqrDistance) -> bool
                     {
@@ -346,7 +350,8 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
                             Eigen::Vector3f seedPoint = ptSeed.getVector3fMap();
                             Eigen::Vector3f candidatePoint = ptCandidate.getVector3fMap();
 
-                            float distToZ = (candidatePoint - seedPoint).cross(zAxis).norm();
+                            Eigen::Vector3f dir = m_dirCloud->points[index].getVector3fMap();
+                            float distToZ = (candidatePoint - seedPoint).cross(dir).norm();
                             if (distToZ < m_regionGrowingZDistanceThreshold)
                             {
                                 return true;
@@ -356,7 +361,7 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
                     }
                 );
                 cec.setClusterTolerance(m_mappingTolerance);
-                cec.setMinClusterSize(1);
+                cec.setMinClusterSize(m_angleMinNeighbours);
                 cec.setMaxClusterSize(subCloudIndices.size());
                 cec.setSearchMethod(tree);
                 cec.setInputCloud(m_mappingCloud);
@@ -367,39 +372,54 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
                 std::vector<pcl::PointIndices>::iterator itClusters = clusterIndices.begin();
                 while (itClusters != clusterIndices.end())
                 {
+                    // 将分割出的聚集抽取成直线
                     pcl::PointIndices indices = *itClusters;
                     Eigen::Vector3f dir(0, 0, 0);
                     Eigen::Vector3f start(0, 0, 0);
                     Eigen::Vector3f end(0, 0, 0);
                     Eigen::Vector3f center(0, 0, 0);
 
+                    // 判断组成聚集的点数是否满足要求。
                     if (indices.indices.size() >= m_angleMinNeighbours)
                     {
                         // 计算全体近邻点方向的平均的方向作为主方向，同时计算质点。
                         for (std::vector<int>::const_iterator itIndices = indices.indices.begin(); itIndices != indices.indices.end(); ++itIndices)
                         {
+                            // 取出每一个点的索引值
                             int localIndex = m_mappingCloud->points[*itIndices].intensity;
+                            // 取出其对应的实际三维点
                             pcl::PointXYZI ptBoundary = m_boundaryCloud->points[localIndex];
+                            // 取出之前计算并保存的该点PCA计算后的主方向，注意只是这一个点的主方向
                             pcl::PointXYZI ptDir = m_dirCloud->points[localIndex];
+
+                            // 向dir变量累加
                             dir += ptDir.getVector3fMap();
+                            // 向质量变量累加
                             center += ptBoundary.getVector3fMap();
 
                             ptBoundary.intensity = index;
                             m_linedCloud->push_back(ptBoundary);
                         }
+                        // 求均值后，得到当前这个聚集的平均方向和质心
                         dir /= indices.indices.size();
+                        dir.normalized();
                         center /= indices.indices.size();
 
                         // 验证直线，计算每个点到目标直线的距离期望，使用该值作为误差以验证是否为有效的直线。
                         // 同时计算这一组点形成的起点与终点。
                         float error = 0;
+                        float avgError = 0;
                        
+                        std::vector<float> errors(indices.indices.size());
+                        int count = 0;
                         for (std::vector<int>::const_iterator itIndices = indices.indices.begin(); itIndices != indices.indices.end(); ++itIndices)
                         {
                             int index = m_mappingCloud->points[*itIndices].intensity;
                             pcl::PointXYZI ptBoundary = m_boundaryCloud->points[index];
                             Eigen::Vector3f boundaryPoint = ptBoundary.getVector3fMap();
-                            error = (boundaryPoint - center).cross(dir).norm();
+                            float e = (boundaryPoint - center).cross(dir).norm() * 1000;
+                            errors[count++] = e;
+                            avgError += e;
 
                             if (start.isZero())
                             {
@@ -429,15 +449,27 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
                                 }
                             }
                         }
-                        error /= indices.indices.size();
-                        //qDebug() << "    error:" << error;
+                        avgError /= indices.indices.size();
+                        for (int i = 0; i < errors.size(); i++)
+                        {
+                            error += qPow(errors[i] - avgError, 2);
+                        }
+                        error /= errors.size();
+                        qDebug() << "   cluster size:" << indices.indices.size() << ", error:" << error;
 
                         LineSegment ls(start, end);
-                        if (ls.length() > m_minLineLength)
+                        if (ls.length() > m_minLineLength && error <= 50)
                         {
-                            lines.append(ls);
+                            m_lineSegments.append(ls);
                             m_errors.append(error);
                             m_linePointsCount.append(indices.indices.size());
+
+                            PointLine pl;
+                            Eigen::Vector3f dir = ls.direction().normalized();
+                            calculateAlphaBeta(dir, pl.dAngleX, pl.dAngleY);
+                            pl.dist = start.cross(dir).norm();
+                            calculateAlphaBeta((start.normalized() - dir).normalized(), pl.vAngleX, pl.vAngleY);
+                            m_lineCloud->points.push_back(pl);
                         }
                     }
                     itClusters++;
@@ -450,85 +482,28 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
     m_linedCloud->is_dense = true;
     qDebug() << "Extract" << m_subCloudIndices.size() << "groups.";
 
-    // 再次对线段进行映射，每一个线段映射为一个5维向量。
-    // 其中前两个维度为俯仰角和航向角，后三个维度是原点到直线垂线交点的位置。
-    m_mslPointCloud.reset(new pcl::PointCloud<MSLPoint>);
-    m_mslCloud.reset(new pcl::PointCloud<MSL>);
-    QList<bool> mslProcessed;
-    QList<int> mslIndices;
-    for (int i = 0; i < lines.size(); i++)
-    {
-        MSLPoint mslPoint;
-        LineSegment line = lines[i];
-        float alpha, beta;
-        Eigen::Vector3f dir = line.direction().normalized();
-        calculateAlphaBeta(dir, alpha, beta);
-        mslPoint.alpha = alpha / M_PI;
-        mslPoint.beta = beta / M_PI;
-        Eigen::Vector3f start = line.start();
-        Eigen::Vector3f closedPoint = closedPointOnLine(Eigen::Vector3f::Zero(), dir, start);
-        mslPoint.x = closedPoint.x() / m_boundBoxDiameter;
-        mslPoint.y = closedPoint.y() / m_boundBoxDiameter;
-        mslPoint.z = closedPoint.z() / m_boundBoxDiameter;
-        m_mslPointCloud->push_back(mslPoint);
-        mslProcessed.append(false);
-        mslIndices.append(i);
-
-        MSL msl;
-        msl.dir = dir;
-        msl.point = closedPoint;
-        msl.weight = 1;
-        m_mslCloud->push_back(msl);
-    }
-
-    /*pcl::KdTreeFLANN<MSLPoint> mslTree;
-    mslTree.setInputCloud(m_mslPointCloud);
-
-    for (int i = 0; i < m_mslPointCloud->size(); i++)
-    {
-        MSLPoint mslPoint = m_mslPointCloud->points[mslIndices[i]];
-        if (mslProcessed[i])
-            continue;
-
-        std::vector<int> indices;
-        std::vector<float> distances;
-        mslTree.radiusSearch(mslPoint, m_mslRadiusSearch, indices, distances);
-
-        float maxLineLength = 0;
-        Eigen::Vector3f dir;
-        Eigen::Vector3f point;
-        for (int j = 0; j < indices.size(); j++)
-        {
-            int neighbourIndex = indices[j];
-            MSLPoint neighbour = m_mslPointCloud->points[neighbourIndex];
-            mslProcessed[neighbourIndex] = true;
-            LineSegment line = lines[neighbourIndex];
-            if (line.length() > maxLineLength)
-            {
-                maxLineLength = line.length();
-                dir = line.direction().normalized();
-                point.x() = neighbour.x * m_boundBoxDiameter;
-                point.y() = neighbour.y * m_boundBoxDiameter;
-                point.z() = neighbour.z * m_boundBoxDiameter;
-            }
-        }
-
-        MSL msl;
-        msl.dir = dir;
-        msl.point = point;
-        msl.weight = maxLineLength / m_boundBoxDiameter;
-        m_mslCloud->push_back(msl);
-        qDebug() << "msl" << i << ":" << indices.size() << msl.weight;
-    }*/
-
-    return lines;
+    
+    qDebug() << "[LineExtractor::compute] exit";
+    return m_lineSegments;
 }
 
 void LineExtractor::extractLinesFromPlanes(const QList<Plane>& planes)
 {
     //m_mslPointCloud.reset(new pcl::PointCloud<MSLPoint>);
-    //m_mslCloud.reset(new pcl::PointCloud<MSL>);
+    //m_mslCloud.reset(new pcl::PointCloud<Line>);
+    if (planes.isEmpty())
+        return;
+
     Eigen::Vector3f globalDir(1, 1, 1);
+
+    if (!m_mslCloud)
+    {
+        m_mslCloud.reset(new pcl::PointCloud<Line>);
+    }
+    if (!m_lineCloud)
+    {
+        m_lineCloud.reset(new pcl::PointCloud<PointLine>);
+    }
 
     for (int i = 0; i < planes.size(); i++)
     {
@@ -567,27 +542,107 @@ void LineExtractor::extractLinesFromPlanes(const QList<Plane>& planes)
             Eigen::Vector3f closedPoint = closedPointOnLine(Eigen::Vector3f::Zero(), crossLine, crossPoint1);
             
             //Eigen::Vector3f point = closedPointOnLine(plane1.point, line);
-            MSLPoint mslPoint;
-            float alpha, beta;
-            calculateAlphaBeta(crossLine, alpha, beta);
-            mslPoint.alpha = alpha / M_PI;
-            mslPoint.beta = beta / M_PI;
-            mslPoint.x = closedPoint.x() / m_boundBoxDiameter;
-            mslPoint.y = closedPoint.y() / m_boundBoxDiameter;
-            mslPoint.z = closedPoint.z() / m_boundBoxDiameter;
-            m_mslPointCloud->push_back(mslPoint);
+            //MSLPoint mslPoint;
+            //float alpha, beta;
+            //calculateAlphaBeta(crossLine, alpha, beta);
+            //mslPoint.alpha = alpha / M_PI;
+            //mslPoint.beta = beta / M_PI;
+            //mslPoint.x = closedPoint.x() / m_boundBoxDiameter;
+            //mslPoint.y = closedPoint.y() / m_boundBoxDiameter;
+            //mslPoint.z = closedPoint.z() / m_boundBoxDiameter;
+            //m_mslPointCloud->push_back(mslPoint);
+            Eigen::Vector3f start = closedPoint - crossLine * 0.25f;
+            Eigen::Vector3f end = closedPoint + crossLine * 0.25f;
+            LineSegment ls(start, end);
+            m_lineSegments.append(ls);
 
-            MSL msl;
+            PointLine pl;
+            Eigen::Vector3f dir = ls.direction().normalized();
+            calculateAlphaBeta(dir, pl.dAngleX, pl.dAngleY);
+            pl.dist = start.cross(dir).norm();
+            calculateAlphaBeta((start.normalized() - dir).normalized(), pl.vAngleX, pl.vAngleY);
+            m_lineCloud->points.push_back(pl);
+
+            /*Line msl;
             msl.dir = crossLine;
             msl.point = closedPoint;
             msl.weight = 1;
-            m_mslCloud->push_back(msl);
+            m_mslCloud->push_back(msl);*/
         }
     }
 
-    m_mslPointCloud->width = m_mslPointCloud->points.size();
-    m_mslPointCloud->height = 1;
-    m_mslPointCloud->is_dense = true;
+    //m_mslPointCloud->width = m_mslPointCloud->points.size();
+    //m_mslPointCloud->height = 1;
+    //m_mslPointCloud->is_dense = true;
+}
+
+void LineExtractor::segmentLines()
+{
+    if (m_lineSegments.size() > 0)
+    {
+        pcl::KdTreeFLANN<PointLine> lineTree;
+        lineTree.setInputCloud(m_lineCloud);
+
+        m_mslCloud.reset(new pcl::PointCloud<Line>);
+        QMap<int, bool> lineProcessed;
+        QVector<float> lineDense(m_lineSegments.size());
+        QVector<int> lineIndices(m_lineSegments.size());
+        float radius = M_PI / 36;
+        for (int i = 0; i < m_lineSegments.size(); i++)
+        {
+            std::vector<int> indices;
+            std::vector<float> dists;
+            lineTree.radiusSearch(m_lineCloud->points[i], radius, indices, dists);
+            lineDense[i] = indices.size();
+            lineIndices[i] = i;
+
+            qDebug() << "line" << i << ", dense:" << indices.size();
+        }
+
+        qSort(lineIndices.begin(), lineIndices.end(), [=](int a, int b) -> bool
+            {
+                return lineDense[a] > lineDense[b];
+            }
+        );
+
+        for (int i = 0; i < lineIndices.size(); i++)
+        {
+            int index = lineIndices[i];
+            if (lineProcessed.contains(index))
+            {
+                continue;
+            }
+
+            PointLine pl = m_lineCloud->points[index];
+            std::vector<int> indices;
+            std::vector<float> dists;
+            lineTree.radiusSearch(m_lineCloud->points[index], radius, indices, dists);
+            qDebug() << "line" << index << ", merging lines:" << indices.size();
+            Eigen::Vector3f dir(Eigen::Vector3f::Zero());
+            float sumLength = 0;
+            for (int i = 0; i < indices.size(); i++)
+            {
+                int neighbourIndex = indices[i];
+                qDebug() << "    " << neighbourIndex;
+                lineProcessed[neighbourIndex] = true;
+                LineSegment ls = m_lineSegments[neighbourIndex];
+                sumLength += ls.length();
+            }
+            for (int i = 0; i < indices.size(); i++)
+            {
+                int neighbourIndex = indices[i];
+                LineSegment ls = m_lineSegments[neighbourIndex];
+                dir += ls.direction().normalized() * ls.length() / sumLength;
+            }
+
+            LineSegment ls = m_lineSegments[index];
+            Line line;
+            line.dir = dir;
+            line.point = ls.start() + dir * (ls.start().dot(dir));
+            line.weight = 1;
+            m_mslCloud->push_back(line);
+        }
+    }
     m_mslCloud->width = m_mslCloud->points.size();
     m_mslCloud->height = 1;
     m_mslCloud->is_dense = true;
@@ -597,16 +652,16 @@ void LineExtractor::generateLineChains()
 {
     m_chains.clear();
 
-    // 计算所有直线方向的协方差矩阵
-    Eigen::VectorXf meanDir;
-    Eigen::MatrixXf mat;
-    mat.resize(3, m_mslCloud->size());
-    for (int i = 0; i < m_mslCloud->size(); i++)
-    {
-        mat.col(i) = m_mslCloud->points[i].dir;
-        //avgDir += m_mslCloud->points[i].dir;
-    }
-    meanDir = mat.rowwise().mean();
+    //// 计算所有直线方向的协方差矩阵
+    //Eigen::VectorXf meanDir;
+    //Eigen::MatrixXf mat;
+    //mat.resize(3, m_mslCloud->size());
+    //for (int i = 0; i < m_mslCloud->size(); i++)
+    //{
+    //    mat.col(i) = m_mslCloud->points[i].dir;
+    //    //avgDir += m_mslCloud->points[i].dir;
+    //}
+    //meanDir = mat.rowwise().mean();
     //Eigen::RowVectorXf meanVecRow(Eigen::RowVectorXf::Map(meanDir.data(), mat.rows()));
     //Eigen::MatrixXf zeroMeanMat = mat;
     //zeroMeanMat.colwise() -= meanDir;
@@ -623,12 +678,18 @@ void LineExtractor::generateLineChains()
     //qDebug() << covMatInv.col(0).norm() << covMatInv.col(1).norm() << covMatInv.col(2).norm();
  
     m_maxLineChainLength = 0;
+    qDebug() << "[LineExtractor::generateLineChains] msl cloud size:";
+    qDebug() << m_mslCloud->size();
+    if (m_mslCloud->size() == 0)
+        return;
+
     for (int i = 0; i < m_mslCloud->size(); i++)
     {
         for (int j = i + 1; j < m_mslCloud->size(); j++)
         {
             float radians = 0;
             QString group = QString("%1_%2").arg(i).arg(j);
+            //qDebug() << "generating line chain:" << group;
             {
                 LineChain lc;
                 
@@ -638,9 +699,12 @@ void LineExtractor::generateLineChains()
                 lc.line1 = m_mslCloud->points[i];
                 lc.line2 = m_mslCloud->points[j];
 
+                // 计算两直线角度，这里选用角度的绝对值
                 radians = qAbs(qAcos(lc.line1.dir.dot(lc.line2.dir)));
+                // 如果小于阈值，则跳过
                 if (radians < M_PI / 4)
                     continue;
+                // 否则继续计算，并保存该弧度值
                 lc.radians = radians;
 
                 if (!generateLineChain(lc))
@@ -680,9 +744,9 @@ void LineExtractor::generateLineChains()
 bool LineExtractor::generateLineChain(LineChain& lc)
 {
     // 建立局部坐标系
-    lc.xLocal = lc.line1.dir;
-    lc.yLocal = lc.line1.dir.cross(lc.line2.dir).normalized();
-    lc.zLocal = lc.xLocal.cross(lc.yLocal).normalized();
+    lc.xLocal = lc.line1.dir;   // 第一直线的方向作为x轴
+    lc.yLocal = lc.line1.dir.cross(lc.line2.dir).normalized();  // 叉乘方向作为y轴
+    lc.zLocal = lc.xLocal.cross(lc.yLocal).normalized();        // 再叉乘方向作为z轴
 
     // 计算最近点
     Eigen::Vector3f p1;     // 表示直线1上的一个点
@@ -803,15 +867,15 @@ void LineExtractor::generateDescriptors2()
         localMat.col(1) = lc.yLocal;
         localMat.col(2) = lc.zLocal;
 
-        descriptor.elems[0] = lc.radians;// / (M_PI * 2);
-        descriptor.elems[1] = lc.length;
-        descriptor.elems[2] = lc.point.x();
+        descriptor.elems[0] = lc.radians;       // 点乘弧度值
+        descriptor.elems[1] = lc.length;        // 最短垂线段长度
+        descriptor.elems[2] = lc.point.x();     // 中点的三坐标
         descriptor.elems[3] = lc.point.y();
         descriptor.elems[4] = lc.point.z();
-        descriptor.elems[5] = lc.line1.dir.x();
+        descriptor.elems[5] = lc.line1.dir.x(); // 线1方向的三坐标
         descriptor.elems[6] = lc.line1.dir.y();
         descriptor.elems[7] = lc.line1.dir.z();
-        descriptor.elems[8] = lc.line2.dir.x();
+        descriptor.elems[8] = lc.line2.dir.x(); // 线2方向的三坐标
         descriptor.elems[9] = lc.line2.dir.y();
         descriptor.elems[10] = lc.line2.dir.z();
         /*descriptor.elems[2] = dir.x() / m_boundBoxDiameter;

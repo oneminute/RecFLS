@@ -297,6 +297,7 @@
    </attribute>
    <addaction name="actionLoad_Data_Set"/>
    <addaction name="actionMatch"/>
+   <addaction name="actionMatch_Gpu"/>
    <addaction name="actionBegin_Step"/>
    <addaction name="actionStep_Rotation_Match"/>
    <addaction name="actionStep_Translate_Match"/>
@@ -333,6 +334,14 @@
   <action name="actionBegin_Step">
    <property name="text">
     <string>Begin Step</string>
+   </property>
+  </action>
+  <action name="actionMatch_Gpu">
+   <property name="text">
+    <string>Match Gpu</string>
+   </property>
+   <property name="toolTip">
+    <string>Match Gpu</string>
    </property>
   </action>
  </widget>

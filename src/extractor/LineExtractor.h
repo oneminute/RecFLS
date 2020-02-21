@@ -37,7 +37,25 @@ struct MSLPoint
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
-struct MSL
+struct PointLine
+{
+    union
+    {
+        float props[5];
+        struct
+        {
+            float dAngleX;
+            float dAngleY;
+            float dist;
+            float vAngleX;
+            float vAngleY;
+        };
+    };
+    static int propsSize() { return 5; }
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+
+struct Line
 {
     Eigen::Vector3f dir;
     Eigen::Vector3f point;
@@ -50,21 +68,40 @@ struct MSL
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
+// 线链
 struct LineChain
 {
+    // 组号，对于相同的两条直线但线序不同的情况，我们给其相同的组号。使用字符串，比如3-5和5-3，组号都为"3_5"。
     QString group;
+
+    // 第1条直线在直线集合中的序号
     int lineNo1;
+    // 第2条直线在直线集合中的序号
     int lineNo2;
-    MSL line1;
-    MSL line2;
+
+    // 第1条直线
+    Line line1;
+    // 第2条直线
+    Line line2;
+
+    // xLocal, yLocal, zLocal是三个两两正交的单位向量，它们组成了一个三维的局部坐标系
     Eigen::Vector3f xLocal;
     Eigen::Vector3f yLocal;
     Eigen::Vector3f zLocal;
+
+    // 直线1上的最近点
     Eigen::Vector3f point1;
+    // 直线2上的最近点
     Eigen::Vector3f point2;
+    // 两个最近点的中点
     Eigen::Vector3f point;
+
+    // 两直线的角度，用弧度表示
     float radians;
+    // 两直线最短垂线的长度，也即point1和point2的距离
     float length;
+
+    // 生成一个过中点point的平面，该平面是由两直线叉乘后的向量作为法向量的，参数为ax + by + cz + d = 0
     pcl::ModelCoefficients::Ptr plane;
 
     QString name()
@@ -119,6 +156,7 @@ public:
     QList<LineSegment> compute(const pcl::PointCloud<pcl::PointXYZI>::Ptr& boundaryCloud);
 
     void extractLinesFromPlanes(const QList<Plane>& planes);
+    void segmentLines();
 
     void generateLineChains();
 
@@ -162,12 +200,12 @@ public:
         return m_linedCloud;
     }
 
-    pcl::PointCloud<MSLPoint>::Ptr mslPointCloud() const
-    {
-        return m_mslPointCloud;
-    }
+    //pcl::PointCloud<MSLPoint>::Ptr mslPointCloud() const
+    //{
+        //return m_mslPointCloud;
+    //}
 
-    pcl::PointCloud<MSL>::Ptr mslCloud() const
+    pcl::PointCloud<Line>::Ptr mslCloud() const
     {
         return m_mslCloud;
     }
@@ -261,9 +299,11 @@ private:
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_linedCloud;
 
-    pcl::PointCloud<MSLPoint>::Ptr m_mslPointCloud;
+    //pcl::PointCloud<MSLPoint>::Ptr m_mslPointCloud;
 
-    pcl::PointCloud<MSL>::Ptr m_mslCloud;
+    pcl::PointCloud<PointLine>::Ptr m_lineCloud;
+
+    pcl::PointCloud<Line>::Ptr m_mslCloud;
 
     QMap<int, std::vector<int>> m_subCloudIndices;
 
@@ -273,7 +313,7 @@ private:
     // 边界点主方向参数化点云每个点的近邻密度值
     QList<float> m_density;
 
-    QList<LineSegment> m_lines;
+    QList<LineSegment> m_lineSegments;
 
     QList<float> m_errors;
 

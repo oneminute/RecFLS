@@ -120,6 +120,8 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::computeCUDA(cuda::GpuFra
     frame.parameters.cy = m_cy;
     frame.parameters.fx = m_fx;
     frame.parameters.fy = m_fy;
+    frame.parameters.minDepth = 0.4f;
+    frame.parameters.maxDepth = 8.0f;
     frame.parameters.borderLeft = m_borderLeft;
     frame.parameters.borderRight = m_borderRight;
     frame.parameters.borderTop = m_borderTop;
@@ -128,13 +130,17 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::computeCUDA(cuda::GpuFra
     frame.parameters.normalKernelHalfSize = 20;
     frame.parameters.normalKernelMaxDistance = m_normalsRadiusSearch;
     frame.parameters.boundaryEstimationRadius = 20;
+    frame.parameters.boundaryGaussianSigma = 4.f;
+    frame.parameters.boundaryGaussianRadius = 20;
     frame.parameters.boundaryEstimationDistance = m_boundaryRadiusSearch;
     frame.parameters.boundaryAngleThreshold = m_boundaryAngleThreshold * 180 / M_PI;
-    frame.parameters.classifyRadius = m_classifyRadius;
-    frame.parameters.classifyDistance = 0.1f;
+    frame.parameters.classifyRadius = 20;
+    frame.parameters.classifyDistance = 0.05f;
 
+    cv::cuda::GpuMat indicesMatGpu(m_matHeight, m_matWidth, CV_32S, frame.indicesImage);
     cv::cuda::GpuMat boundaryMatGpu(m_matHeight, m_matWidth, CV_8U, frame.boundaryImage);
     cv::cuda::GpuMat boundaryIndicesMatGpu(m_matHeight, m_matWidth, CV_32S, frame.boundaryIndices);
+    indicesMatGpu.setTo(cv::Scalar(-1));
     boundaryMatGpu.setTo(cv::Scalar(0));
     boundaryIndicesMatGpu.setTo(cv::Scalar(-1));
 
@@ -227,6 +233,18 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::computeCUDA(cuda::GpuFra
     m_borderPoints->height = 1;
     m_borderPoints->is_dense = true;
     TOCK("boundaries_downloading");
+
+    // 下采样
+    m_downsampledCloud = downSampling(m_cloud);
+
+    // 去除离群点
+    m_removalCloud = outlierRemoval(m_downsampledCloud);
+
+    // 高斯滤波
+    m_filteredCloud = gaussianFilter(m_removalCloud);
+
+    // 抽取平面
+    extractPlanes();
     
     return m_allBoundary;
 }
@@ -533,7 +551,7 @@ void BoundaryExtractor::classifyBoundaryPoints2()
                         // 计算光标下像素点所对应的像素点与当前中心点的三维距离，如果该距离过小，则有可能是在同一个边界上，
                         // 这个距离要大于一个阈值，我们才认为是一个有效的遮挡点。
                         float diff = (point.getVector3fMap() - nPt.getVector3fMap()).norm();
-                        if (diff >= m_veilDistanceThreshold)
+                        if ((point.z - nPt.z) >= m_veilDistanceThreshold)
                         {
                             //qDebug().nospace().noquote() << "[" << c << ", " << r << "] -- [" << edgeX << ", " << edgeY << "] "
                                 //<< i << ": [" << adj[a].x << ", " << adj[a].y << "] diff = " << diff;

@@ -42,6 +42,7 @@ ToolWindowLineMatcher::ToolWindowLineMatcher(QWidget *parent)
 
     connect(m_ui->actionLoad_Data_Set, &QAction::triggered, this, &ToolWindowLineMatcher::onActionLoadDataSet);
     connect(m_ui->actionMatch, &QAction::triggered, this, &ToolWindowLineMatcher::onActionMatch);
+    connect(m_ui->actionMatch_Gpu, &QAction::triggered, this, &ToolWindowLineMatcher::onActionMatchGpu);
     connect(m_ui->actionBegin_Step, &QAction::triggered, this, &ToolWindowLineMatcher::onActionBeginStep);
     connect(m_ui->actionStep_Rotation_Match, &QAction::triggered, this, &ToolWindowLineMatcher::onActionStepRotationMatch);
     connect(m_ui->actionStep_Translate_Match, &QAction::triggered, this, &ToolWindowLineMatcher::onActionStepTranslationMatch);
@@ -121,6 +122,35 @@ void ToolWindowLineMatcher::initCompute()
     m_colorCloud2 = frame2.getCloud(*indices2);
     pcl::copyPointCloud<pcl::PointXYZRGB, pcl::PointXYZ>(*m_colorCloud1, *m_cloud1);
     pcl::copyPointCloud<pcl::PointXYZRGB, pcl::PointXYZ>(*m_colorCloud2, *m_cloud2);
+
+    if (m_useCuda)
+    {
+        if (!m_isInit)
+        {
+            m_frameGpu1.parameters.colorWidth = frame1.getColorWidth();
+            m_frameGpu1.parameters.colorHeight = frame1.getColorHeight();
+            m_frameGpu1.parameters.depthWidth = frame1.getDepthWidth();
+            m_frameGpu1.parameters.depthHeight = frame1.getDepthHeight();
+            m_frameGpu1.allocate();
+
+            m_frameGpu2.parameters.colorWidth = frame2.getColorWidth();
+            m_frameGpu2.parameters.colorHeight = frame2.getColorHeight();
+            m_frameGpu2.parameters.depthWidth = frame2.getDepthWidth();
+            m_frameGpu2.parameters.depthHeight = frame2.getDepthHeight();
+            m_frameGpu2.allocate();
+            m_isInit = true;
+        }
+
+        cv::cuda::GpuMat colorMatGpu1(frame1.getColorHeight(), frame1.getColorWidth(), CV_8UC3, m_frameGpu1.colorImage);
+        cv::cuda::GpuMat depthMatGpu1(frame1.getDepthHeight(), frame1.getDepthWidth(), CV_16U, m_frameGpu1.depthImage);
+        colorMatGpu1.upload(frame1.colorMat());
+        depthMatGpu1.upload(frame1.depthMat());
+
+        cv::cuda::GpuMat colorMatGpu2(frame2.getColorHeight(), frame2.getColorWidth(), CV_8UC3, m_frameGpu2.colorImage);
+        cv::cuda::GpuMat depthMatGpu2(frame2.getDepthHeight(), frame2.getDepthWidth(), CV_16U, m_frameGpu2.depthImage);
+        colorMatGpu2.upload(frame2.colorMat());
+        depthMatGpu2.upload(frame2.depthMat());
+    }
     
     pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryPoints1;
     pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryPoints2;
@@ -133,7 +163,14 @@ void ToolWindowLineMatcher::initCompute()
         m_boundaryExtractor->setFx(frame1.getDevice()->fx());
         m_boundaryExtractor->setFy(frame1.getDevice()->fy());
         m_boundaryExtractor->setNormals(nullptr);
-        m_boundaryExtractor->compute();
+        if (m_useCuda)
+        {
+            m_boundaryExtractor->computeCUDA(m_frameGpu1);
+        }
+        else
+        {
+            m_boundaryExtractor->compute();
+        }
         boundaryPoints1 = m_boundaryExtractor->boundaryPoints();
         m_filteredCloud1 = m_boundaryExtractor->filteredCloud();
         m_planes1 = m_boundaryExtractor->planes();
@@ -146,7 +183,14 @@ void ToolWindowLineMatcher::initCompute()
         m_boundaryExtractor->setFx(frame2.getDevice()->fx());
         m_boundaryExtractor->setFy(frame2.getDevice()->fy());
         m_boundaryExtractor->setNormals(nullptr);
-        m_boundaryExtractor->compute();
+        if (m_useCuda)
+        {
+            m_boundaryExtractor->computeCUDA(m_frameGpu2);
+        }
+        else
+        {
+            m_boundaryExtractor->compute();
+        }
         boundaryPoints2 = m_boundaryExtractor->boundaryPoints();
         m_filteredCloud2 = m_boundaryExtractor->filteredCloud();
         m_planes2 = m_boundaryExtractor->planes();
@@ -159,10 +203,11 @@ void ToolWindowLineMatcher::initCompute()
     {
         lines1 = m_lineExtractor->compute(boundaryPoints1);
         m_lineExtractor->extractLinesFromPlanes(m_planes1);
+        m_lineExtractor->segmentLines();
         m_lineExtractor->generateLineChains();
         m_lineExtractor->generateDescriptors2();
         m_mslCloud1 = m_lineExtractor->mslCloud();
-        m_mslPointCloud1 = m_lineExtractor->mslPointCloud();
+        //m_mslPointCloud1 = m_lineExtractor->mslPointCloud();
         m_diameter1 = m_lineExtractor->boundBoxDiameter();
         m_chains1 = m_lineExtractor->chains();
         m_desc1 = m_lineExtractor->descriptors2();
@@ -170,10 +215,11 @@ void ToolWindowLineMatcher::initCompute()
 
         lines2 = m_lineExtractor->compute(boundaryPoints2);
         m_lineExtractor->extractLinesFromPlanes(m_planes2);
+        m_lineExtractor->segmentLines();
         m_lineExtractor->generateLineChains();
         m_lineExtractor->generateDescriptors2();
         m_mslCloud2 = m_lineExtractor->mslCloud();
-        m_mslPointCloud2 = m_lineExtractor->mslPointCloud();
+        //m_mslPointCloud2 = m_lineExtractor->mslPointCloud();
         m_diameter2 = m_lineExtractor->boundBoxDiameter();
         m_chains2 = m_lineExtractor->chains();
         m_desc2 = m_lineExtractor->descriptors2();
@@ -187,9 +233,9 @@ void ToolWindowLineMatcher::initCompute()
     m_cloudViewer3->visualizer()->removeAllPointClouds();
     m_cloudViewer3->visualizer()->removeAllShapes();
 
-    m_tree.reset(new pcl::KdTreeFLANN<MSLPoint>());
-    m_tree->setInputCloud(m_mslPointCloud2);
-    qDebug() << "msl point cloud2:" << m_mslPointCloud2->size();
+    //m_tree.reset(new pcl::KdTreeFLANN<MSLPoint>());
+    //m_tree->setInputCloud(m_mslPointCloud2);
+    //qDebug() << "msl point cloud2:" << m_mslPointCloud2->size();
 
     // œ‘ æµ„‘∆
     {
@@ -243,7 +289,7 @@ void ToolWindowLineMatcher::compute()
     updateWidgets();
 }
 
-void ToolWindowLineMatcher::showCloudAndLines(CloudViewer* viewer, QList<Plane>& planes, QList<LineSegment>& lines, boost::shared_ptr<pcl::PointCloud<MSL>>& mslCloud)
+void ToolWindowLineMatcher::showCloudAndLines(CloudViewer* viewer, QList<Plane>& planes, QList<LineSegment>& lines, boost::shared_ptr<pcl::PointCloud<Line>>& mslCloud)
 {
     QColor color;
     //for (int i = 0; i < planes.size(); i++)
@@ -293,7 +339,7 @@ void ToolWindowLineMatcher::showCloudAndLines(CloudViewer* viewer, QList<Plane>&
         double r = color.red();
         double g = color.green();
         double b = color.blue();
-        MSL msl = mslCloud->points[i];
+        Line msl = mslCloud->points[i];
         pcl::PointXYZI start, end, middle;
         start.getVector3fMap() = msl.getEndPoint(-3);
         end.getVector3fMap() = msl.getEndPoint(3);
@@ -431,6 +477,13 @@ void ToolWindowLineMatcher::onActionMatch()
     updateWidgets();
 }
 
+void ToolWindowLineMatcher::onActionMatchGpu()
+{
+    m_useCuda = true;
+    compute();
+    updateWidgets();
+}
+
 void ToolWindowLineMatcher::onActionBeginStep()
 {
     initCompute();
@@ -441,8 +494,8 @@ void ToolWindowLineMatcher::onActionBeginStep()
 
 void ToolWindowLineMatcher::onActionStepRotationMatch()
 {
-    m_rotationDelta = m_lineMatcher->stepRotation(m_diameter1, m_mslPointCloud1, m_mslCloud1, 
-        m_diameter2, m_mslPointCloud2, m_mslCloud2, m_tree, m_rotationError, m_translationError, m_pairs);
+    //m_rotationDelta = m_lineMatcher->stepRotation(m_diameter1, m_mslPointCloud1, m_mslCloud1, 
+        //m_diameter2, m_mslPointCloud2, m_mslCloud2, m_tree, m_rotationError, m_translationError, m_pairs);
     m_translationDelta = Eigen::Vector3f::Zero();
     m_iteration++;
 
@@ -452,7 +505,7 @@ void ToolWindowLineMatcher::onActionStepRotationMatch()
 
 void ToolWindowLineMatcher::onActionStepTranslationMatch()
 {
-    m_translationDelta = m_lineMatcher->stepTranslation(m_mslCloud1, m_mslCloud2, m_tree, m_translationError, m_pairs);
+    //m_translationDelta = m_lineMatcher->stepTranslation(m_mslCloud1, m_mslCloud2, m_tree, m_translationError, m_pairs);
     m_rotationDelta = Eigen::Quaternionf::Identity();
     m_iteration++;
 

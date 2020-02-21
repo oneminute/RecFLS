@@ -21,10 +21,10 @@ LineMatcher::LineMatcher(QObject* parent)
 
 Eigen::Matrix4f LineMatcher::compute(
     QList<LineChain>& chains1,
-    pcl::PointCloud<MSL>::Ptr& lines1,
+    pcl::PointCloud<Line>::Ptr& lines1,
     pcl::PointCloud<LineDescriptor2>::Ptr& desc1,
     QList<LineChain>& chains2,
-    pcl::PointCloud<MSL>::Ptr& lines2,
+    pcl::PointCloud<Line>::Ptr& lines2,
     pcl::PointCloud<LineDescriptor2>::Ptr& desc2
 )
 {
@@ -253,10 +253,10 @@ Eigen::Matrix4f LineMatcher::compute(
 Eigen::Quaternionf LineMatcher::stepRotation(
     float firstDiameter,
     pcl::PointCloud<MSLPoint>::Ptr firstPointCloud,
-    pcl::PointCloud<MSL>::Ptr firstLineCloud,
+    pcl::PointCloud<Line>::Ptr firstLineCloud,
     float secondDiameter,
     pcl::PointCloud<MSLPoint>::Ptr secondPointCloud,
-    pcl::PointCloud<MSL>::Ptr secondLineCloud,
+    pcl::PointCloud<Line>::Ptr secondLineCloud,
     pcl::KdTreeFLANN<MSLPoint>::Ptr tree,
     float& rotationError,
     float& translationError,
@@ -276,7 +276,7 @@ Eigen::Quaternionf LineMatcher::stepRotation(
     for (int i = 0; i < firstPointCloud->size(); i++)
     {
         MSLPoint firstPoint = firstPointCloud->points[i];
-        MSL msl1 = firstLineCloud->points[i];
+        Line msl1 = firstLineCloud->points[i];
 
         std::vector<int> indices;
         std::vector<float> distances;
@@ -284,7 +284,7 @@ Eigen::Quaternionf LineMatcher::stepRotation(
         Q_ASSERT(indices.size() == 1);
 
         MSLPoint secondPoint = secondPointCloud->points[indices[0]];
-        MSL msl2 = secondLineCloud->points[indices[0]];
+        Line msl2 = secondLineCloud->points[indices[0]];
 
         Eigen::Quaternionf rot = Eigen::Quaternionf::FromTwoVectors(msl1.dir, msl2.dir);
 
@@ -322,8 +322,8 @@ Eigen::Quaternionf LineMatcher::stepRotation(
         float error = errors[i.key()];
         float variance = 1 / qPow(error - errorAvg, 2);
         qDebug().noquote() << i.value() << "-->" << i.key() << variance;
-        MSL msl1 = firstLineCloud->points[i.value()];
-        MSL msl2 = secondLineCloud->points[i.key()];
+        Line msl1 = firstLineCloud->points[i.value()];
+        Line msl2 = secondLineCloud->points[i.key()];
         a.row(count) = msl1.dir;
         b.row(count) = msl2.dir;
         if (variance < 500)
@@ -360,7 +360,7 @@ Eigen::Quaternionf LineMatcher::stepRotation(
     for (int i = 0; i < firstPointCloud->size(); i++)
     {
         MSLPoint& firstPoint = firstPointCloud->points[i];
-        MSL& msl1 = firstLineCloud->points[i];
+        Line& msl1 = firstLineCloud->points[i];
 
         msl1.dir = rotOut * msl1.dir;
         msl1.point = rotOut * msl1.point;
@@ -373,8 +373,8 @@ Eigen::Quaternionf LineMatcher::stepRotation(
 }
 
 Eigen::Vector3f LineMatcher::stepTranslation(
-    pcl::PointCloud<MSL>::Ptr firstLineCloud,
-    pcl::PointCloud<MSL>::Ptr secondLineCloud,
+    pcl::PointCloud<Line>::Ptr firstLineCloud,
+    pcl::PointCloud<Line>::Ptr secondLineCloud,
     pcl::KdTreeFLANN<MSLPoint>::Ptr tree,
     float& translationError,
     QMap<int, int>& pairs)
@@ -386,8 +386,8 @@ Eigen::Vector3f LineMatcher::stepTranslation(
     QList<int> keys;
     for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
     {
-        MSL msl1 = firstLineCloud->points[i.value()];
-        MSL msl2 = secondLineCloud->points[i.key()];
+        Line msl1 = firstLineCloud->points[i.value()];
+        Line msl2 = secondLineCloud->points[i.key()];
 
         float cos = qAcos(msl1.dir.dot(msl2.dir));
 
@@ -429,7 +429,7 @@ Eigen::Vector3f LineMatcher::stepTranslation(
                 if (processed.contains(keys[j]))
                     continue;
 
-                MSL& msl = firstLineCloud->points[pairs[keys[j]]];
+                Line& msl = firstLineCloud->points[pairs[keys[j]]];
                 float cos = qAbs(msl.dir.dot(lastDir));
                 if (cos >= 0.95f)
                 {
@@ -455,8 +455,8 @@ Eigen::Vector3f LineMatcher::stepTranslation(
         int index2 = keys[index];
         int index1 = pairs[index2];
         qDebug().nospace().noquote() << " ++++ index" << index << ". " << index1 << " --> " << index2 << ", error = " << errors[index2];
-        MSL& msl1 = firstLineCloud->points[index1];
-        MSL& msl2 = secondLineCloud->points[index2];
+        Line& msl1 = firstLineCloud->points[index1];
+        Line& msl2 = secondLineCloud->points[index2];
 
         float distance = 0;
         Eigen::Vector3f lineDiff = transBetweenLines(msl1.dir, msl1.point, msl2.dir, msl2.point, distance);
@@ -477,7 +477,7 @@ Eigen::Vector3f LineMatcher::stepTranslation(
 
         for (int j = 0; j < keys.size(); j++)
         {
-            MSL& msl = firstLineCloud->points[pairs[keys[j]]];
+            Line& msl = firstLineCloud->points[pairs[keys[j]]];
             msl.point += diff;
         }
     }
@@ -486,8 +486,8 @@ Eigen::Vector3f LineMatcher::stepTranslation(
     {
         int index2 = i.key();
         int index1 = i.value();
-        MSL& msl1 = firstLineCloud->points[index1];
-        MSL& msl2 = secondLineCloud->points[index2];
+        Line& msl1 = firstLineCloud->points[index1];
+        Line& msl2 = secondLineCloud->points[index2];
 
         float distance = 0;
         Eigen::Vector3f diff = transBetweenLines(msl1.dir, msl1.point, msl2.dir, msl2.point, distance);

@@ -638,11 +638,22 @@ namespace cuda
         Parameters parameters;
         pcl::gpu::PtrSz<float3> points;
         pcl::gpu::PtrSz<float3> normals;
+        pcl::gpu::PtrSz<float3> boundaries;
+        pcl::gpu::PtrStepSz<int> indicesImage;
         pcl::gpu::PtrStepSz<uchar3> colorImage;
         pcl::gpu::PtrStepSz<ushort> depthImage;
-        pcl::gpu::PtrSz<uchar> boundaries;
+        pcl::gpu::PtrSz<uchar> boundaryIndices;
         pcl::gpu::PtrStepSz<uchar> boundaryImage;
-        pcl::gpu::PtrStepSz<int> boundaryIndices;
+        pcl::gpu::PtrStepSz<int> boundaryIndicesMat;
+
+        __device__ bool isValid(float3 point)
+        {
+            if (isnan(point.x) || isnan(point.y) || isnan(point.z))
+                return false;
+            if (point.z < parameters.minDepth || point.z > parameters.maxDepth)
+                return false;
+            return true;
+        }
 
         __device__ __forceinline__ void extracPointCloud()
         {
@@ -662,32 +673,24 @@ namespace cuda
             x = (ix - parameters.cx) * z / parameters.fx;
             y = (iy - parameters.cy) * z / parameters.fy;
 
-            //pt.b = colorMat.at<cv::Vec3b>(cv::Point(j, i))[0];
-            //pt.g = colorMat.at<cv::Vec3b>(cv::Point(j, i))[1];
-            //pt.r = colorMat.at<cv::Vec3b>(cv::Point(j, i))[2];
             const float qnan = std::numeric_limits<float>::quiet_NaN();
-
-            //if(zValue > 0 && !qIsNaN(zValue)) {
-            /*if (x > 0.1f && y > 0.1f && z > 0.1f) {
-            }
-            else
-            {
-                x = qnan;
-                y = qnan;
-                z = qnan;
-            }*/
 
             //if (index % 1024 == 0)
             //{
                 //printf("index: %d, ix: %d, iy: %d, x: %f, y: %f, z: %f, depth: %d\n", index, ix, iy, x, y, z, depthImage[index]);
             //}
-
-            if (z < 0.4f || z > 8.0f)
-                z = 0;
-
             points[index].x = x;
             points[index].y = y;
             points[index].z = z;
+
+            boundaries[index].x = 0;
+            boundaries[index].y = 0;
+            boundaries[index].z = 0;
+
+            if (isValid(points[index]))
+            {
+                indicesImage[index] = index;
+            }
         }
 
         __device__ void estimateNormals()
@@ -715,11 +718,6 @@ namespace cuda
                 }
             }
 
-            /*if (ix == iy)
-            {
-                printf("%d\n", nN);
-            }*/
-
             m /= (nN + 0.0f);
             outerAdd(m, C, -nN);
 
@@ -744,12 +742,11 @@ namespace cuda
             int ix = index % parameters.depthWidth;
             int iy = index / parameters.depthWidth;
 
-            //float* angles = (float*)malloc(neighbourRadius * neighbourRadius * sizeof(float));
             float angles[360] = { 0 };
             int count = 0;
 
             float3 point = points[index];
-            if (point.z <= 0.4f)
+            if (!isValid(point))
                 return;
 
             float3 normal = normals[index];
@@ -765,7 +762,7 @@ namespace cuda
                 {
                     size_t neighbourIndex = j * parameters.depthWidth + i;
                     float3 neighbourPoint = points[neighbourIndex];
-                    if (neighbourPoint.z <= 0.4f)
+                    if (!isValid(neighbourPoint))
                         continue;
 
                     float3 delta = neighbourPoint - point;
@@ -817,6 +814,11 @@ namespace cuda
             int pxX = (int)(point.x * parameters.fx / point.z + parameters.cx);
             int pxY = (int)(point.y * parameters.fy / point.z + parameters.cy);
 
+            pxX = max(0, pxX);
+            pxX = min(parameters.depthWidth - 1, pxX);
+            pxY = max(0, pxY);
+            pxY = min(parameters.depthHeight - 1, pxY);
+
             //if (index % 1024 == 0)
             //{
                 //printf("index: %d, ix: %d, iy: %d, count: %d, maxAngleIndex: %d, maxDiff: %d, pxX: %d, pxY: %d\n", index, ix, iy, count, maxAngleIndex, maxDiff, pxX, pxY);
@@ -824,19 +826,73 @@ namespace cuda
 
             if (maxDiff > parameters.boundaryAngleThreshold)
             {
-                boundaries[index] = 3;
-
                 if (pxX <= parameters.borderLeft || pxY <= parameters.borderTop || pxX >= (parameters.depthWidth - parameters.borderRight) || pxY >= (parameters.depthHeight - parameters.borderBottom))
                 {
-                    boundaries[index] = 1;
+                    boundaryIndices[index] = 1;
                     boundaryImage[pxY * parameters.depthWidth + pxX] = 1;
                 }
                 else
                 {
+                    boundaryIndices[index] = 3;
                     boundaryImage[pxY * parameters.depthWidth + pxX] = 3;
-                    boundaryIndices[pxY * parameters.depthWidth + pxX] = index;
+                    boundaryIndicesMat[pxY * parameters.depthWidth + pxX] = index;
                 }
             }
+        }
+
+        __device__ void smoothBoundaries()
+        {
+            size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+            int ix = index % parameters.depthWidth;
+            int iy = index / parameters.depthWidth;
+
+            if (boundaryImage[index] < 1)
+                return;
+
+            int pointIndex = boundaryIndicesMat[index];
+            //if (ix == iy) printf("ix: %3d, iy: %3d, index: %6d, pointType: %d %d, pointIndex: %d\n", ix, iy, index, boundaryImage[index], pointIndex);
+
+            if (pointIndex <= 0)
+                return;
+
+            float3 point = points[pointIndex];
+            if (!isValid(point))
+                return;
+
+            int radius = parameters.boundaryGaussianRadius;
+            float sigma = parameters.boundaryGaussianSigma;
+            float value = 0;
+            float sumG = 0;
+            for (int j = max(0, iy - radius); j < min(iy + radius + 1, parameters.depthHeight); j++)
+            {
+                for (int i = max(0, ix - radius); i < min(ix + radius + 1, parameters.depthWidth); i++)
+                {
+                    size_t neighbourIndex = j * parameters.depthWidth + i;
+                    float3 neighbourPoint = points[neighbourIndex];
+
+                    if (boundaryImage[neighbourIndex] <= 1)
+                        continue;
+
+                    if (!isValid(neighbourPoint))
+                        continue;
+
+                    float3 diff = point - neighbourPoint;
+                    float dist = sqrt(dot(diff, diff));
+                    if (dist < parameters.classifyDistance)
+                    {
+                        float g = 1 / (2 * M_PI * sigma * sigma) * powf(M_E, -((i - ix) * (i - ix) + (j - iy) * (j - iy)) / (2 * sigma * sigma));
+                        value += g * neighbourPoint.z;
+                        sumG += g;
+                    }
+                }
+            }
+            value /= sumG;
+            if (isnan(value))
+                return;
+
+            //if (pointIndex % 20 == 0) printf("ix: %3d, iy: %3d, index: %6d, pointType: %d %d, pointIndex: %6d, value: %f: z: %f\n", ix, iy, index, boundaryImage[index], pointIndex, value, point.z);
+
+            points[pointIndex].z = value;
         }
 
         __device__ void classifyBoundaries()
@@ -853,12 +909,12 @@ namespace cuda
             if (boundaryImage[index] <= 1)
                 return;
 
-            int pointIndex = boundaryIndices[index];
-            if (pointIndex < 0)
-                return;
+            //int pointIndex = boundaryIndicesMat[index];
+            //if (pointIndex <= 0)
+                //return;
 
-            float3 point = points[pointIndex];
-            if (point.z < 0.4f || point.z > 8.0f)
+            float3 point = points[index];
+            if (!isValid(point))
                 return;
 
             float2 original = { parameters.cx, parameters.cy };
@@ -867,26 +923,31 @@ namespace cuda
             float2 ray = normalize(original - coord);
 
             bool veil = false;
-            for (int i = 1; i < parameters.classifyRadius; i++)
+            for (int i = -parameters.classifyRadius; i < parameters.classifyRadius + 1; i++)
             {
                 float2 cursor = coord + ray * i;
                 int cursorX = floor(cursor.x);
                 int cursorY = floor(cursor.y);
 
-                for (int a = cursorY - 1; a <= cursorY + 1; a++)
+                for (int a = max(cursorY - 1, 0); a <= min(cursorY + 1, parameters.depthHeight - 1); a++)
                 {
-                    for (int b = cursorX - 1; b <= cursorX + 1; b++)
+                    for (int b = max(cursorX - 1, 0); b <= min(cursorX + 1, parameters.depthWidth - 1); b++)
                     {
                         int nPxIndex = a * parameters.depthWidth + b;
-                        int nPtIndex = static_cast<int>(boundaryIndices[nPxIndex]);
-                        if (nPtIndex < 0)
+                        //int nPtIndex = static_cast<int>(nPxIndex);
+                        if (boundaryIndices[nPxIndex] <= 0)
                             continue;
 
-                        float3 nPt = points[nPtIndex];
+                        float3 nPt = points[nPxIndex];
+                        if (!isValid(nPt))
+                            continue;
 
                         float3 diff = point - nPt;
                         float dist = sqrt(dot(diff, diff));
-                        if (dist >= parameters.classifyDistance)
+                        //if (index % 500 == 0)
+                            //printf("index: %d, ix: %d, iy: %d, dist: %f\n", index, ix, iy, dist);
+                        //if (dist >= 0.8f && point.z > nPt.z)
+                        if ((point.z - nPt.z) >= 0.1f)
                         {
                             veil = true;
                             break;
@@ -900,14 +961,12 @@ namespace cuda
             }
             if (veil)
             {
-                boundaries[pointIndex] = 2;
+                boundaryIndices[index] = 2;
                 boundaryImage[index] = 2;
             }
             
-            //if (index % 1000 == 0)
-            //{
-                //printf("index: %d, ix: %d, iy: %d, ray.x: %f, ray.y: %f, veil: %d\n", index, ix, iy, ray.x, ray.y, veil);
-            //}
+            if (index % 500 == 0)
+                printf("index: %d, ix: %d, iy: %d, ori.x: %f, ori.y: %f, ray.x: %f, ray.y: %f, veil: %d, radius: %d\n", index, ix, iy, original.x, original.y, ray.x, ray.y, veil, parameters.classifyRadius);
         }
     };
 
@@ -926,6 +985,11 @@ namespace cuda
         epc.extractBoundaries();
     }
 
+    __global__ void smoothBoudaries(ExtractPointCloud epc)
+    {
+        epc.smoothBoundaries();
+    }
+
     __global__ void classifyBoundaries(ExtractPointCloud epc)
     {
         epc.classifyBoundaries();
@@ -936,15 +1000,27 @@ namespace cuda
         dim3 grid(frame.parameters.depthWidth * frame.parameters.depthHeight / 256);
         dim3 block(256);
 
+        int size = frame.parameters.depthWidth * frame.parameters.depthHeight;
+        cudaMemset(frame.pointCloud.ptr(), 0, size * sizeof(float3));
+        cudaMemset(frame.pointCloudNormals.ptr(), 0, size * sizeof(float3));
+        cudaMemset(frame.boundaryCloud.ptr(), 0, size * sizeof(float3));
+        cudaMemset(frame.indicesImage.ptr(), 0, size * sizeof(int));
+        cudaMemset(frame.boundaries.ptr(), 0, size * sizeof(uchar));
+        cudaMemset(frame.boundaryImage.ptr(), 0, size * sizeof(uchar));
+        cudaMemset(frame.boundaryIndices.ptr(), 0, size * sizeof(int));
+        safeCall(cudaDeviceSynchronize());
+
         ExtractPointCloud epc;
         epc.parameters = frame.parameters;
         epc.points = frame.pointCloud;
         epc.normals = frame.pointCloudNormals;
+        epc.boundaries = frame.boundaryCloud;
+        epc.indicesImage = frame.indicesImage;
         epc.colorImage = frame.colorImage;
         epc.depthImage = frame.depthImage;
-        epc.boundaries = frame.boundaries;
+        epc.boundaryIndices = frame.boundaries;
         epc.boundaryImage = frame.boundaryImage;
-        epc.boundaryIndices = frame.boundaryIndices;
+        epc.boundaryIndicesMat = frame.boundaryIndices;
 
         extractPointCloud<<<grid, block>>>(epc);
         safeCall(cudaDeviceSynchronize());
@@ -954,6 +1030,9 @@ namespace cuda
 
         extractBoundaries<<<grid, block>>>(epc);
         safeCall(cudaDeviceSynchronize());
+
+        //smoothBoudaries<<<grid, block>>>(epc);
+        //safeCall(cudaDeviceSynchronize());
 
         classifyBoundaries<<<grid, block>>>(epc);
         safeCall(cudaDeviceSynchronize());

@@ -24,6 +24,8 @@ namespace cuda
         float cy;
         float fx;
         float fy;
+        float minDepth;
+        float maxDepth;
         int colorWidth;
         int colorHeight;
         int depthWidth;
@@ -33,6 +35,8 @@ namespace cuda
         float normalKernelMaxDistance;
         //int neighbourRadius;
         //float neighbourDistance;
+        float boundaryGaussianSigma;
+        int boundaryGaussianRadius;
         int boundaryEstimationRadius;
         float boundaryEstimationDistance;
         float boundaryAngleThreshold;
@@ -48,8 +52,10 @@ namespace cuda
     {
         pcl::gpu::DeviceArray2D<uchar3> colorImage;
         pcl::gpu::DeviceArray2D<ushort> depthImage;
+        pcl::gpu::DeviceArray2D<int> indicesImage;
         pcl::gpu::DeviceArray<float3> pointCloud;
         pcl::gpu::DeviceArray<float3> pointCloudNormals;
+        pcl::gpu::DeviceArray<float3> boundaryCloud;
         pcl::gpu::DeviceArray<uchar> boundaries;
         pcl::gpu::DeviceArray2D<uchar> boundaryImage;
         pcl::gpu::DeviceArray2D<int> boundaryIndices;
@@ -60,8 +66,10 @@ namespace cuda
         {
             colorImage.create(parameters.colorHeight, parameters.colorWidth);
             depthImage.create(parameters.depthHeight, parameters.depthWidth);
+            indicesImage.create(parameters.depthHeight, parameters.depthWidth);
             pointCloud.create(parameters.depthWidth * parameters.depthHeight);
             pointCloudNormals.create(parameters.depthWidth * parameters.depthHeight);
+            boundaryCloud.create(parameters.depthWidth * parameters.depthHeight);
             boundaries.create(parameters.depthWidth * parameters.depthHeight);
             boundaryImage.create(parameters.depthHeight, parameters.depthWidth);
             boundaryIndices.create(parameters.depthHeight, parameters.depthWidth);

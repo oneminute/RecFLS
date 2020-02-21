@@ -20,20 +20,20 @@ public:
 
     Eigen::Matrix4f compute(
         QList<LineChain>& chains1,
-        pcl::PointCloud<MSL>::Ptr& lines1,
+        pcl::PointCloud<Line>::Ptr& lines1,
         pcl::PointCloud<LineDescriptor2>::Ptr& desc1,
         QList<LineChain>& chains2,
-        pcl::PointCloud<MSL>::Ptr& lines2,
+        pcl::PointCloud<Line>::Ptr& lines2,
         pcl::PointCloud<LineDescriptor2>::Ptr& desc2
     );
 
     Eigen::Quaternionf stepRotation(
         float firstDiameter,
         pcl::PointCloud<MSLPoint>::Ptr firstPointCloud,
-        pcl::PointCloud<MSL>::Ptr firstLineCloud,
+        pcl::PointCloud<Line>::Ptr firstLineCloud,
         float secondDiameter,
         pcl::PointCloud<MSLPoint>::Ptr secondPointCloud,
-        pcl::PointCloud<MSL>::Ptr secondLineCloud,
+        pcl::PointCloud<Line>::Ptr secondLineCloud,
         pcl::KdTreeFLANN<MSLPoint>::Ptr tree,
         float& rotationError,
         float& translationError,
@@ -41,8 +41,8 @@ public:
     );
 
     Eigen::Vector3f stepTranslation(
-        pcl::PointCloud<MSL>::Ptr firstLineCloud,
-        pcl::PointCloud<MSL>::Ptr secondLineCloud,
+        pcl::PointCloud<Line>::Ptr firstLineCloud,
+        pcl::PointCloud<Line>::Ptr secondLineCloud,
         pcl::KdTreeFLANN<MSLPoint>::Ptr tree,
         float& translationError,
         QMap<int, int>& pairs = QMap<int, int>()
