@@ -458,7 +458,7 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
                         qDebug() << "   cluster size:" << indices.indices.size() << ", error:" << error;
 
                         LineSegment ls(start, end);
-                        if (ls.length() > m_minLineLength && error <= 50)
+                        if (ls.length() > m_minLineLength && error <= 200)
                         {
                             m_lineSegments.append(ls);
                             m_errors.append(error);
@@ -551,8 +551,8 @@ void LineExtractor::extractLinesFromPlanes(const QList<Plane>& planes)
             //mslPoint.y = closedPoint.y() / m_boundBoxDiameter;
             //mslPoint.z = closedPoint.z() / m_boundBoxDiameter;
             //m_mslPointCloud->push_back(mslPoint);
-            Eigen::Vector3f start = closedPoint - crossLine * 0.25f;
-            Eigen::Vector3f end = closedPoint + crossLine * 0.25f;
+            Eigen::Vector3f start = closedPoint - crossLine * 0.075f;
+            Eigen::Vector3f end = closedPoint + crossLine * 0.075f;
             LineSegment ls(start, end);
             m_lineSegments.append(ls);
 
@@ -578,12 +578,12 @@ void LineExtractor::extractLinesFromPlanes(const QList<Plane>& planes)
 
 void LineExtractor::segmentLines()
 {
+    m_mslCloud.reset(new pcl::PointCloud<Line>);
     if (m_lineSegments.size() > 0)
     {
         pcl::KdTreeFLANN<PointLine> lineTree;
         lineTree.setInputCloud(m_lineCloud);
 
-        m_mslCloud.reset(new pcl::PointCloud<Line>);
         QMap<int, bool> lineProcessed;
         QVector<float> lineDense(m_lineSegments.size());
         QVector<int> lineIndices(m_lineSegments.size());
@@ -619,6 +619,7 @@ void LineExtractor::segmentLines()
             lineTree.radiusSearch(m_lineCloud->points[index], radius, indices, dists);
             qDebug() << "line" << index << ", merging lines:" << indices.size();
             Eigen::Vector3f dir(Eigen::Vector3f::Zero());
+            Eigen::Vector3f point(Eigen::Vector3f::Zero());
             float sumLength = 0;
             for (int i = 0; i < indices.size(); i++)
             {
@@ -633,19 +634,20 @@ void LineExtractor::segmentLines()
                 int neighbourIndex = indices[i];
                 LineSegment ls = m_lineSegments[neighbourIndex];
                 dir += ls.direction().normalized() * ls.length() / sumLength;
+                point += ls.middle() * ls.length() / sumLength;
             }
 
             LineSegment ls = m_lineSegments[index];
             Line line;
             line.dir = dir;
-            line.point = ls.start() + dir * (ls.start().dot(dir));
+            line.point = point + dir * (point.dot(dir));
             line.weight = 1;
             m_mslCloud->push_back(line);
         }
+        m_mslCloud->width = m_mslCloud->points.size();
+        m_mslCloud->height = 1;
+        m_mslCloud->is_dense = true;
     }
-    m_mslCloud->width = m_mslCloud->points.size();
-    m_mslCloud->height = 1;
-    m_mslCloud->is_dense = true;
 }
 
 void LineExtractor::generateLineChains()

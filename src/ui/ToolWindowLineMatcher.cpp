@@ -131,13 +131,13 @@ void ToolWindowLineMatcher::initCompute()
             m_frameGpu1.parameters.colorHeight = frame1.getColorHeight();
             m_frameGpu1.parameters.depthWidth = frame1.getDepthWidth();
             m_frameGpu1.parameters.depthHeight = frame1.getDepthHeight();
-            m_frameGpu1.allocate();
+            m_frameGpu1.allocate(41);
 
             m_frameGpu2.parameters.colorWidth = frame2.getColorWidth();
             m_frameGpu2.parameters.colorHeight = frame2.getColorHeight();
             m_frameGpu2.parameters.depthWidth = frame2.getDepthWidth();
             m_frameGpu2.parameters.depthHeight = frame2.getDepthHeight();
-            m_frameGpu2.allocate();
+            m_frameGpu2.allocate(41);
             m_isInit = true;
         }
 

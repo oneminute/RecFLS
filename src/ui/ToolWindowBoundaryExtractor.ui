@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1098</width>
-    <height>919</height>
+    <height>951</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -55,13 +55,38 @@
             </widget>
            </item>
            <item row="1" column="0">
+            <widget class="QLabel" name="label_27">
+             <property name="text">
+              <string>Debug Pixels</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <layout class="QHBoxLayout" name="horizontalLayout">
+             <item>
+              <widget class="QComboBox" name="comboBoxDebugX">
+               <property name="editable">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QComboBox" name="comboBoxDebugY">
+               <property name="editable">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item row="2" column="0">
             <widget class="QLabel" name="label_6">
              <property name="text">
               <string>Show Scene Cloud</string>
              </property>
             </widget>
            </item>
-           <item row="1" column="1">
+           <item row="2" column="1">
             <widget class="QWidget" name="widget_3" native="true">
              <layout class="QVBoxLayout" name="verticalLayout_3">
               <item>
@@ -87,14 +112,14 @@
              </layout>
             </widget>
            </item>
-           <item row="2" column="0">
+           <item row="3" column="0">
             <widget class="QLabel" name="label_7">
              <property name="text">
               <string>Show Normals</string>
              </property>
             </widget>
            </item>
-           <item row="2" column="1">
+           <item row="3" column="1">
             <widget class="QCheckBox" name="checkBoxShowNormals">
              <property name="text">
               <string/>
@@ -644,6 +669,7 @@
    <addaction name="actionLoad_Data_Set"/>
    <addaction name="actionCompute"/>
    <addaction name="actionCompute_GPU"/>
+   <addaction name="actionCompute_VBRG"/>
    <addaction name="actionSave"/>
    <addaction name="actionSave_Config"/>
   </widget>
@@ -670,6 +696,11 @@
   <action name="actionCompute_GPU">
    <property name="text">
     <string>Compute GPU</string>
+   </property>
+  </action>
+  <action name="actionCompute_VBRG">
+   <property name="text">
+    <string>Compute VBRG</string>
    </property>
   </action>
  </widget>

@@ -65,12 +65,6 @@ ToolWindowLineExtractor::~ToolWindowLineExtractor()
 void ToolWindowLineExtractor::showLines()
 {
     m_cloudViewer1->visualizer()->removeAllShapes();
-    int lineNo = m_ui->comboBoxLineChains->currentIndex();
-    if (lineNo < 0)
-        return;
-    qDebug() << "showLines:" << lineNo << m_chains.size();
-    LineChain lc = m_chains[lineNo];
-
     /*for (int i = 0; i < m_chains.size(); i++)
     {
         LineChain& lc0 = m_chains[i];
@@ -93,10 +87,16 @@ void ToolWindowLineExtractor::showLines()
         Eigen::Vector3f dir = line.direction();
         middle.getVector3fMap() = line.middle();
         //m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
-        m_cloudViewer1->visualizer()->addLine(start, end, r, g, b, lineNo);
+        m_cloudViewer1->visualizer()->addLine(start, end, 255, 255, 0, lineNo);
         m_cloudViewer1->visualizer()->addText3D(std::to_string(i), middle, 0.05, 255, 0, 0, textNo);
-        m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 4, lineNo);
+        m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 6, lineNo);
     }
+
+    int lineNo = m_ui->comboBoxLineChains->currentIndex();
+    if (lineNo < 0)
+        return;
+    qDebug() << "showLines:" << lineNo << m_chains.size();
+    LineChain lc = m_chains[lineNo];
 
     for (int i = 0; i < m_mslCloud->size(); i++)
     {
@@ -108,7 +108,7 @@ void ToolWindowLineExtractor::showLines()
         QString lineName = QString("msl_%1").arg(i);
         std::string textNo = "text_" + std::to_string(i);
 
-        QColor color(0, 0, 255);
+        QColor color(0, 255, 0);
         int width = 1;
         if (i == lc.lineNo1)
         {
@@ -216,7 +216,7 @@ void ToolWindowLineExtractor::compute()
                 m_frameGpu.parameters.colorHeight = frame.getColorHeight();
                 m_frameGpu.parameters.depthWidth = frame.getDepthWidth();
                 m_frameGpu.parameters.depthHeight = frame.getDepthHeight();
-                m_frameGpu.allocate();
+                m_frameGpu.allocate(41);
                 m_init = true;
             }
 
@@ -231,15 +231,18 @@ void ToolWindowLineExtractor::compute()
         {
             m_boundaryExtractor->compute();
         }
+        m_originalCloud = m_boundaryExtractor->cloud();
         m_cloud = m_boundaryExtractor->boundaryPoints();
         m_filteredCloud = m_boundaryExtractor->filteredCloud();
         m_planes = m_boundaryExtractor->planes();
+        pcl::PointCloud<pcl::PointXYZI>::Ptr cornerPoints = m_boundaryExtractor->cornerPoints();
+        m_cloud = cornerPoints;
     }
 
     m_lines = m_lineExtractor->compute(m_cloud);
     if (m_fromDataSet)
     {
-        m_lineExtractor->extractLinesFromPlanes(m_planes);
+        //m_lineExtractor->extractLinesFromPlanes(m_planes);
         m_lineExtractor->segmentLines();
     }
     m_lineExtractor->generateLineChains();
@@ -303,24 +306,24 @@ void ToolWindowLineExtractor::compute()
     {
         pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(m_cloud, "intensity");
         m_cloudViewer1->visualizer()->addPointCloud(m_cloud, iColor, "original cloud");
-        m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "original cloud");
+        m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "original cloud");
     }
     else if (m_ui->radioButtonShowGroupedCloud->isChecked())
     {
         pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(boundaryCloud2, "intensity");
         m_cloudViewer1->visualizer()->addPointCloud(boundaryCloud2, iColor, "grouped cloud");
-        m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "grouped cloud");
+        m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "grouped cloud");
     }
     else if (m_ui->radioButtonShowLinedCloud->isChecked())
     {
         pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(linedCloud, "intensity");
         m_cloudViewer1->visualizer()->addPointCloud(linedCloud, iColor, "lined cloud");
-        m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "lined cloud");
+        m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "lined cloud");
     }
 
     {
-        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> iColor(m_filteredCloud, 127, 127, 127);
-        m_cloudViewer1->visualizer()->addPointCloud(m_filteredCloud, iColor, "filtered cloud");
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> iColor(m_originalCloud, 127, 127, 127);
+        m_cloudViewer1->visualizer()->addPointCloud(m_originalCloud, iColor, "filtered cloud");
     }
 
     if (m_ui->radioButtonShowAngleCloud->isChecked())

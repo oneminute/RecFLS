@@ -39,7 +39,7 @@ bool LineMatchCudaOdometry::beforeProcessing(Frame& frame)
         m_init = true;
 
 
-        m_frameGpu.allocate();
+        m_frameGpu.allocate(41);
         m_frameGpu.parameters.cx = frame.getDevice()->cx();
         m_frameGpu.parameters.cy = frame.getDevice()->cy();
         m_frameGpu.parameters.fx = frame.getDevice()->fx();

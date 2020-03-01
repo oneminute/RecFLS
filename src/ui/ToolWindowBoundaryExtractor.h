@@ -28,8 +28,11 @@ private slots:
     void onActionLoadDataSet();
     void onActionCompute();
     void onActionComputeGPU();
+    void onActionComputeVBRG();
     void onActionSave();
     void onActionSaveConfig();
+
+    void initDebugPixels(Frame& frame);
 
 private:
     QScopedPointer<Ui::ToolWindowBoundaryExtractor> m_ui;

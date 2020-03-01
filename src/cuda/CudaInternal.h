@@ -31,10 +31,7 @@ namespace cuda
         int depthWidth;
         int depthHeight;
         float depthShift;
-        int normalKernelHalfSize;
         float normalKernelMaxDistance;
-        //int neighbourRadius;
-        //float neighbourDistance;
         float boundaryGaussianSigma;
         int boundaryGaussianRadius;
         int boundaryEstimationRadius;
@@ -46,6 +43,9 @@ namespace cuda
         int borderRight;
         int borderTop;
         int borderBottom;
+        int neighbourRadius;
+        int debugX;
+        int debugY;
     };
 
     struct GpuFrame
@@ -55,24 +55,23 @@ namespace cuda
         pcl::gpu::DeviceArray2D<int> indicesImage;
         pcl::gpu::DeviceArray<float3> pointCloud;
         pcl::gpu::DeviceArray<float3> pointCloudNormals;
-        pcl::gpu::DeviceArray<float3> boundaryCloud;
         pcl::gpu::DeviceArray<uchar> boundaries;
         pcl::gpu::DeviceArray2D<uchar> boundaryImage;
-        pcl::gpu::DeviceArray2D<int> boundaryIndices;
+        pcl::gpu::DeviceArray<uint> neighbours;
 
         Parameters parameters;
 
-        bool allocate()
+        bool allocate(int neighbourRadius)
         {
+            parameters.neighbourRadius = neighbourRadius;
             colorImage.create(parameters.colorHeight, parameters.colorWidth);
             depthImage.create(parameters.depthHeight, parameters.depthWidth);
             indicesImage.create(parameters.depthHeight, parameters.depthWidth);
             pointCloud.create(parameters.depthWidth * parameters.depthHeight);
             pointCloudNormals.create(parameters.depthWidth * parameters.depthHeight);
-            boundaryCloud.create(parameters.depthWidth * parameters.depthHeight);
             boundaries.create(parameters.depthWidth * parameters.depthHeight);
             boundaryImage.create(parameters.depthHeight, parameters.depthWidth);
-            boundaryIndices.create(parameters.depthHeight, parameters.depthWidth);
+            neighbours.create(parameters.depthWidth * parameters.depthHeight * (neighbourRadius * neighbourRadius + 1));
             return 1;
         }
 
@@ -80,11 +79,12 @@ namespace cuda
         {
             colorImage.release();
             depthImage.release();
+            indicesImage.release();
             pointCloud.release();
             pointCloudNormals.release();
             boundaries.release();
             boundaryImage.release();
-            boundaryIndices.release();
+            neighbours.release();
         }
     };
 

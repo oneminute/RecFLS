@@ -44,6 +44,7 @@ ToolWindowBoundaryExtractor::ToolWindowBoundaryExtractor(QWidget *parent)
     connect(m_ui->actionLoad_Data_Set, &QAction::triggered, this, &ToolWindowBoundaryExtractor::onActionLoadDataSet);
     connect(m_ui->actionCompute, &QAction::triggered, this, &ToolWindowBoundaryExtractor::onActionCompute);
     connect(m_ui->actionCompute_GPU, &QAction::triggered, this, &ToolWindowBoundaryExtractor::onActionComputeGPU);
+    connect(m_ui->actionCompute_VBRG, &QAction::triggered, this, &ToolWindowBoundaryExtractor::onActionComputeVBRG);
     connect(m_ui->actionSave, &QAction::triggered, this, &ToolWindowBoundaryExtractor::onActionSave);
     connect(m_ui->actionSave_Config, &QAction::triggered, this, &ToolWindowBoundaryExtractor::onActionSaveConfig);
 
@@ -245,6 +246,7 @@ void ToolWindowBoundaryExtractor::onActionComputeGPU()
 
     int frameIndex = m_ui->comboBoxFrameIndex->currentIndex();
     Frame frame = m_device->getFrame(frameIndex);
+    initDebugPixels(frame);
     
     if (!m_init)
     {
@@ -252,7 +254,7 @@ void ToolWindowBoundaryExtractor::onActionComputeGPU()
         m_frameGpu.parameters.colorHeight = frame.getColorHeight();
         m_frameGpu.parameters.depthWidth = frame.getDepthWidth();
         m_frameGpu.parameters.depthHeight = frame.getDepthHeight();
-        m_frameGpu.allocate();
+        m_frameGpu.allocate(41);
         m_init = true;
     }
 
@@ -261,34 +263,94 @@ void ToolWindowBoundaryExtractor::onActionComputeGPU()
     colorMatGpu.upload(frame.colorMat());
     depthMatGpu.upload(frame.depthMat());
 
+    m_frameGpu.parameters.debugX = m_ui->comboBoxDebugX->currentIndex();
+    m_frameGpu.parameters.debugY = m_ui->comboBoxDebugY->currentIndex();
     m_allBoundary = m_boundaryExtractor->computeCUDA(m_frameGpu);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud = m_boundaryExtractor->cloud();
+    pcl::PointCloud<pcl::Normal>::Ptr normals = m_boundaryExtractor->normals();
     m_boundaryPoints = m_boundaryExtractor->boundaryPoints();
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_veilPoints = m_boundaryExtractor->veilPoints();
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_borderPoints = m_boundaryExtractor->borderPoints();
+    pcl::PointCloud<pcl::PointXYZI>::Ptr cornerPoints = m_boundaryExtractor->cornerPoints();
 
     qDebug() << "total points:" << cloud->size() << ", total boundary points:" << m_allBoundary->size() << ", border points:" << m_borderPoints->size() << ", veil points:" << m_veilPoints->size() << ", boundary points:" << m_boundaryPoints->size();
 
-    cv::Mat boundaryImage = m_boundaryExtractor->boundaryMat() * 80;
-    m_depthViewer2->setImage(cvMat2QImage(boundaryImage, false));
+    cv::Mat boundaryImage = m_boundaryExtractor->boundaryMat() - 3;
+    cv::Mat rgbBoundaryImage;
+    cv::applyColorMap(boundaryImage, rgbBoundaryImage, cv::COLORMAP_JET);
+    //cv::cvtColor(boundaryImage, rgbBoundaryImage, cv::COLOR_GRAY2BGR);
+    cv::Rect rect(m_frameGpu.parameters.debugX - 20, m_frameGpu.parameters.debugY - 20, 41, 41);
+    cv::rectangle(rgbBoundaryImage, rect, cv::Scalar(0, 0, 255), 2);
+    m_depthViewer2->setImage(cvMat2QImage(rgbBoundaryImage, true));
 
     if (m_boundaryPoints) {
         pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> rColor(m_boundaryPoints, 255, 0, 0);
         pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> gColor(m_veilPoints, 0, 255, 0);
         pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> bColor(m_borderPoints, 0, 0, 255);
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> yColor(cornerPoints, 255, 255, 0);
 
         m_cloudViewer->visualizer()->addPointCloud(m_boundaryPoints, rColor, "boundary points");
         m_cloudViewer->visualizer()->addPointCloud(m_veilPoints, gColor, "veil points");
         m_cloudViewer->visualizer()->addPointCloud(m_borderPoints, bColor, "border points");
+        m_cloudViewer->visualizer()->addPointCloud(cornerPoints, yColor, "corner points");
         m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "boundary points");
         m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "veil points");
         m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "border points");
+        m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "corner points");
     }
 
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> hColor(cloud, 64, 64, 64);
-    m_cloudViewer->visualizer()->addPointCloud(cloud, hColor, "scene cloud");
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr colorCloud;
+    pcl::IndicesPtr indices(new std::vector<int>);
+    colorCloud = frame.getCloud(*indices);
+    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbHandler(colorCloud);
+    m_cloudViewer->visualizer()->addPointCloud(colorCloud, rgbHandler, "scene cloud");
+
+    //pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> hColor(cloud, 64, 64, 64);
+    //m_cloudViewer->visualizer()->addPointCloud(cloud, hColor, "scene cloud");
+    m_cloudViewer->visualizer()->addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal>(colorCloud, normals, 100, 0.1f);
 
     StopWatch::instance().debugPrint();
+}
+
+void ToolWindowBoundaryExtractor::onActionComputeVBRG()
+{
+    init();
+
+    int frameIndex = m_ui->comboBoxFrameIndex->currentIndex();
+    Frame frame = m_device->getFrame(frameIndex);
+    pcl::IndicesPtr indices(new std::vector<int>);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr colorCloud;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+
+    colorCloud = frame.getCloud(*indices);
+    pcl::copyPointCloud<pcl::PointXYZRGB, pcl::PointXYZ>(*colorCloud, *cloud);
+    m_boundaryExtractor->setInputCloud(cloud);
+    pcl::PointCloud<pcl::PointXYZI>::Ptr classifiedCloud = m_boundaryExtractor->computeVBRG();
+    qDebug() << "classified cloud size:" << classifiedCloud->size();
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr voxelCloud = m_boundaryExtractor->voxelPoints();
+    pcl::PointCloud<pcl::Normal>::Ptr normals = m_boundaryExtractor->normals();
+    QMap<qulonglong, VoxelInfo> voxelInfos = m_boundaryExtractor->voxelInfos();
+
+    pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(classifiedCloud, "intensity");
+    m_cloudViewer->visualizer()->addPointCloud(classifiedCloud, iColor, "classified cloud");
+    //pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbColor(colorCloud);
+    //m_cloudViewer->visualizer()->addPointCloud(colorCloud, rgbColor, "scene cloud");
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> yColor(voxelCloud, 255, 0, 0);
+    m_cloudViewer->visualizer()->addPointCloud(voxelCloud, yColor, "voxel cloud");
+    m_cloudViewer->visualizer()->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(voxelCloud, normals, 1, 0.1f);
+    m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "voxel cloud");
+
+    for (QMap<qulonglong, VoxelInfo>::iterator i = voxelInfos.begin(); i != voxelInfos.end(); i++)
+    {
+        VoxelInfo& info = i.value();
+        Eigen::Vector3f min = info.min;
+        Eigen::Vector3f max = info.max;
+        //qDebug() << info.nodeId << min.x() << min.y() << min.z() << max.x() << max.y() << max.z();
+        QString cubeName = QString("cube_%1").arg(info.nodeId);
+        m_cloudViewer->visualizer()->addCube(min.x(), max.x(), min.y(), max.y(), min.z(), max.z(), 0.5, 0.5, 0.5, cubeName.toStdString());
+    }
+    m_cloudViewer->visualizer()->setRepresentationToWireframeForAllActors();
 }
 
 void ToolWindowBoundaryExtractor::onActionSave()
@@ -332,6 +394,26 @@ void ToolWindowBoundaryExtractor::onActionSaveConfig()
     PARAMETERS.setValue("plane_distance_threshold", m_ui->doubleSpinBoxPlaneDistanceThreshold->value(), "BoundaryExtractor");
 
     PARAMETERS.save();
+}
+
+void ToolWindowBoundaryExtractor::initDebugPixels(Frame& frame)
+{
+    int xIndex = m_ui->comboBoxDebugX->currentIndex();
+    int yIndex = m_ui->comboBoxDebugY->currentIndex();
+    if (xIndex < 0) xIndex = 300;
+    if (yIndex < 0) yIndex = 262;
+    m_ui->comboBoxDebugX->clear();
+    m_ui->comboBoxDebugY->clear();
+    for (int i = 0; i < frame.getDepthWidth(); i++)
+    {
+        m_ui->comboBoxDebugX->addItem(QString::number(i));
+    }
+    for (int i = 0; i < frame.getDepthHeight(); i++)
+    {
+        m_ui->comboBoxDebugY->addItem(QString::number(i));
+    }
+    m_ui->comboBoxDebugX->setCurrentIndex(xIndex);
+    m_ui->comboBoxDebugY->setCurrentIndex(yIndex);
 }
 
 void ToolWindowBoundaryExtractor::onActionLoadDataSet()

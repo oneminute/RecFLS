@@ -638,13 +638,12 @@ namespace cuda
         Parameters parameters;
         pcl::gpu::PtrSz<float3> points;
         pcl::gpu::PtrSz<float3> normals;
-        pcl::gpu::PtrSz<float3> boundaries;
         pcl::gpu::PtrStepSz<int> indicesImage;
         pcl::gpu::PtrStepSz<uchar3> colorImage;
         pcl::gpu::PtrStepSz<ushort> depthImage;
         pcl::gpu::PtrSz<uchar> boundaryIndices;
         pcl::gpu::PtrStepSz<uchar> boundaryImage;
-        pcl::gpu::PtrStepSz<int> boundaryIndicesMat;
+        pcl::gpu::PtrSz<uint> neighbours;
 
         __device__ bool isValid(float3 point)
         {
@@ -661,7 +660,9 @@ namespace cuda
 
             if (index == 0)
             {
-                printf("cx %f, cy %f, fx %f, fy %f, shift %f, width %d, height %d\n", parameters.cx, parameters.cy, parameters.fx, parameters.fy, parameters.depthShift, parameters.depthWidth, parameters.depthHeight);
+                printf("cx %f, cy %f, fx %f, fy %f, shift %f, width %d, height %d, boundary radius: %f, neighbourRadius: %d\n", 
+                    parameters.cx, parameters.cy, parameters.fx, parameters.fy, parameters.depthShift, parameters.depthWidth, parameters.depthHeight, 
+                    parameters.boundaryEstimationDistance, parameters.neighbourRadius);
             }
 
             int ix = index % parameters.depthWidth;
@@ -673,7 +674,7 @@ namespace cuda
             x = (ix - parameters.cx) * z / parameters.fx;
             y = (iy - parameters.cy) * z / parameters.fy;
 
-            const float qnan = std::numeric_limits<float>::quiet_NaN();
+            //const float qnan = std::numeric_limits<float>::quiet_NaN();
 
             //if (index % 1024 == 0)
             //{
@@ -683,13 +684,24 @@ namespace cuda
             points[index].y = y;
             points[index].z = z;
 
-            boundaries[index].x = 0;
-            boundaries[index].y = 0;
-            boundaries[index].z = 0;
+            //boundaries[index].x = 0;
+            //boundaries[index].y = 0;
+            //boundaries[index].z = 0;
 
             if (isValid(points[index]))
             {
                 indicesImage[index] = index;
+            }
+        }
+
+        __device__ void fillZeros(float** m, int rows, int cols)
+        {
+            for (int i = 0; i < rows; i++)
+            {
+                for (int j = 0; j < cols; j++)
+                {
+                    m[i][j] = 0;
+                }
             }
         }
 
@@ -702,38 +714,236 @@ namespace cuda
             float3 m = make_float3(0, 0, 0);
             float C_2d[3][3] = { {0,0,0},{0,0,0},{0,0,0} };
             float* C = (float*)C_2d; //rowwise
+            float3 normal;
 
-            int nN = 0;
+            uint* indices = (uint*)(neighbours + index * (parameters.neighbourRadius * parameters.neighbourRadius + 1));
+            indices[0] = 0;
 
-            for (int j = max(0, iy - parameters.normalKernelHalfSize); j < min(iy + parameters.normalKernelHalfSize + 1, parameters.depthHeight); j++) {
-                for (int i = max(0, ix - parameters.normalKernelHalfSize); i < min(ix + parameters.normalKernelHalfSize + 1, parameters.depthWidth); i++) {
+            // first iteration
+            int count = 0;
+            for (int j = max(0, iy - parameters.neighbourRadius / 2); j < min(iy + parameters.neighbourRadius / 2 + 1, parameters.depthHeight); j++) {
+                for (int i = max(0, ix - parameters.neighbourRadius / 2); i < min(ix + parameters.neighbourRadius / 2 + 1, parameters.depthWidth); i++) {
                     size_t neighbourIndex = j * parameters.depthWidth + i;
                     float3 diff3 = points[neighbourIndex] - points[index];
                     float norm = sqrt(dot(diff3, diff3));
                     if (norm < parameters.normalKernelMaxDistance) {
-                        nN++;
                         m += points[neighbourIndex];
                         outerAdd(points[neighbourIndex], C); //note: instead of pts[ind]-m, we demean afterwards
+                        count++;
+                        indices[count] = static_cast<uint>(neighbourIndex);
                     }
                 }
             }
+            indices[0] = count;
+            if (count < 3)
+                return;
 
-            m /= (nN + 0.0f);
-            outerAdd(m, C, -nN);
-
-            float fac = 1.0f / (nN - 1.0f);
+            m /= (count + 0.0f);
+            outerAdd(m, C, -count);
+            float fac = 1.0f / (count - 1.0f);
             mul(C, fac);
-            //now C is a covariance matrix
-
             float Q[3][3] = { {0,0,0},{0,0,0},{0,0,0} };
-            float w[3] = { 0,0,0 };
-
-            dsyevv3(C_2d, Q, w);
+            float w[3] = { 0, 0, 0 };
+            int result = dsyevv3(C_2d, Q, w);
 
             //the largest eigenvector is the rightmost column
-            normals[index].x = -Q[0][0];
-            normals[index].y = -Q[1][0];
-            normals[index].z = -Q[2][0];
+            normal.x = Q[0][0];
+            normal.y = Q[1][0];
+            normal.z = Q[2][0];
+            // end first iteration
+
+            normals[index].x = normal.x;
+            normals[index].y = normal.y;
+            normals[index].z = normal.z;
+
+            float stdDiv = 0;
+
+            //if (index % 1024 == 0)
+                //printf("ix: %3d, iy: %3d, count: %4d, result: %d, stdDiv: %f, %f, %f, %f\n", ix, iy, count, result, stdDiv, w[0], w[1], w[2]);
+
+            //int iteration = 1;
+            //bool candidate = false;
+            //while (count > 20 && iteration < 8)
+            ////while (false)
+            //{
+            //    for (int i = 0; i < 3; i++)
+            //    {
+            //        for (int j = 0; j < 3; j++)
+            //        {
+            //            C_2d[i][j] = 0;
+            //            Q[i][j] = 0;
+            //        }
+            //    }
+            //    float avgD = 0;
+            //    float3 center = m;
+            //    for (int i = 1; i <= count; i++)
+            //    {
+            //        float3 neighbourPoint = points[indices[i]];
+            //        float3 diff = neighbourPoint - center;
+            //        float dist = abs(dot(diff, normal));
+            //        avgD += dist;
+            //    }
+            //    avgD /= (count + 0.0f);
+            //    float sigma = 0;
+            //    for (int i = 1; i <= count; i++)
+            //    {
+            //        float3 neighbourPoint = points[indices[i]];
+            //        float3 diff = neighbourPoint - center;
+            //        float dist = abs(dot(diff, normal));
+            //        float distDiff = dist - avgD;
+            //        sigma += distDiff * distDiff;
+            //    }
+            //    sigma = sqrt(sigma / (count - 1.0f));
+
+            //    //m = make_float3(0, 0, 0);
+            //    m.x = m.y = m.z = 0.0f;
+            //    int tmpCount = 0;
+            //   //if (ix == parameters.debugX && iy == parameters.debugY)
+            //        //printf("%3d %3d, iteration: %2d, count: %4d, sigma: %f\n", ix, iy, iteration, count, sigma);
+            //    for (int i = 1; i <= count; i++)
+            //    {
+            //        float3 diff = points[indices[i]] - center;
+            //        float dist = abs(dot(diff, normal));
+            //        float distDiff = dist - avgD;
+            //        if (distDiff < sigma * 2)
+            //        {
+            //        //    //printf("count: %d, tmpCount: %d, sigma: %f, %f %f %f\n", count, tmpCount, sigma, neighbourPoint.x, neighbourPoint.y, neighbourPoint.z);
+            //            outerAdd(points[indices[i]], C);
+            //            m += points[indices[i]];
+            //            tmpCount++;
+            //            indices[tmpCount] = indices[i];
+            //        }
+            //    }
+            //    ////count = tmpCount;
+
+            //    //if (tmpCount < 20)
+            //    //{
+            //    //    candidate = false;
+            //    //    count = tmpCount;
+            //    //    break;
+            //    //}
+
+            //    //m /= (tmpCount + 0.0f);
+            //    //outerAdd(m, C, -tmpCount);
+            //    //m = center;
+            //    //float fac = 1.0f / (tmpCount - 1.0f);
+            //    //mul(C, fac);
+            //    //result = dsyevv3(C_2d, Q, w);
+            //    //stdDiv = sigma;
+            //    //normal.x = Q[0][0];
+            //    //normal.y = Q[1][0];
+            //    //normal.z = Q[2][0];
+
+            //    //if (result == -1)
+            //    //{
+            //    //    candidate = false;
+            //    //    break;
+            //    //}
+
+            //    //if (tmpCount == count)
+            //    //{
+            //    //    count = tmpCount;
+            //    //    break;
+            //    //}
+            //    //count = tmpCount;
+            //    iteration++;
+            //}
+
+            //if (candidate)
+            //{
+            //    if (abs(dot((points[index] - m), normal)) < 2 * stdDiv)
+            //    {
+            //        for (int i = 0; i < 3; i++)
+            //        {
+            //            for (int j = 0; j < 3; j++)
+            //            {
+            //                C_2d[i][j] = 0;
+            //                Q[i][j] = 0;
+            //            }
+            //        }
+            //        float avgD = 0;
+            //        float3 center = m;
+            //        for (int i = 1; i < count + 1; i++)
+            //        {
+            //            float3 neighbourPoint = points[indices[i]];
+            //            float3 diff = neighbourPoint - center;
+            //            float dist = abs(dot(diff, normal));
+            //            avgD += dist;
+            //        }
+            //        avgD /= count;
+            //        m = make_float3(0, 0, 0);
+            //        int tmpCount = count;
+            //        count = 0;
+            //        for (int j = max(0, iy - parameters.neighbourRadius / 2); j < min(iy + parameters.neighbourRadius / 2 + 1, parameters.depthHeight); j++) {
+            //            for (int i = max(0, ix - parameters.neighbourRadius / 2); i < min(ix + parameters.neighbourRadius / 2 + 1, parameters.depthWidth); i++) {
+            //                size_t neighbourIndex = j * parameters.depthWidth + i;
+            //                float3 neighbourPoint = points[neighbourIndex];
+            //                float3 diff3 = points[neighbourIndex] - points[index];
+            //                float norm = sqrt(dot(diff3, diff3));
+            //                if (norm < parameters.normalKernelMaxDistance) {
+            //                    float3 diff = neighbourPoint - center;
+            //                    float dist = abs(dot(diff, normal));
+            //                    float distDiff = dist - avgD;
+            //                    if (distDiff < stdDiv * 2)
+            //                    {
+            //                        m += neighbourPoint;
+            //                        count++;
+            //                        indices[count] = static_cast<uint>(neighbourIndex);
+            //                        outerAdd(neighbourPoint, C);
+            //                    }
+            //                }
+            //            }
+            //        }
+
+            //        if (count >= 20)
+            //        {
+            //            m /= (count + 0.0f);
+            //            outerAdd(m, C, -count);
+
+            //            float fac = 1.0f / (count - 1.0f);
+            //            mul(C, fac);
+
+            //            result = dsyevv3(C_2d, Q, w);
+            //            if (result == -1)
+            //            {
+            //                candidate = false;
+            //            }
+            //            else
+            //            {
+            //                normal.x = Q[0][0];
+            //                normal.y = Q[1][0];
+            //                normal.z = Q[2][0];
+            //            }
+
+            //            if (index % 1024 == 0)
+            //                printf("ix: %3d, iy: %3d, iteration: %2d, candidate: %d, count: %4d, stdDiv: %f, %f, %f, %f\n", ix, iy, iteration, candidate, count, stdDiv, w[0], w[1], w[2]);
+            //        }
+            //        else
+            //        {
+            //            candidate = false;
+            //        }
+
+            //        if (candidate)
+            //        {
+            //            indices[0] = count;
+            //            normals[index].x = normal.x;
+            //            normals[index].y = normal.y;
+            //            normals[index].z = normal.z;
+            //        }
+            //    }
+            //    else
+            //    {
+            //        candidate = false;
+            //    }
+            //}
+            //else
+            //{
+            //    indices[0] = 0;
+            //}
+
+            //if (index % 1024 == 0)
+                //printf("ix: %3d, iy: %3d, iteration: %2d, candidate: %d, count: %4d, stdDiv: %f, %f, %f, %f\n", ix, iy, iteration, candidate, count, stdDiv, w[0], w[1], w[2]);
+
         }
 
         __device__ void extractBoundaries()
@@ -742,7 +952,11 @@ namespace cuda
             int ix = index % parameters.depthWidth;
             int iy = index / parameters.depthWidth;
 
-            float angles[360] = { 0 };
+            uint* indices = (uint*)(neighbours + index * (parameters.neighbourRadius * parameters.neighbourRadius + 1));
+            if (indices[0] == 0)
+                return;
+
+            int angles[360] = { 0 };
             int count = 0;
 
             float3 point = points[index];
@@ -756,33 +970,53 @@ namespace cuda
 
             int maxAngleIndex = -1000;
 
-            for (int j = max(0, iy - parameters.boundaryEstimationRadius); j < min(iy + parameters.boundaryEstimationRadius + 1, parameters.depthHeight); j++) 
+            ////for (int j = max(0, iy - parameters.boundaryEstimationRadius); j < min(iy + parameters.boundaryEstimationRadius + 1, parameters.depthHeight); j++) 
+            //{
+            //    for (int i = max(0, ix - parameters.boundaryEstimationRadius); i < min(ix + parameters.boundaryEstimationRadius + 1, parameters.depthWidth); i++) 
+            //    {
+            //        size_t neighbourIndex = j * parameters.depthWidth + i;
+            //        float3 neighbourPoint = points[neighbourIndex];
+            //        if (!isValid(neighbourPoint))
+            //            continue;
+
+            //        float3 delta = neighbourPoint - point;
+            //        float distance = sqrt(dot(delta, delta));
+
+            //        float thresh = parameters.boundaryEstimationDistance;
+            //        if (neighbourPoint.z >= 1)
+            //        {
+            //            thresh *= neighbourPoint.z;
+            //        }
+            //        if (distance < thresh) 
+            //        {
+            //            float angle = atan2(dot(v, delta), dot(u, delta));
+            //            int angleIndex = (int)(angle * 180 / M_PI) + 180;
+            //            if (maxAngleIndex < angleIndex)
+            //                maxAngleIndex = angleIndex;
+            //            angles[angleIndex] += 1;
+            //            count++;
+            //        }
+            //    }
+            //}
+            for (int i = 1; i <= indices[0]; i++)
             {
-                for (int i = max(0, ix - parameters.boundaryEstimationRadius); i < min(ix + parameters.boundaryEstimationRadius + 1, parameters.depthWidth); i++) 
-                {
-                    size_t neighbourIndex = j * parameters.depthWidth + i;
-                    float3 neighbourPoint = points[neighbourIndex];
-                    if (!isValid(neighbourPoint))
-                        continue;
+                size_t neighbourIndex = indices[i];
+                float3 neighbourPoint = points[neighbourIndex];
+                if (!isValid(neighbourPoint))
+                    continue;
 
-                    float3 delta = neighbourPoint - point;
-                    float distance = sqrt(dot(delta, delta));
-
-                    if (distance < parameters.boundaryEstimationDistance) 
-                    {
-                        float angle = atan2(dot(v, delta), dot(u, delta));
-                        int angleIndex = (int)(angle * 180 / M_PI) + 180;
-                        if (maxAngleIndex < angleIndex)
-                            maxAngleIndex = angleIndex;
-                        angles[angleIndex] += 1;
-                        count++;
-                    }
-                }
+                float3 delta = neighbourPoint - point;
+                float angle = atan2(dot(v, delta), dot(u, delta));
+                int angleIndex = (int)(angle * 180 / M_PI) + 180;
+                if (maxAngleIndex < angleIndex)
+                    maxAngleIndex = angleIndex;
+                angles[angleIndex] += 1;
+                count++;
             }
 
-            float angleDiff = 0;
-            float maxDiff = 0;
-            int lastAngle = angles[0];
+            int angleDiff = 0;
+            int maxDiff = 0;
+            int lastAngle = 0;
             int firstAngle = lastAngle;
             for (int i = 1; i < 360; i++)
             {
@@ -835,7 +1069,107 @@ namespace cuda
                 {
                     boundaryIndices[index] = 3;
                     boundaryImage[pxY * parameters.depthWidth + pxX] = 3;
-                    boundaryIndicesMat[pxY * parameters.depthWidth + pxX] = index;
+                    //boundaryIndicesMat[pxY * parameters.depthWidth + pxX] = index;
+                }
+            }
+        }
+
+        __device__ void extractBoundaries2()
+        {
+            size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+            int ix = index % parameters.depthWidth;
+            int iy = index / parameters.depthWidth;
+
+            int angles[360] = { 0 };
+            int count = 0;
+
+            uint* indices = (uint*)(neighbours + index * (parameters.neighbourRadius * parameters.neighbourRadius + 1));
+            if (indices[0] == 0)
+                return;
+
+            float3 point = points[index];
+            if (!isValid(point))
+                return;
+
+            float3 normal = normals[index];
+            float3 u, v;
+            v = pcl::cuda::unitOrthogonal(normal);
+            u = cross(normal, v);
+
+            int maxAngleIndex = -1000;
+
+            for (int i = 1; i <= indices[0]; i++)
+            {
+                size_t neighbourIndex = indices[i];
+                float3 neighbourPoint = points[neighbourIndex];
+                if (!isValid(neighbourPoint))
+                    continue;
+
+                float3 delta = neighbourPoint - point;
+                float angle = atan2(dot(v, delta), dot(u, delta));
+                int angleIndex = (int)(angle * 180 / M_PI) + 180;
+                if (maxAngleIndex < angleIndex)
+                    maxAngleIndex = angleIndex;
+                angles[angleIndex] += 1;
+                count++;
+            }
+
+            int angleDiff = 0;
+            int maxDiff = 0;
+            int lastAngle = 0;
+            int firstAngle = lastAngle;
+            for (int i = 1; i < 360; i++)
+            {
+                if (angles[i] == 0)
+                    continue;
+
+                if (firstAngle == 0)
+                {
+                    firstAngle = i;
+                }
+
+                if (lastAngle == 0)
+                {
+                    lastAngle = i;
+                    continue;
+                }
+
+                angleDiff = i - lastAngle;
+                if (maxDiff < angleDiff)
+                    maxDiff = angleDiff;
+
+                lastAngle = i;
+            }
+
+            angleDiff = 360 - lastAngle + firstAngle;
+            if (maxDiff < angleDiff)
+                maxDiff = angleDiff;
+
+            int pxX = (int)(point.x * parameters.fx / point.z + parameters.cx);
+            int pxY = (int)(point.y * parameters.fy / point.z + parameters.cy);
+
+            pxX = max(0, pxX);
+            pxX = min(parameters.depthWidth - 1, pxX);
+            pxY = max(0, pxY);
+            pxY = min(parameters.depthHeight - 1, pxY);
+
+            //if (index % 1024 == 0)
+            //{
+                //printf("index: %ld, ix: %d, iy: %d, count: %d, maxAngleIndex: %d, maxDiff: %d, pxX: %d, pxY: %d\n", index, ix, iy, count, maxAngleIndex, maxDiff, pxX, pxY);
+            //}
+
+            if (maxDiff > parameters.boundaryAngleThreshold)
+            {
+                if (pxX <= parameters.borderLeft || pxY <= parameters.borderTop || pxX >= (parameters.depthWidth - parameters.borderRight) || pxY >= (parameters.depthHeight - parameters.borderBottom))
+                {
+                    boundaryIndices[index] = 1;
+                    boundaryImage[pxY * parameters.depthWidth + pxX] = 1;
+                }
+                else
+                {
+                    boundaryIndices[index] = 3;
+                    boundaryImage[pxY * parameters.depthWidth + pxX] = 3;
+                    //boundaryIndicesMat[pxY * parameters.depthWidth + pxX] = index;
                 }
             }
         }
@@ -849,7 +1183,7 @@ namespace cuda
             if (boundaryImage[index] < 1)
                 return;
 
-            int pointIndex = boundaryIndicesMat[index];
+            int pointIndex = indicesImage[index];
             //if (ix == iy) printf("ix: %3d, iy: %3d, index: %6d, pointType: %d %d, pointIndex: %d\n", ix, iy, index, boundaryImage[index], pointIndex);
 
             if (pointIndex <= 0)
@@ -918,7 +1252,7 @@ namespace cuda
                 return;
 
             float2 original = { parameters.cx, parameters.cy };
-            float2 coord = { ix, iy };
+            float2 coord = { static_cast<float>(ix), static_cast<float>(iy) };
 
             float2 ray = normalize(original - coord);
 
@@ -929,9 +1263,9 @@ namespace cuda
                 int cursorX = floor(cursor.x);
                 int cursorY = floor(cursor.y);
 
-                for (int a = max(cursorY - 1, 0); a <= min(cursorY + 1, parameters.depthHeight - 1); a++)
+                for (int a = max(cursorY - 2, 0); a <= min(cursorY + 2, parameters.depthHeight - 1); a++)
                 {
-                    for (int b = max(cursorX - 1, 0); b <= min(cursorX + 1, parameters.depthWidth - 1); b++)
+                    for (int b = max(cursorX - 2, 0); b <= min(cursorX + 2, parameters.depthWidth - 1); b++)
                     {
                         int nPxIndex = a * parameters.depthWidth + b;
                         //int nPtIndex = static_cast<int>(nPxIndex);
@@ -965,8 +1299,254 @@ namespace cuda
                 boundaryImage[index] = 2;
             }
             
-            if (index % 500 == 0)
-                printf("index: %d, ix: %d, iy: %d, ori.x: %f, ori.y: %f, ray.x: %f, ray.y: %f, veil: %d, radius: %d\n", index, ix, iy, original.x, original.y, ray.x, ray.y, veil, parameters.classifyRadius);
+            //if (index % 500 == 0)
+                //printf("index: %d, ix: %d, iy: %d, ori.x: %f, ori.y: %f, ray.x: %f, ray.y: %f, veil: %d, radius: %d\n", index, ix, iy, original.x, original.y, ray.x, ray.y, veil, parameters.classifyRadius);
+        }
+
+        __device__ void extractCornerPoints()
+        {
+            size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+            int ix = index % parameters.depthWidth;
+            int iy = index / parameters.depthWidth;
+
+            float angles[360] = { 0 };
+            float values[360] = { 0 };
+
+            uint* indices = (uint*)(neighbours + index * (parameters.neighbourRadius * parameters.neighbourRadius + 1));
+            if (indices[0] == 0)
+                return;
+
+            float3 point = points[index];
+            if (!isValid(point))
+                return;
+
+            float3 normal = normals[index];
+            float3 u, v;
+
+            u.x = u.y = u.z = 0;
+
+            int count = 0;
+            /*for (int j = max(0, iy - parameters.boundaryEstimationRadius); j < min(iy + parameters.boundaryEstimationRadius + 1, parameters.depthHeight); j++) 
+            {
+                for (int i = max(0, ix - parameters.boundaryEstimationRadius); i < min(ix + parameters.boundaryEstimationRadius + 1, parameters.depthWidth); i++) 
+                {
+                    size_t neighbourIndex = j * parameters.depthWidth + i;
+                    float3 neighbourPoint = points[neighbourIndex];
+                    float3 neighbourNormal = normals[neighbourIndex];
+                    if (!isValid(neighbourPoint))
+                        continue;
+
+                    float3 delta = neighbourPoint - point;
+                    float distance = sqrt(dot(delta, delta));
+
+                    float thresh = parameters.normalKernelMaxDistance;
+                    if (neighbourPoint.z >= 1)
+                    {
+                        thresh *= neighbourPoint.z;
+                    }
+                    if (distance < thresh)
+                    {
+                        count++;
+                        u += neighbourNormal;
+                    }
+                }
+            }*/
+            for (int i = 1; i <= indices[0]; i++)
+            {
+                size_t neighbourIndex = indices[i];
+                float3 neighbourPoint = points[neighbourIndex];
+                float3 neighbourNormal = normals[neighbourIndex];
+                if (!isValid(neighbourPoint))
+                    continue;
+
+                u += neighbourNormal;
+                count++;
+            }
+            u = normalize(u / count);
+            v = cross(cross(u, normal), normal);
+
+            float maxValue;
+            for (int i = 1; i <= indices[0]; i++)
+            {
+                size_t neighbourIndex = indices[i];
+                float3 neighbourPoint = points[neighbourIndex];
+                float3 neighbourNormal = normals[neighbourIndex];
+                if (!isValid(neighbourPoint))
+                    continue;
+
+                float angle = atan2(dot(v, neighbourNormal), dot(u, neighbourNormal));
+                int angleIndex = (int)(angle * 180 / M_PI) + 180;
+                angles[angleIndex] += 1;
+            }
+
+            float avgValue = 0;
+            count = 0;
+            // 1-dimension filter
+            float kernel[5] = { -1, -1, 5, -1, -1 };
+            for (int i = 0; i < 360; i++)
+            {
+                if (angles[i] <= 0)
+                    continue;
+
+                float value = angles[i] * angles[i];
+                /*for (int j = -2; j <= 2; j++)
+                {
+                    float weight = kernel[j + 2];
+                    int index = i + j;
+
+                    if (index < 0)
+                        index += 360;
+
+                    if (index >= 360)
+                        index -= 360;
+
+                    value += angles[index] * weight;
+                }*/
+                if (value < 0)
+                    value = 0;
+                values[i] = value;
+                avgValue += values[i];
+                count++;
+            }
+            avgValue /= count;
+
+            int peaks = 0;
+            int clusterPeaks = 0;
+            float sigma = 0;
+            int start = -1, end = -1;
+            if (count == 1)
+            { 
+                maxValue = avgValue;
+                for (int i = 0; i < 360; i++)
+                {
+                    if (values[i] > 0)
+                    {
+                        values[i] = values[i] / maxValue;
+                        start = end = i;
+                        break;
+                    }
+                }
+                peaks = 1;
+            }
+            else
+            {
+                count = 0;
+                for (int i = 0; i < 360; i++)
+                {
+                    if (values[i] > 0)
+                    {
+                        float value = values[i];// -avgValue;
+                        if (value < 0)
+                        {
+                            value = 0;
+                        }
+                        else
+                        {
+                            count++;
+                        }
+                        if (maxValue < value)
+                        {
+                            maxValue = value;
+                        }
+                        values[i] = value;
+                    }
+                }
+
+                avgValue = 0;
+                for (int i = 0; i < 360; i++)
+                {
+                    values[i] = values[i] / maxValue;
+                    avgValue += values[i];
+
+                    if (values[i] > 0)
+                    {
+                        if (start == -1)
+                        {
+                            start = i;
+                        }
+                        end = i;
+                    }
+                }
+                avgValue /= count;
+
+                count = 0;
+                for (int i = 0; i < 360; i++)
+                {
+                    if (values[i] <= 0)
+                        continue;
+
+                    float diff = abs(values[i] - avgValue);
+                    sigma += diff * diff;
+                    count += 1;
+                }
+                sigma = sqrt(sigma / count);
+
+                float avgPeak = 0;
+                for (int i = 0; i < 360; i++)
+                {
+                    float diff = abs(values[i] - avgValue);
+                    angles[i] = -1;
+                    if (diff > sigma * 0.5f && values[i] > avgValue)
+                    //if (values[i] > avgValue)
+                    {
+                        angles[peaks] = i;
+                        if (ix == parameters.debugX && iy == parameters.debugY)
+                            printf("  %f %f %f %f\n", angles[i], values[i], diff, avgValue);
+                        peaks++;
+                    }
+                }
+
+                if (peaks > 0)
+                    clusterPeaks = 1;
+                for (int i = 0; i < peaks - 1; i++)
+                {
+                    int index = static_cast<int>(angles[i]);
+                    int nextIndex = static_cast<int>(angles[i + 1]);
+                    if (ix == parameters.debugX && iy == parameters.debugY)
+                        printf("  %d %d %d %d\n", i, index, nextIndex, clusterPeaks);
+                    if (nextIndex - index > 5)
+                    {
+                        clusterPeaks++;
+                    }
+                }
+            }
+
+            if (ix == parameters.debugX && iy == parameters.debugY)
+            {
+                int peakCount = 0;
+                for (int i = start; i <= end; i++)
+                {
+                    bool isPeak = false;
+                    if (i == angles[peakCount])
+                    {
+                        isPeak = true;
+                        peakCount++;
+                    }
+                    printf("    %4d: %2.6f %d ", i, values[i], isPeak);
+                    int pluses = ceil(values[i] / 0.05f);
+                    for (int j = 0; j < pluses; j++)
+                    {
+                        printf("+");
+                    }
+                    printf("\n");
+                }
+                printf("ix: %4ld, iy: %4ld, count: %2d, sigma: %3.6f, peaks: %2d, cluster peaks: %2d, avgValue: %f, maxValue: %f\n", 
+                    ix, iy, count, sigma, peaks, clusterPeaks, avgValue, maxValue);
+            }
+
+            if (count > 1 && clusterPeaks >= 2 && clusterPeaks <=2)
+            {
+                
+                //printf("ix: %4ld, iy: %4ld, count: %2d, sigma: %3.6f, peaks: %2d, avgValue: %f, maxValue: %f\n", 
+                    //ix, iy, count, sigma, peaks, avgValue, maxValue);
+                //printf("ix: %3d, iy: %3d, count: %4d, sigma: %f, peaks: %2d, avgValue: %f, maxValue: %f\n", ix, iy, count, sigma, peaks, avgValue, maxValue);
+                //printf("ix: %3d, iy: %3d, count: %4d, maxDiff: %4d, first angle: %3d, last angle: %3d\n", ix, iy, count, maxDiff, firstAngle, lastAngle);
+                if (!(ix <= parameters.borderLeft || iy <= parameters.borderTop || ix >= (parameters.depthWidth - parameters.borderRight) || iy >= (parameters.depthHeight - parameters.borderBottom)))
+                {
+                    boundaryIndices[index] = 4;
+                    boundaryImage[index] = 3 + clusterPeaks * 20;
+                }
+            }
         }
     };
 
@@ -995,6 +1575,11 @@ namespace cuda
         epc.classifyBoundaries();
     }
 
+    __global__ void extractCornerPoints(ExtractPointCloud epc)
+    {
+        epc.extractCornerPoints();
+    }
+
     void generatePointCloud(GpuFrame& frame)
     {
         dim3 grid(frame.parameters.depthWidth * frame.parameters.depthHeight / 256);
@@ -1003,24 +1588,21 @@ namespace cuda
         int size = frame.parameters.depthWidth * frame.parameters.depthHeight;
         cudaMemset(frame.pointCloud.ptr(), 0, size * sizeof(float3));
         cudaMemset(frame.pointCloudNormals.ptr(), 0, size * sizeof(float3));
-        cudaMemset(frame.boundaryCloud.ptr(), 0, size * sizeof(float3));
         cudaMemset(frame.indicesImage.ptr(), 0, size * sizeof(int));
         cudaMemset(frame.boundaries.ptr(), 0, size * sizeof(uchar));
         cudaMemset(frame.boundaryImage.ptr(), 0, size * sizeof(uchar));
-        cudaMemset(frame.boundaryIndices.ptr(), 0, size * sizeof(int));
         safeCall(cudaDeviceSynchronize());
 
         ExtractPointCloud epc;
         epc.parameters = frame.parameters;
         epc.points = frame.pointCloud;
         epc.normals = frame.pointCloudNormals;
-        epc.boundaries = frame.boundaryCloud;
         epc.indicesImage = frame.indicesImage;
         epc.colorImage = frame.colorImage;
         epc.depthImage = frame.depthImage;
         epc.boundaryIndices = frame.boundaries;
         epc.boundaryImage = frame.boundaryImage;
-        epc.boundaryIndicesMat = frame.boundaryIndices;
+        epc.neighbours = frame.neighbours;
 
         extractPointCloud<<<grid, block>>>(epc);
         safeCall(cudaDeviceSynchronize());
@@ -1035,6 +1617,9 @@ namespace cuda
         //safeCall(cudaDeviceSynchronize());
 
         classifyBoundaries<<<grid, block>>>(epc);
+        safeCall(cudaDeviceSynchronize());
+
+        extractCornerPoints<<<grid, block>>>(epc);
         safeCall(cudaDeviceSynchronize());
     }
 }
