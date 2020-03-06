@@ -44,3 +44,5 @@ __global__ void cov(const float* pts, float* C, const int n){
 	const float3 *pts1= (float3*) pts;
     d_cov(pts1,C,n);
 }
+
+

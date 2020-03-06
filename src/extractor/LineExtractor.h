@@ -164,6 +164,7 @@ public:
 
     void generateDescriptors();
     void generateDescriptors2();
+    void generateDescriptors3();
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryCloud() const
     {

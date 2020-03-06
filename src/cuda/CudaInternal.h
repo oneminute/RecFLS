@@ -54,6 +54,7 @@ namespace cuda
         pcl::gpu::DeviceArray2D<ushort> depthImage;
         pcl::gpu::DeviceArray2D<int> indicesImage;
         pcl::gpu::DeviceArray<float3> pointCloud;
+        pcl::gpu::DeviceArray<float3> pointCloudCache;
         pcl::gpu::DeviceArray<float3> pointCloudNormals;
         pcl::gpu::DeviceArray<uchar> boundaries;
         pcl::gpu::DeviceArray2D<uchar> boundaryImage;
@@ -68,10 +69,11 @@ namespace cuda
             depthImage.create(parameters.depthHeight, parameters.depthWidth);
             indicesImage.create(parameters.depthHeight, parameters.depthWidth);
             pointCloud.create(parameters.depthWidth * parameters.depthHeight);
+            pointCloudCache.create(parameters.depthWidth * parameters.depthHeight);
             pointCloudNormals.create(parameters.depthWidth * parameters.depthHeight);
             boundaries.create(parameters.depthWidth * parameters.depthHeight);
             boundaryImage.create(parameters.depthHeight, parameters.depthWidth);
-            neighbours.create(parameters.depthWidth * parameters.depthHeight * (neighbourRadius * neighbourRadius + 1));
+            //neighbours.create(parameters.depthWidth * parameters.depthHeight * (neighbourRadius * neighbourRadius + 1));
             return 1;
         }
 
@@ -81,10 +83,11 @@ namespace cuda
             depthImage.release();
             indicesImage.release();
             pointCloud.release();
+            pointCloudCache.release();
             pointCloudNormals.release();
             boundaries.release();
             boundaryImage.release();
-            neighbours.release();
+            //neighbours.release();
         }
     };
 

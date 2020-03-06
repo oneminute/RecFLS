@@ -69,8 +69,6 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
     m_boundBoxDiameter = (m_maxPoint - m_minPoint).norm();
     qDebug() << "bound box diameter:" << m_boundBoxDiameter << minPoint.x() << minPoint.y() << minPoint.z() << maxPoint.x() << maxPoint.y() << maxPoint.z() << (m_maxPoint - m_minPoint).norm();
 
-    pcl::search::KdTree<pcl::PointXYZI> tree;
-    tree.setInputCloud(boundaryCloud);
 
     // globalDir用于统一所有的直线方向
     Eigen::Vector3f globalDir(1, 1, 1);
@@ -78,6 +76,55 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
     Eigen::Vector3f xAxis(1, 0, 0);
     Eigen::Vector3f yAxis(0, 1, 0);
     Eigen::Vector3f zAxis(0, 0, 1);
+
+    // 计算每一个边界点的PCA主方向，
+    pcl::PointCloud<pcl::PointXYZI>::Ptr tmpCloud(new pcl::PointCloud<pcl::PointXYZI>);
+    pcl::copyPointCloud(*boundaryCloud, *tmpCloud);
+    pcl::search::KdTree<pcl::PointXYZI> tree;
+    tree.setInputCloud(tmpCloud);
+
+    for (int i = 0; i < tmpCloud->size(); i++)
+    {
+        pcl::PointXYZI ptIn = tmpCloud->points[i];
+        Eigen::Vector3f point = ptIn.getVector3fMap();
+
+        // 查找近邻
+        std::vector<int> neighbourIndices;
+        std::vector<float> neighbourDistances;
+        tree.radiusSearch(ptIn, m_searchRadius, neighbourIndices, neighbourDistances);
+
+        // 近邻点太少表示这是一个离群点，且小于3也无法进行PCA计算
+        if (neighbourIndices.size() < m_minNeighbours)
+        {
+            continue;
+        }
+
+        // PCA计算当前点的主方向
+        pcl::PCA<pcl::PointXYZI> pca;
+        pca.setInputCloud(tmpCloud);
+        pca.setIndices(pcl::IndicesPtr(new std::vector<int>(neighbourIndices)));
+        Eigen::Vector3f eigenValues = pca.getEigenValues();
+        Eigen::Vector3f::Index maxIndex;
+        eigenValues.maxCoeff(&maxIndex);
+
+        // 主方向
+        Eigen::Vector3f primeDir = pca.getEigenVectors().col(maxIndex).normalized();
+        // 中点
+        Eigen::Vector3f meanPoint = pca.getMean().head(3);
+
+        Eigen::Vector3f tmpPoint = closedPointOnLine(point, primeDir, meanPoint);
+
+        //if (sqrt(eigenValues[0]) / sqrt(eigenValues[1]) < 4.f)
+        //{
+            //qDebug() << i;
+            //continue;
+        //}
+
+        // 平移点到pca主方向与中点确定的直线上
+        boundaryCloud->points[i].getVector3fMap() = tmpPoint;
+    }
+
+    tree.setInputCloud(boundaryCloud);
 
     // 计算每一个边界点的PCA主方向，
     int index = 0;
@@ -110,24 +157,35 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
         // 中点
         Eigen::Vector3f meanPoint = pca.getMean().head(3);
 
-        // 计算误差
-        float error = 0;
-        for (int j = 0; j < neighbourIndices.size(); j++)
-        {
-            int neighbourIndex = neighbourIndices[j];
-            pcl::PointXYZI ptNeighbour = boundaryCloud->points[neighbourIndex];
-            // 求垂直距离
-            float vertDist = primeDir.cross(ptNeighbour.getVector3fMap() - meanPoint).norm();
-            error += vertDist;
-        }
-        error /= neighbourIndices.size();
+        Eigen::Vector3f tmpPoint = closedPointOnLine(point, primeDir, meanPoint);
 
-        //qDebug() << i << "error =" << error << (error < m_searchErrorThreshold);
-        // 如果误差值太大，则跳过
-        if (error >= m_searchErrorThreshold)
+        //// 计算误差
+        //float error = 0;
+        //for (int j = 0; j < neighbourIndices.size(); j++)
+        //{
+        //    int neighbourIndex = neighbourIndices[j];
+        //    pcl::PointXYZI ptNeighbour = boundaryCloud->points[neighbourIndex];
+        //    // 求垂直距离
+        //    float vertDist = primeDir.cross(ptNeighbour.getVector3fMap() - meanPoint).norm();
+        //    error += vertDist;
+        //}
+        //error /= neighbourIndices.size();
+
+        ////qDebug() << i << "error =" << error << (error < m_searchErrorThreshold);
+        //// 如果误差值太大，则跳过
+        //if (error >= m_searchErrorThreshold)
+        //{
+        //    continue;
+        //}
+        if (sqrt(eigenValues[0]) / sqrt(eigenValues[1]) < 4.f)
         {
+            //qDebug() << i;
             continue;
         }
+
+        // 平移点到pca主方向与中点确定的直线上
+        //ptIn.getVector3fMap() = tmpPoint;
+        //ptIn.z = tmpPoint.z();
 
         // 保证与全局方向同向
         if (primeDir.dot(globalDir) < 0)
@@ -350,12 +408,13 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
                             Eigen::Vector3f seedPoint = ptSeed.getVector3fMap();
                             Eigen::Vector3f candidatePoint = ptCandidate.getVector3fMap();
 
-                            Eigen::Vector3f dir = m_dirCloud->points[index].getVector3fMap();
+                            Eigen::Vector3f dir = m_dirCloud->points[m_angleCloud->points[index].intensity].getVector3fMap();
                             float distToZ = (candidatePoint - seedPoint).cross(dir).norm();
                             if (distToZ < m_regionGrowingZDistanceThreshold)
                             {
                                 return true;
                             }
+                            //return true;
                         }
                         return false;
                     }
@@ -455,10 +514,11 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
                             error += qPow(errors[i] - avgError, 2);
                         }
                         error /= errors.size();
-                        qDebug() << "   cluster size:" << indices.indices.size() << ", error:" << error;
-
                         LineSegment ls(start, end);
-                        if (ls.length() > m_minLineLength && error <= 200)
+
+                        qDebug() << "    cluster size:" << indices.indices.size() << ", error:" << error << ", length:" << ls.length();
+
+                        if (ls.length() > m_minLineLength/* && error <= 200*/)
                         {
                             m_lineSegments.append(ls);
                             m_errors.append(error);
@@ -783,7 +843,7 @@ bool LineExtractor::generateLineChain(LineChain& lc)
     lc.point2 = cross2;
     lc.point = (cross1 + cross2) / 2;
     lc.length = (lc.point1 - lc.point2).norm();
-    if (lc.length >= 0.1f)
+    if (lc.length >= 0.8f)
     {
         return false;
     };
@@ -903,5 +963,9 @@ void LineExtractor::generateDescriptors2()
     m_descriptors2->width = m_descriptors2->points.size();
     m_descriptors2->height = 1;
     m_descriptors2->is_dense = true;
+}
+
+void LineExtractor::generateDescriptors3()
+{
 }
 

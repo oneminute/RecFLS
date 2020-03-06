@@ -45,4 +45,5 @@ inline __host__ __device__ void mul(float *m, const float fac = 1.0f) {  //m col
   m[8] *= fac;
 }
 
+
 #endif // CUTIL_MATH2_H

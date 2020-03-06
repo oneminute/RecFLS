@@ -236,7 +236,7 @@ void ToolWindowLineExtractor::compute()
         m_filteredCloud = m_boundaryExtractor->filteredCloud();
         m_planes = m_boundaryExtractor->planes();
         pcl::PointCloud<pcl::PointXYZI>::Ptr cornerPoints = m_boundaryExtractor->cornerPoints();
-        m_cloud = cornerPoints;
+        *m_cloud += *cornerPoints;
     }
 
     m_lines = m_lineExtractor->compute(m_cloud);

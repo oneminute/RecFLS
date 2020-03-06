@@ -182,10 +182,10 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::computeCUDA(cuda::GpuFra
             normal.normal_y = normals[index].y;
             normal.normal_z = normals[index].z;
 
-            if (index % 1024 == 0)
-            {
+            //if (index % 1024 == 0)
+            //{
                 //qDebug() << value.x << value.y << value.z;
-            }
+            //}
 
             if (pt.z > 0.4f && pt.z <= 8.0f) {
                 m_cloud->push_back(pt);
@@ -236,18 +236,18 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::computeCUDA(cuda::GpuFra
         << ", veil points:" << m_veilPoints->size() << ", border points:" << m_borderPoints->size() << ", corner points:" << m_cornerPoints->size();
     TOCK("boundaries_downloading");
 
-    // 下采样
-    m_downsampledCloud = downSampling(m_cloud);
+    //// 下采样
+    //m_downsampledCloud = downSampling(m_cloud);
 
-    // 去除离群点
-    m_removalCloud = outlierRemoval(m_downsampledCloud);
+    //// 去除离群点
+    //m_removalCloud = outlierRemoval(m_downsampledCloud);
 
-    // 高斯滤波
-    m_filteredCloud = gaussianFilter(m_removalCloud);
+    //// 高斯滤波
+    //m_filteredCloud = gaussianFilter(m_removalCloud);
 
-    // 抽取平面
-    extractPlanes();
-    
+    //// 抽取平面
+    //extractPlanes();
+    //
     return m_allBoundary;
 }
 

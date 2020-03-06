@@ -275,10 +275,11 @@ void ToolWindowBoundaryExtractor::onActionComputeGPU()
 
     qDebug() << "total points:" << cloud->size() << ", total boundary points:" << m_allBoundary->size() << ", border points:" << m_borderPoints->size() << ", veil points:" << m_veilPoints->size() << ", boundary points:" << m_boundaryPoints->size();
 
-    cv::Mat boundaryImage = m_boundaryExtractor->boundaryMat() - 3;
+    //cv::Mat boundaryImage = (m_boundaryExtractor->boundaryMat() - 3) * 255;
+    cv::Mat boundaryImage = m_boundaryExtractor->boundaryMat() * 60;
     cv::Mat rgbBoundaryImage;
-    cv::applyColorMap(boundaryImage, rgbBoundaryImage, cv::COLORMAP_JET);
-    //cv::cvtColor(boundaryImage, rgbBoundaryImage, cv::COLOR_GRAY2BGR);
+    //cv::applyColorMap(boundaryImage, rgbBoundaryImage, cv::COLORMAP_JET);
+    cv::cvtColor(boundaryImage, rgbBoundaryImage, cv::COLOR_GRAY2BGR);
     cv::Rect rect(m_frameGpu.parameters.debugX - 20, m_frameGpu.parameters.debugY - 20, 41, 41);
     cv::rectangle(rgbBoundaryImage, rect, cv::Scalar(0, 0, 255), 2);
     m_depthViewer2->setImage(cvMat2QImage(rgbBoundaryImage, true));
