@@ -185,6 +185,7 @@ void ToolWindowLineExtractor::init()
 void ToolWindowLineExtractor::compute()
 {
     init();
+    cv::Mat board;
     if (m_fromDataSet)
     {
         int frameIndex = m_ui->comboBoxFrameIndex->currentIndex();
@@ -194,7 +195,8 @@ void ToolWindowLineExtractor::compute()
         pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryPoints;
         m_cloud.reset(new pcl::PointCloud<pcl::PointXYZI>);
 
-        m_ui->widgetRGBFrame->setImage(cvMat2QImage(frame.colorMat(), true));
+        //m_ui->widgetRGBFrame->setImage(cvMat2QImage(frame.colorMat(), true));
+        board = frame.colorMat();
 
         m_colorCloud = frame.getCloud(*indices);
         pcl::copyPointCloud<pcl::PointXYZRGB, pcl::PointXYZ>(*m_colorCloud, *m_dataCloud);
@@ -237,6 +239,14 @@ void ToolWindowLineExtractor::compute()
         m_planes = m_boundaryExtractor->planes();
         pcl::PointCloud<pcl::PointXYZI>::Ptr cornerPoints = m_boundaryExtractor->cornerPoints();
         *m_cloud += *cornerPoints;
+
+        //m_ui->widgetRGBFrame->setImage(cvMat2QImage(m_boundaryExtractor->pointsMat(), false));
+        m_lineExtractor->setMatWidth(frame.getDepthWidth());
+        m_lineExtractor->setMatHeight(frame.getDepthHeight());
+        m_lineExtractor->setCx(frame.getDevice()->cx());
+        m_lineExtractor->setCy(frame.getDevice()->cy());
+        m_lineExtractor->setFx(frame.getDevice()->fx());
+        m_lineExtractor->setFy(frame.getDevice()->fy());
     }
 
     m_lines = m_lineExtractor->compute(m_cloud);
@@ -247,7 +257,10 @@ void ToolWindowLineExtractor::compute()
     }
     m_lineExtractor->generateLineChains();
     //m_lineExtractor->generateDescriptors();
-    m_lineExtractor->generateDescriptors2();
+    //m_lineExtractor->generateDescriptors2();
+    m_lineExtractor->setBoard(board);
+    m_lineExtractor->generateDescriptors3(m_boundaryExtractor->cloud(), m_boundaryExtractor->normals(), m_boundaryExtractor->pointsMat());
+    m_ui->widgetRGBFrame->setImage(cvMat2QImage(m_lineExtractor->board(), true));
 
     m_chains = m_lineExtractor->chains();
     pcl::PointCloud<pcl::PointXYZI>::Ptr angleCloud = m_lineExtractor->angleCloud();
@@ -265,7 +278,7 @@ void ToolWindowLineExtractor::compute()
     m_cloudViewer2->visualizer()->removeAllPointClouds();
     m_cloudViewer2->visualizer()->removeAllShapes();
     m_cloudViewer3->visualizer()->removeAllPointClouds();
-    m_cloudViewer3->visualizer()->removeAllShapes();
+    m_cloudViewer3->visualizer()->removeAllShapes(); 
 
     m_ui->comboBoxLineChains->clear();
     for (int i = 0; i < m_chains.size(); i++)

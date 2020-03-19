@@ -154,6 +154,10 @@ void ToolWindowLineMatcher::initCompute()
     
     pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryPoints1;
     pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryPoints2;
+    cv::Mat pointsMat1;
+    cv::Mat pointsMat2;
+    pcl::PointCloud<pcl::Normal>::Ptr normals1;
+    pcl::PointCloud<pcl::Normal>::Ptr normals2;
     {
         m_boundaryExtractor->setInputCloud(m_cloud1);
         m_boundaryExtractor->setMatWidth(frame1.getDepthWidth());
@@ -173,7 +177,11 @@ void ToolWindowLineMatcher::initCompute()
         }
         boundaryPoints1 = m_boundaryExtractor->boundaryPoints();
         m_filteredCloud1 = m_boundaryExtractor->filteredCloud();
-        m_planes1 = m_boundaryExtractor->planes();
+        //m_planes1 = m_boundaryExtractor->planes();
+        pointsMat1 = m_boundaryExtractor->pointsMat();
+        normals1 = m_boundaryExtractor->normals();
+        pcl::PointCloud<pcl::PointXYZI>::Ptr cornerPoints1 = m_boundaryExtractor->cornerPoints();
+        *boundaryPoints1 += *cornerPoints1;
 
         m_boundaryExtractor->setInputCloud(m_cloud2);
         m_boundaryExtractor->setMatWidth(frame2.getDepthWidth());
@@ -193,7 +201,11 @@ void ToolWindowLineMatcher::initCompute()
         }
         boundaryPoints2 = m_boundaryExtractor->boundaryPoints();
         m_filteredCloud2 = m_boundaryExtractor->filteredCloud();
-        m_planes2 = m_boundaryExtractor->planes();
+        //m_planes2 = m_boundaryExtractor->planes();
+        pointsMat2 = m_boundaryExtractor->pointsMat();
+        normals2 = m_boundaryExtractor->normals();
+        pcl::PointCloud<pcl::PointXYZI>::Ptr cornerPoints2 = m_boundaryExtractor->cornerPoints();
+        *boundaryPoints2 += *cornerPoints2;
     }
 
     QList<LineSegment> lines1;
@@ -201,28 +213,38 @@ void ToolWindowLineMatcher::initCompute()
     Eigen::Vector3f center1;
     Eigen::Vector3f center2;
     {
+        m_lineExtractor->setMatWidth(frame1.getDepthWidth());
+        m_lineExtractor->setMatHeight(frame1.getDepthHeight());
+        m_lineExtractor->setCx(frame1.getDevice()->cx());
+        m_lineExtractor->setCy(frame1.getDevice()->cy());
+        m_lineExtractor->setFx(frame1.getDevice()->fx());
+        m_lineExtractor->setFy(frame1.getDevice()->fy());
+
         lines1 = m_lineExtractor->compute(boundaryPoints1);
-        m_lineExtractor->extractLinesFromPlanes(m_planes1);
+        //m_lineExtractor->extractLinesFromPlanes(m_planes1);
         m_lineExtractor->segmentLines();
         m_lineExtractor->generateLineChains();
-        m_lineExtractor->generateDescriptors2();
+        //m_lineExtractor->generateDescriptors2();
+        qDebug() << pointsMat1.type();
+        m_lineExtractor->generateDescriptors3(m_cloud1, normals1, pointsMat1);
         m_mslCloud1 = m_lineExtractor->mslCloud();
         //m_mslPointCloud1 = m_lineExtractor->mslPointCloud();
         m_diameter1 = m_lineExtractor->boundBoxDiameter();
         m_chains1 = m_lineExtractor->chains();
-        m_desc1 = m_lineExtractor->descriptors2();
+        m_desc1 = m_lineExtractor->descriptors3();
         center1 = m_lineExtractor->lcLocalMiddle();
 
         lines2 = m_lineExtractor->compute(boundaryPoints2);
-        m_lineExtractor->extractLinesFromPlanes(m_planes2);
+        //m_lineExtractor->extractLinesFromPlanes(m_planes2);
         m_lineExtractor->segmentLines();
         m_lineExtractor->generateLineChains();
-        m_lineExtractor->generateDescriptors2();
+        //m_lineExtractor->generateDescriptors2();
+        m_lineExtractor->generateDescriptors3(m_cloud2, normals2, pointsMat2);
         m_mslCloud2 = m_lineExtractor->mslCloud();
         //m_mslPointCloud2 = m_lineExtractor->mslPointCloud();
         m_diameter2 = m_lineExtractor->boundBoxDiameter();
         m_chains2 = m_lineExtractor->chains();
-        m_desc2 = m_lineExtractor->descriptors2();
+        m_desc2 = m_lineExtractor->descriptors3();
         center2 = m_lineExtractor->lcLocalMiddle();
     }
 

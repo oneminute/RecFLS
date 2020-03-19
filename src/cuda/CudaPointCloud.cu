@@ -641,13 +641,13 @@ namespace cuda
     struct ExtractPointCloud
     {
         Parameters parameters;
-        pcl::gpu::PtrSz<float3> points;
-        pcl::gpu::PtrSz<float3> pointsCache;
-        pcl::gpu::PtrSz<float3> normals;
+        pcl::gpu::PtrSz<float3> pointCloud;
+        pcl::gpu::PtrSz<float3> pointCloudCache;
+        pcl::gpu::PtrSz<float3> pointCloudNormals;
         pcl::gpu::PtrStepSz<int> indicesImage;
         pcl::gpu::PtrStepSz<uchar3> colorImage;
         pcl::gpu::PtrStepSz<ushort> depthImage;
-        pcl::gpu::PtrSz<uchar> boundaryIndices;
+        pcl::gpu::PtrSz<uchar> boundaries;
         pcl::gpu::PtrStepSz<uchar> boundaryImage;
         pcl::gpu::PtrSz<uint> neighbours;
 
@@ -686,15 +686,11 @@ namespace cuda
             //{
                 //printf("index: %d, ix: %d, iy: %d, x: %f, y: %f, z: %f, depth: %d\n", index, ix, iy, x, y, z, depthImage[index]);
             //}
-            points[index].x = x;
-            points[index].y = y;
-            points[index].z = z;
+            pointCloud[index].x = x;
+            pointCloud[index].y = y;
+            pointCloud[index].z = z;
 
-            //boundaries[index].x = 0;
-            //boundaries[index].y = 0;
-            //boundaries[index].z = 0;
-
-            if (isValid(points[index]))
+            if (isValid(pointCloud[index]))
             {
                 indicesImage[index] = index;
             }
@@ -709,7 +705,7 @@ namespace cuda
             float x = 0, y = 0, z = 0;
             int count = 0;
 
-            float3 point = points[index];
+            float3 point = pointCloud[index];
             if (isValid(point))
                 return;
 
@@ -722,7 +718,7 @@ namespace cuda
             for (int i = 1; i <= indices[0]; i++)
             {
                 size_t neighbourIndex = indices[i];
-                float3 neighbourPoint = points[neighbourIndex];
+                float3 neighbourPoint = pointCloud[neighbourIndex];
                 if (!isValid(neighbourPoint))
                     continue;
 
@@ -740,11 +736,11 @@ namespace cuda
             //{
                 //printf("index: %d, ix: %d, iy: %d, x: %f, y: %f, z: %f, depth: %d\n", index, ix, iy, x, y, z, depthImage[index]);
             //}
-            points[index].x = x;
-            points[index].y = y;
-            points[index].z = z;
+            pointCloud[index].x = x;
+            pointCloud[index].y = y;
+            pointCloud[index].z = z;
 
-            if (isValid(points[index]))
+            if (isValid(pointCloud[index]))
             {
                 indicesImage[index] = index;
             }
@@ -762,7 +758,7 @@ namespace cuda
             float3 normal;
             int count = 0;
 
-            float3 point = points[index];
+            float3 point = pointCloud[index];
             if (!isValid(point))
                 return;
 
@@ -774,11 +770,11 @@ namespace cuda
             for (int j = max(0, iy - parameters.neighbourRadius / 2); j < min(iy + parameters.neighbourRadius / 2 + 1, parameters.depthHeight); j++) {
                 for (int i = max(0, ix - parameters.neighbourRadius / 2); i < min(ix + parameters.neighbourRadius / 2 + 1, parameters.depthWidth); i++) {
                     size_t neighbourIndex = j * parameters.depthWidth + i;
-                    float3 diff3 = points[neighbourIndex] - points[index];
+                    float3 diff3 = pointCloud[neighbourIndex] - pointCloud[index];
                     float norm = dot(diff3, diff3);
                     if (norm < maxDistance) {
-                        center += points[neighbourIndex];
-                        outerAdd(points[neighbourIndex], C); //note: instead of pts[ind]-center, we demean afterwards
+                        center += pointCloud[neighbourIndex];
+                        outerAdd(pointCloud[neighbourIndex], C); //note: instead of pts[ind]-center, we demean afterwards
                         count++;
                         //indices[count] = static_cast<uint>(neighbourIndex);
                     }
@@ -800,13 +796,9 @@ namespace cuda
             normal.y = Q[1][0];
             normal.z = Q[2][0];
 
-            normals[index].x = normal.x;
-            normals[index].y = normal.y;
-            normals[index].z = normal.z;
-
-            //float3 v = point - center;
-            //float3 closedPoint = center + normal * dot(v, normal);
-            //pointsCache[index] = closedPoint;
+            pointCloudNormals[index].x = normal.x;
+            pointCloudNormals[index].y = normal.y;
+            pointCloudNormals[index].z = normal.z;
         }
 
         __device__ void extractBoundaries()
@@ -824,13 +816,13 @@ namespace cuda
             float cornerValues[360] = { 0 };
             int count = 0;
 
-            float3 point = points[index];
+            float3 point = pointCloud[index];
             if (!isValid(point))
                 return;
 
             float maxDistance = parameters.normalKernelMaxDistance * parameters.normalKernelMaxDistance;
 
-            float3 normal = normals[index];
+            float3 normal = pointCloudNormals[index];
             float3 beU, beV;
             beV = pcl::cuda::unitOrthogonal(normal);
             beU = cross(normal, beV);
@@ -842,12 +834,12 @@ namespace cuda
             for (int j = max(0, iy - parameters.neighbourRadius / 2); j < min(iy + parameters.neighbourRadius / 2 + 1, parameters.depthHeight); j++) {
                 for (int i = max(0, ix - parameters.neighbourRadius / 2); i < min(ix + parameters.neighbourRadius / 2 + 1, parameters.depthWidth); i++) {
                     size_t neighbourIndex = j * parameters.depthWidth + i;
-                    float3 neighbourPoint = points[neighbourIndex];
-                    float3 neighbourNormal = normals[neighbourIndex];
+                    float3 neighbourPoint = pointCloud[neighbourIndex];
+                    float3 neighbourNormal = pointCloudNormals[neighbourIndex];
                     if (!isValid(neighbourPoint))
                         continue;
 
-                    float3 diff3 = points[neighbourIndex] - points[index];
+                    float3 diff3 = pointCloud[neighbourIndex] - pointCloud[index];
                     float norm = dot(diff3, diff3);
                     if (norm < maxDistance) {
                         float3 delta = neighbourPoint - point;
@@ -874,12 +866,12 @@ namespace cuda
             for (int j = max(0, iy - parameters.neighbourRadius / 2); j < min(iy + parameters.neighbourRadius / 2 + 1, parameters.depthHeight); j++) {
                 for (int i = max(0, ix - parameters.neighbourRadius / 2); i < min(ix + parameters.neighbourRadius / 2 + 1, parameters.depthWidth); i++) {
                     size_t neighbourIndex = j * parameters.depthWidth + i;
-                    float3 neighbourPoint = points[neighbourIndex];
-                    float3 neighbourNormal = normals[neighbourIndex];
+                    float3 neighbourPoint = pointCloud[neighbourIndex];
+                    float3 neighbourNormal = pointCloudNormals[neighbourIndex];
                     if (!isValid(neighbourPoint))
                         continue;
 
-                    float3 diff3 = points[neighbourIndex] - points[index];
+                    float3 diff3 = pointCloud[neighbourIndex] - pointCloud[index];
                     float norm = dot(diff3, diff3);
                     if (norm < maxDistance) {
                         float3 delta = neighbourPoint - point;
@@ -891,22 +883,6 @@ namespace cuda
                     }
                 }
             }
-
-            /*for (int i = 1; i <= indices[0]; i++)
-            {
-                size_t neighbourIndex = indices[i];
-                float3 neighbourPoint = points[neighbourIndex];
-                if (!isValid(neighbourPoint))
-                    continue;
-
-                float3 delta = neighbourPoint - point;
-                float angle = atan2(dot(v, delta), dot(u, delta));
-                int angleIndex = (int)(angle * 180 / M_PI) + 180;
-                if (maxAngleIndex < angleIndex)
-                    maxAngleIndex = angleIndex;
-                angles[angleIndex] += 1;
-                count++;
-            }*/
 
             {
                 int angleDiff = 0;
@@ -952,12 +928,12 @@ namespace cuda
                 {
                     if (pxX <= parameters.borderLeft || pxY <= parameters.borderTop || pxX >= (parameters.depthWidth - parameters.borderRight) || pxY >= (parameters.depthHeight - parameters.borderBottom))
                     {
-                        boundaryIndices[index] = 1;
+                        boundaries[index] = 1;
                         boundaryImage[pxY * parameters.depthWidth + pxX] = 1;
                     }
                     else
                     {
-                        boundaryIndices[index] = 3;
+                        boundaries[index] = 3;
                         boundaryImage[pxY * parameters.depthWidth + pxX] = 3;
                     }
                 }
@@ -967,7 +943,7 @@ namespace cuda
                 float avgValue = 0;
                 count = 0;
                 // 1-dimension filter
-                float kernel[5] = { -1, -1, 5, -1, -1 };
+                //float kernel[5] = { -1, -1, 5, -1, -1 };
                 for (int i = 0; i < 360; i++)
                 {
                     if (cornerAngles[i] <= 0)
@@ -1118,7 +1094,7 @@ namespace cuda
                 {
                     if (!(ix <= parameters.borderLeft || iy <= parameters.borderTop || ix >= (parameters.depthWidth - parameters.borderRight) || iy >= (parameters.depthHeight - parameters.borderBottom)))
                     {
-                        boundaryIndices[index] = 4;
+                        boundaries[index] = 4;
                         boundaryImage[index] = 4;
                     }
                 }
@@ -1134,7 +1110,7 @@ namespace cuda
             if (boundaryImage[index] <= 1)
                 return;
 
-            float3 point = points[index];
+            float3 point = pointCloud[index];
             if (!isValid(point))
                 return;
 
@@ -1146,7 +1122,7 @@ namespace cuda
                     for (int b = max(ix - 15, 0); b <= min(ix + 15, parameters.depthWidth - 1); b++)
                     {
                         int nPxIndex = a * parameters.depthWidth + b;
-                        if (boundaryIndices[nPxIndex] > 0 && boundaryIndices[nPxIndex] < 4)
+                        if (boundaries[nPxIndex] > 0 && boundaries[nPxIndex] < 4)
                         {
                             valid = false;
                             break;
@@ -1159,12 +1135,12 @@ namespace cuda
                 }
                 if (valid)
                 {
-                    boundaryIndices[index] = 4;
+                    boundaries[index] = 4;
                     boundaryImage[index] = 4;
                 }
                 else
                 {
-                    boundaryIndices[index] = 0;
+                    boundaries[index] = 0;
                     boundaryImage[index] = 0;
                 }
             }
@@ -1189,10 +1165,10 @@ namespace cuda
                         {
                             int nPxIndex = a * parameters.depthWidth + b;
                             //int nPtIndex = static_cast<int>(nPxIndex);
-                            if (boundaryIndices[nPxIndex] <= 0 || boundaryIndices[nPxIndex] == 4)
+                            if (boundaries[nPxIndex] <= 0 || boundaries[nPxIndex] == 4)
                                 continue;
 
-                            float3 nPt = points[nPxIndex];
+                            float3 nPt = pointCloud[nPxIndex];
                             if (!isValid(nPt))
                                 continue;
 
@@ -1215,7 +1191,7 @@ namespace cuda
                 }
                 if (veil)
                 {
-                    boundaryIndices[index] = 2;
+                    boundaries[index] = 2;
                     boundaryImage[index] = 2;
                 }
             }
@@ -1234,11 +1210,11 @@ namespace cuda
             if (indices[0] == 0)
                 return;
 
-            float3 point = points[index];
+            float3 point = pointCloud[index];
             if (!isValid(point))
                 return;
 
-            float3 normal = normals[index];
+            float3 normal = pointCloudNormals[index];
             float3 cornerU, cornerV;
             cornerU.x = cornerU.y = cornerU.z = 0;
 
@@ -1247,8 +1223,8 @@ namespace cuda
             for (int i = 1; i <= indices[0]; i++)
             {
                 size_t neighbourIndex = indices[i];
-                float3 neighbourPoint = points[neighbourIndex];
-                float3 neighbourNormal = normals[neighbourIndex];
+                float3 neighbourPoint = pointCloud[neighbourIndex];
+                float3 neighbourNormal = pointCloudNormals[neighbourIndex];
                 if (!isValid(neighbourPoint))
                     continue;
 
@@ -1261,8 +1237,8 @@ namespace cuda
             for (int i = 1; i <= indices[0]; i++)
             {
                 size_t neighbourIndex = indices[i];
-                float3 neighbourPoint = points[neighbourIndex];
-                float3 neighbourNormal = normals[neighbourIndex];
+                float3 neighbourPoint = pointCloud[neighbourIndex];
+                float3 neighbourNormal = pointCloudNormals[neighbourIndex];
                 if (!isValid(neighbourPoint))
                     continue;
 
@@ -1426,7 +1402,7 @@ namespace cuda
                         for (int b = max(ix - 15, 0); b <= min(ix + 15, parameters.depthWidth - 1); b++)
                         {
                             int nPxIndex = a * parameters.depthWidth + b;
-                            if (boundaryIndices[nPxIndex] > 0 && boundaryIndices[nPxIndex] < 4)
+                            if (boundaries[nPxIndex] > 0 && boundaries[nPxIndex] < 4)
                             {
                                 valid = false;
                                 break;
@@ -1439,7 +1415,7 @@ namespace cuda
                     }
                     if (valid)
                     {
-                        boundaryIndices[index] = 4;
+                        boundaries[index] = 4;
                         boundaryImage[index] = 4;
                     }
                 }
@@ -1491,20 +1467,20 @@ namespace cuda
         cudaMemset(frame.pointCloud.ptr(), 0, size * sizeof(float3));
         cudaMemset(frame.pointCloudCache.ptr(), 0, size * sizeof(float3));
         cudaMemset(frame.pointCloudNormals.ptr(), 0, size * sizeof(float3));
-        cudaMemset(frame.indicesImage.ptr(), 0, size * sizeof(int));
+        cudaMemset(frame.indicesImage.ptr(), -1, size * sizeof(int));
         cudaMemset(frame.boundaries.ptr(), 0, size * sizeof(uchar));
         cudaMemset(frame.boundaryImage.ptr(), 0, size * sizeof(uchar));
         safeCall(cudaDeviceSynchronize());
 
         ExtractPointCloud epc;
         epc.parameters = frame.parameters;
-        epc.points = frame.pointCloud;
-        epc.pointsCache = frame.pointCloudCache;
-        epc.normals = frame.pointCloudNormals;
+        epc.pointCloud = frame.pointCloud;
+        epc.pointCloudCache = frame.pointCloudCache;
+        epc.pointCloudNormals = frame.pointCloudNormals;
         epc.indicesImage = frame.indicesImage;
         epc.colorImage = frame.colorImage;
         epc.depthImage = frame.depthImage;
-        epc.boundaryIndices = frame.boundaries;
+        epc.boundaries = frame.boundaries;
         epc.boundaryImage = frame.boundaryImage;
         epc.neighbours = frame.neighbours;
 

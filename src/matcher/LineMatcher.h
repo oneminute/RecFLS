@@ -21,10 +21,10 @@ public:
     Eigen::Matrix4f compute(
         QList<LineChain>& chains1,
         pcl::PointCloud<Line>::Ptr& lines1,
-        pcl::PointCloud<LineDescriptor2>::Ptr& desc1,
+        pcl::PointCloud<LineDescriptor3>::Ptr& desc1,
         QList<LineChain>& chains2,
         pcl::PointCloud<Line>::Ptr& lines2,
-        pcl::PointCloud<LineDescriptor2>::Ptr& desc2
+        pcl::PointCloud<LineDescriptor3>::Ptr& desc2
     );
 
     Eigen::Quaternionf stepRotation(

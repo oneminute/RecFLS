@@ -843,7 +843,7 @@ bool LineExtractor::generateLineChain(LineChain& lc)
     lc.point2 = cross2;
     lc.point = (cross1 + cross2) / 2;
     lc.length = (lc.point1 - lc.point2).norm();
-    if (lc.length >= 0.8f)
+    if (lc.length >= 0.1f)
     {
         return false;
     };
@@ -965,7 +965,130 @@ void LineExtractor::generateDescriptors2()
     m_descriptors2->is_dense = true;
 }
 
-void LineExtractor::generateDescriptors3()
+void LineExtractor::generateDescriptors3(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals, const cv::Mat& pointsMat)
 {
+    if (m_board.empty())
+        m_board = cv::Mat(m_matHeight, m_matWidth, CV_8UC3, cv::Scalar(0));
+    m_descriptors3.reset(new pcl::PointCloud<LineDescriptor3>);
+    for (int i = 0; i < m_chains.size(); i++)
+    {
+        LineChain& lc = m_chains[i];
+        LineDescriptor3 desc;
+        qDebug() << "<<< line chain" << i << ">>>";
+        generateLineDescriptor(cloud, normals, pointsMat, lc.point1, lc.zLocal, lc.line1, desc, 2, m_cx, m_cy, m_fx, m_fy, m_matWidth, m_matHeight, 0.25f, 2, 4);
+        generateLineDescriptor(cloud, normals, pointsMat, lc.point2, lc.zLocal, lc.line2, desc, 92, m_cx, m_cy, m_fx, m_fy, m_matWidth, m_matHeight, 0.25f, 2, 4);
+        desc.elems[0] = lc.radians / M_PI * 180;       // 点乘弧度值
+        desc.elems[1] = lc.length * 100;        // 最短垂线段长度
+        QString line;
+        for (int j = 0; j < LineDescriptor3::elemsSize(); j++)
+        {
+            line.append(QString("%1 ").arg(desc.elems[j]));
+        }
+        qDebug() << line;
+        m_descriptors3->points.push_back(desc);
+    }
+    m_descriptors3->width = m_descriptors3->points.size();
+    m_descriptors3->height = 1;
+    m_descriptors3->is_dense = true;
+}
+
+void LineExtractor::generateLineDescriptor(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals, const cv::Mat& pointsMat, 
+    const Eigen::Vector3f& point, const Eigen::Vector3f& dir, const Line& line, LineDescriptor3& desc, int offset, 
+    float cx, float cy, float fx, float fy, float width, float height, float r, int m, int n)
+{
+    Eigen::Vector3f start = point - line.dir * r;
+    Eigen::Vector3f end = point + line.dir * r;
+    Eigen::Vector2f start2d = projTo2d(start);
+    Eigen::Vector2f end2d = projTo2d(end);
+    Eigen::Vector2f dir2d = (end2d - start2d).normalized();
+    Eigen::Vector2f vert2d(-dir2d.y(), dir2d.x());
+    Eigen::Vector3f localZ = line.dir.cross(dir).normalized();
+
+    float length2d = (start2d - end2d).norm();
+    qDebug()
+        << "start: [" << start.x() << start.y() << start.z()
+        << "], end: [" << end.x() << end.y() << end.z()
+        << "], start2d: [" << start2d.x() << start2d.y()
+        << "], end2d: [" << end2d.x() << end2d.y()
+        << "], length: " << length2d;
+    for (int o = -n; o <= n; o++)
+    {
+        //qDebug() << o;
+        for (int j = -m; j <= m; j++)
+        {
+            int positiveNum = 0;
+            int negativeNum = 0;
+
+            Eigen::Vector2f pt = start2d + (vert2d * (m * 2 + 1) * o);
+            //qDebug() << pt.x() << pt.y();
+            for (int i = 0; i <= floor(length2d); i++)
+            {
+                Eigen::Vector2f pt2 = pt + vert2d * j + dir2d * i;
+                if (!available2dPoint(pt2))
+                    continue;
+
+                cv::Point2i pt2Pix(qFloor(pt2.x()), qFloor(pt2.y()));
+                int ptIndex = pointsMat.at<int>(pt2Pix);
+                if (ptIndex < 0)
+                    continue;
+                if (ptIndex >= cloud->points.size())
+                    continue;
+
+                Eigen::Vector3f pt3d = cloud->points[ptIndex].getVector3fMap();
+                Eigen::Vector3f nm3d = normals->points[ptIndex].getNormalVector3fMap();
+
+                Eigen::Vector3f diff = pt3d - point;
+                if (diff.dot(dir) >= 0)
+                {
+                    positiveNum++;
+                }
+                else
+                {
+                    negativeNum++;
+                }
+
+                Eigen::Vector3f projNm = nm3d - localZ * nm3d.dot(localZ);
+                projNm.normalize();
+                float angles = qAtan2(projNm.dot(line.dir), projNm.dot(dir)) + M_PI;
+                int subIndex = qFloor(angles * 4 / M_PI);
+                int dim = offset + (o + n) * 10 + subIndex;
+                desc.elems[dim]++;
+                if (dim < 0 || dim >= LineDescriptor3::elemsSize())
+                {
+                    qDebug() << dim;
+                }
+
+                cv::Vec3b& color = m_board.at<cv::Vec3b>(pt2Pix);
+                color[0] = (o + n) * (256 / (n * 2 + 1));
+                color[1] = color[0] + (j + m);
+                color[2] = i;
+            }
+            int dim = offset + (o + n) * 10 + 8;
+            if (dim < 0 || dim >= LineDescriptor3::elemsSize())
+            {
+                qDebug() << dim;
+            }
+            dim = offset + (o + n) * 10 + 9;
+            if (dim < 0 || dim >= LineDescriptor3::elemsSize())
+            {
+                qDebug() << dim;
+            }
+            desc.elems[offset + (o + m) * 10 + 8] = positiveNum;
+            desc.elems[offset + (o + m) * 10 + 9] = negativeNum;
+        }
+    }
+}
+
+Eigen::Vector2f LineExtractor::projTo2d(const Eigen::Vector3f& v)
+{
+    Eigen::Vector2f v2d(v.x() * m_fx / v.z() + m_cx, v.y() * m_fy / v.z() + m_cy);
+    return v2d;
+}
+
+bool LineExtractor::available2dPoint(const Eigen::Vector2f& v)
+{
+    if (v.x() >= 0 && v.x() < m_matWidth && v.y() >= 0 && v.y() < m_matHeight)
+        return true;
+    return false;
 }
 

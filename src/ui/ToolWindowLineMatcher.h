@@ -76,8 +76,8 @@ private:
     QList<Plane> m_planes2;
     QList<LineChain> m_chains1;
     QList<LineChain> m_chains2;
-    pcl::PointCloud<LineDescriptor2>::Ptr m_desc1;
-    pcl::PointCloud<LineDescriptor2>::Ptr m_desc2;
+    pcl::PointCloud<LineDescriptor3>::Ptr m_desc1;
+    pcl::PointCloud<LineDescriptor3>::Ptr m_desc2;
     QMap<int, int> m_pairs;
     QList<int> m_pairIndices;
     cuda::GpuFrame m_frameGpu1;

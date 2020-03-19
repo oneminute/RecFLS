@@ -55,6 +55,23 @@ struct PointLine
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
+template <>
+class pcl::DefaultPointRepresentation<PointLine> : public PointRepresentation<PointLine>
+{
+public:
+    DefaultPointRepresentation()
+    {
+        nr_dimensions_ = PointLine::propsSize();
+    }
+
+    void
+        copyToFloatArray(const PointLine& p, float* out) const override
+    {
+        for (int i = 0; i < nr_dimensions_; ++i)
+            out[i] = p.props[i];
+    }
+};
+
 struct Line
 {
     Eigen::Vector3f dir;
@@ -141,6 +158,42 @@ struct LineDescriptor2
     static int elemsSize() { return /*LINE_MATCHER_DIVISION * LINE_MATCHER_DIVISION * LINE_MATCHER_DIVISION + */11; }
 };
 
+struct LineDescriptor3
+{
+    LineDescriptor3()
+    {
+        for (int i = 0; i < elemsSize(); i++)
+        {
+            elems[i] = 0;
+        }
+    }
+
+    ~LineDescriptor3()
+    {
+
+    }
+
+    float elems[182];
+    static int elemsSize() { return 182; }
+};
+
+template <>
+class pcl::DefaultPointRepresentation<LineDescriptor3> : public PointRepresentation<LineDescriptor3>
+{
+public:
+    DefaultPointRepresentation()
+    {
+        nr_dimensions_ = LineDescriptor3::elemsSize();
+    }
+
+    void
+        copyToFloatArray(const LineDescriptor3& p, float* out) const override
+    {
+        for (int i = 0; i < nr_dimensions_; ++i)
+            out[i] = p.elems[i];
+    }
+};
+
 class LineExtractor : public QObject
 {
     Q_OBJECT
@@ -164,7 +217,14 @@ public:
 
     void generateDescriptors();
     void generateDescriptors2();
-    void generateDescriptors3();
+    void generateDescriptors3(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals, const cv::Mat& pointsMat);
+    void generateLineDescriptor(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, pcl::PointCloud<pcl::Normal>::Ptr normals, 
+        const cv::Mat& pointsMat, const Eigen::Vector3f& point, const Eigen::Vector3f& dir, const Line& line, LineDescriptor3& desc, int offset, 
+        float cx, float cy, float fx, float fy, float width, float height, float r, int m, int n);
+
+    Eigen::Vector2f projTo2d(const Eigen::Vector3f& v);
+    
+    bool available2dPoint(const Eigen::Vector2f& v);
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryCloud() const
     {
@@ -238,6 +298,10 @@ public:
 
     pcl::PointCloud<LineDescriptor>::Ptr descriptors() const { return m_descriptors; }
     pcl::PointCloud<LineDescriptor2>::Ptr descriptors2() const { return m_descriptors2; }
+    pcl::PointCloud<LineDescriptor3>::Ptr descriptors3() const { return m_descriptors3; }
+
+    cv::Mat board() const { return m_board; }
+    void setBoard(const cv::Mat& board) { m_board = board; }
 
     QList<LineChain> chains() const { return m_chains; }
 
@@ -275,11 +339,34 @@ public:
     float mslRadiusSearch() const { return m_mslRadiusSearch; }
     void setMslRadiusSearch(float _mslRadiusSearch) { m_mslRadiusSearch = _mslRadiusSearch; }
 
+    float matWidth() const { return m_matWidth; }
+    void setMatWidth(int _matWidth) { m_matWidth = _matWidth; }
+
+    float matHeight() const { return m_matHeight; }
+    void setMatHeight(int _matHeight) { m_matHeight = _matHeight; }
+
+    float depthShift() const { return m_depthShift; }
+    void setDepthShift(float _value) { m_depthShift = _value; }
+
+    float cx() const { return m_cx; }
+    void setCx(float _cx) { m_cx = _cx; }
+
+    float cy() const { return m_cy; }
+    void setCy(float _cy) { m_cy = _cy; }
+
+    float fx() const { return m_fx; }
+    void setFx(float _fx) { m_fx = _fx; }
+
+    float fy() const { return m_fy; }
+    void setFy(float _fy) { m_fy = _fy; }
+
 protected:
 
 private:
     // 边界点点云
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_boundaryCloud;
+
+    cv::Mat m_pointsMat;
 
     // 边界点点云索引
     pcl::IndicesPtr m_boundaryIndices;
@@ -324,6 +411,9 @@ private:
 
     pcl::PointCloud<LineDescriptor>::Ptr m_descriptors;
     pcl::PointCloud<LineDescriptor2>::Ptr m_descriptors2;
+    pcl::PointCloud<LineDescriptor3>::Ptr m_descriptors3;
+
+    cv::Mat m_board;
 
     ANGLE_MAPPING_METHOD m_angleMappingMethod;
 
@@ -350,6 +440,14 @@ private:
 
     Eigen::Vector3f m_lcLocalMiddle;
     Eigen::Matrix4f m_lcLocalTransform;
+
+    int m_matWidth;
+    int m_matHeight;
+    float m_depthShift;
+    float m_cx;
+    float m_cy;
+    float m_fx;
+    float m_fy;
 
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW

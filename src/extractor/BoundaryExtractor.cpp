@@ -138,6 +138,7 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::computeCUDA(cuda::GpuFra
     frame.parameters.classifyDistance = 0.05f;
 
     cv::cuda::GpuMat boundaryMatGpu(m_matHeight, m_matWidth, CV_8U, frame.boundaryImage);
+    cv::cuda::GpuMat pointsMatGpu(m_matHeight, m_matWidth, CV_32S, frame.indicesImage);
 
     TICK("extracting_boundaries");
     cuda::generatePointCloud(frame);
@@ -145,12 +146,14 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::computeCUDA(cuda::GpuFra
 
     TICK("boundaries_downloading");
     boundaryMatGpu.download(m_boundaryMat);
+    pointsMatGpu.download(m_pointsMat);
     std::vector<float3> points;
     frame.pointCloud.download(points);
     std::vector<float3> normals;
     frame.pointCloudNormals.download(normals);
     std::vector<uchar> boundaries;
     frame.boundaries.download(boundaries);
+    cv::imwrite("indices.png", m_pointsMat);
 
     m_cloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
     m_allBoundary.reset(new pcl::PointCloud<pcl::PointXYZI>);
@@ -159,10 +162,12 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::computeCUDA(cuda::GpuFra
     m_veilPoints.reset(new pcl::PointCloud<pcl::PointXYZI>);
     m_borderPoints.reset(new pcl::PointCloud<pcl::PointXYZI>);
     m_normals.reset(new pcl::PointCloud<pcl::Normal>);
+    int negativeNum = 0;
     for(int i = 0; i < m_matHeight; i++) 
     {
         for(int j = 0; j < m_matWidth; j++) 
         {
+            cv::Point coord(j, i);
             int index = i * m_matWidth + j;
             float3 value = points[index];
             uchar pointType = boundaries[index];
@@ -182,14 +187,18 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::computeCUDA(cuda::GpuFra
             normal.normal_y = normals[index].y;
             normal.normal_z = normals[index].z;
 
-            //if (index % 1024 == 0)
-            //{
-                //qDebug() << value.x << value.y << value.z;
-            //}
-
-            if (pt.z > 0.4f && pt.z <= 8.0f) {
+            int ptIndex = m_pointsMat.at<int>(coord);
+            if (ptIndex < 0)
+            {
+                negativeNum++;
+            }
+            //if (pt.z > 0.4f && pt.z <= 8.0f)
+            else
+            {
                 m_cloud->push_back(pt);
                 m_normals->push_back(normal);
+                ptIndex -= negativeNum;
+                m_pointsMat.at<int>(coord) = ptIndex;
             }
 
             if (pointType > 0)
@@ -211,6 +220,7 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::computeCUDA(cuda::GpuFra
                 {
                     m_cornerPoints->points.push_back(ptI);
                 }
+                m_indices.push_back(index);
             }
         }
     }

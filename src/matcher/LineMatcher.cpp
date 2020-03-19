@@ -22,18 +22,25 @@ LineMatcher::LineMatcher(QObject* parent)
 Eigen::Matrix4f LineMatcher::compute(
     QList<LineChain>& chains1,
     pcl::PointCloud<Line>::Ptr& lines1,
-    pcl::PointCloud<LineDescriptor2>::Ptr& desc1,
+    pcl::PointCloud<LineDescriptor3>::Ptr& desc1,
     QList<LineChain>& chains2,
     pcl::PointCloud<Line>::Ptr& lines2,
-    pcl::PointCloud<LineDescriptor2>::Ptr& desc2
+    pcl::PointCloud<LineDescriptor3>::Ptr& desc2
 )
 {
     Eigen::Matrix4f finalPose(Eigen::Matrix4f::Identity());
 
     qDebug() << "------------------"; 
     qDebug() << "desc1 size:" << desc1->size() << "desc2 size:" << desc2->size();
+    if (desc1->empty() || desc2->empty())
+    {
+        qDebug() << "empty desc. quit.";
+        return finalPose;
+    }
 
-    pcl::KdTreeFLANN<LineDescriptor2> descTree; 
+    pcl::KdTreeFLANN<LineDescriptor3> descTree; 
+    qDebug() << sizeof(LineDescriptor3);
+    //descTree.setPointRepresentation(pcl::DefaultPointRepresentation<LineDescriptor3>::Ptr(new pcl::DefaultPointRepresentation<LineDescriptor3>));
     descTree.setInputCloud(desc2); 
     Eigen::Matrix3f rOut(Eigen::Matrix3f::Identity());
     Eigen::Vector3f tOut(Eigen::Vector3f::Zero());
@@ -47,31 +54,34 @@ Eigen::Matrix4f LineMatcher::compute(
     {
         std::vector<int> indices;
         std::vector<float> distances;
-        descTree.nearestKSearch(desc1->points[i], 2, indices, distances);
+        descTree.nearestKSearch(desc1->points[i], 1, indices, distances);
 
         LineChain lc1 = chains1[i];
         LineChain& lc2 = chains2[indices[0]];
         qDebug() << i << lc1.name() << "-->" << indices[0] << lc2.name() << ", distance:" << distances[0];
 
-        float angleDiff11 = qAbs(qAcos(lc1.line1.dir.dot(lc2.line1.dir)));
-        float angleDiff12 = qAbs(qAcos(lc1.line2.dir.dot(lc2.line2.dir)));
+        //float angleDiff11 = qAbs(qAcos(lc1.line1.dir.dot(lc2.line1.dir)));
+        //float angleDiff12 = qAbs(qAcos(lc1.line2.dir.dot(lc2.line2.dir)));
 
-        qDebug() << i << "-->" << indices[0] << qRadiansToDegrees(qAbs(angleDiff11 - angleDiff12)) << qRadiansToDegrees(angleDiff11) << qRadiansToDegrees(angleDiff12);
+        //qDebug() << i << "-->" << indices[0] << qRadiansToDegrees(qAbs(angleDiff11 - angleDiff12)) << qRadiansToDegrees(angleDiff11) << qRadiansToDegrees(angleDiff12);
 
-        if (qAbs(angleDiff11 - angleDiff12) >= (M_PI / 4))
+        /*if (qAbs(angleDiff11 - angleDiff12) >= (M_PI / 4))
             continue;
 
         if (angleDiff11 > (M_PI / 20))
             continue;
         if (angleDiff12 > (M_PI / 20))
-            continue;
+            continue;*/
 
         //float angleDiff21 = qAbs(qAcos(msl11.dir.dot(msl22.dir)));
         //float angleDiff22 = qAbs(qAcos(msl12.dir.dot(msl21.dir)));
 
-        float dist = (lc1.point - lc2.point).norm();
-        if (dist >= 0.1f)
-            continue;
+        //float dist = (lc1.point - lc2.point).norm();
+        //if (dist >= 0.1f)
+            //continue;
+            //continue;
+        //if (distances[0] >= 1000)
+            //continue;
 
         qDebug() << i << "-->" << indices[0] << ": distance:" << distances[0];
 
@@ -91,6 +101,13 @@ Eigen::Matrix4f LineMatcher::compute(
             return coefs[a] < coefs[b];
         }
     );
+
+    float maxDistance = 0;
+    for (QMap<int, float>::iterator i = coefs.begin(); i != coefs.end(); i++)
+    {
+        if (maxDistance < i.value())
+            maxDistance = i.value();
+    }
 
     int totalIterations = 1;
     for (int iteration = 0; iteration < totalIterations; iteration++)
@@ -115,8 +132,9 @@ Eigen::Matrix4f LineMatcher::compute(
             dirAvg2 += lc2.line2.dir;
 
             //W.col(i * 2)[i * 2] = W.col(i * 2 + 1)[i * 2 + 1] = 1.f / m_pairIndices.size();
-            //weights[i * 2] = weights[i * 2 + 1] = 1 / coefs[index2];
-            weights[i * 2] = weights[i * 2 + 1] = 1 - coefs[index2];
+            weights[i * 2] = weights[i * 2 + 1] = coefs[index2] ? 1.0f / coefs[index2] : 1;
+            //weights[i * 2] = weights[i * 2 + 1] = maxDistance - coefs[index2];
+            //weights[i * 2] = weights[i * 2 + 1] = 1 - coefs[index2] / maxDistance;
             //weights[i * 2] = weights[i * 2 + 1] = -qLn(coefs[index2]);
 
             qDebug() << "inlines:" << index1 << "-->" << index2 << coefs[index2];
@@ -204,6 +222,7 @@ Eigen::Matrix4f LineMatcher::compute(
             lines1->points[i].dir = R * lines1->points[i].dir;
             lines1->points[i].point = R * lines1->points[i].point + t;
         }
+
         for (int i = 0; i < m_pairIndices.size(); i++)
         {
             int index2 = m_pairIndices[i];

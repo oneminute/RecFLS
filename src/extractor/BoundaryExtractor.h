@@ -121,6 +121,8 @@ public:
 
     cv::Mat boundaryMat() const { return m_boundaryMat; }
 
+    cv::Mat pointsMat() const { return m_pointsMat; }
+
     pcl::PointCloud<pcl::PointXYZI>::Ptr projectedCloud() const { return m_projectedCloud; }
     pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryPoints() const { return m_boundaryPoints; }
     pcl::PointCloud<pcl::PointXYZI>::Ptr cornerPoints() const { return m_cornerPoints; }
@@ -233,7 +235,7 @@ protected:
 private:
     // 输入点云
     pcl::PointCloud<pcl::PointXYZ>::Ptr m_cloud;
-    //pcl::IndicesPtr m_indices;
+    std::vector<int> m_indices;
 
     // 下采样后的点云
     pcl::PointCloud<pcl::PointXYZ>::Ptr m_downsampledCloud;
@@ -255,6 +257,8 @@ private:
 
     // 用于分类边界点的深度图片，该图片由边界点反向投影到二维深度图上
     cv::Mat m_boundaryMat;
+
+    cv::Mat m_pointsMat;
 
     // 真正的边界点
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_boundaryPoints;
