@@ -21,7 +21,8 @@ QString SensorReaderDevice::name() const
 
 bool SensorReaderDevice::open()
 {
-    QString fileName = Parameters::Global().stringValue("sample_path", "samples/office3.sens", "Device_SensorReader");
+    //QString fileName = Parameters::Global().stringValue("sample_path", "samples/office3.sens", "Device_SensorReader");
+    QString fileName = Settings::SensorReader_SamplePath.value();
     QFile file(fileName);
     if (!file.exists())
     {

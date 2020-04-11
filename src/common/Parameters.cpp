@@ -4,139 +4,90 @@
 #include <QDebug>
 #include <QMutexLocker>
 
-#define BEGIN_CHECK_GROUP(group) \
-    if (group != DEFAULT_SETTINGS_GROUP) \
-        m_settings->beginGroup(group)
+QMap<QString, SettingItem*> SettingItem::m_items;
 
-#define CHECK_SETTING(key, defaultValue) \
-    if (!m_settings->contains(key)) \
-        setValue(key, defaultValue)
+//IMPLEMENT_RANGE_SETTING(KNNRadius, 0.1f, 0.1f, 0.005f, 1.f, 0.005f, BoundaryExtractor, "KNN search radius.");
+IMPLEMENT_RANGE_SETTING(BorderLeft, 26, 26, 0, 320, 1, BoundaryExtractor, "Pixels to left border.");
+IMPLEMENT_RANGE_SETTING(BorderRight, 8, 8, 0, 320, 1, BoundaryExtractor, "Pixels to right border.");
+IMPLEMENT_RANGE_SETTING(BorderTop, 4, 4, 0, 240, 1, BoundaryExtractor, "Pixels to top border.");
+IMPLEMENT_RANGE_SETTING(BorderBottom, 4, 4, 0, 240, 1, BoundaryExtractor, "Pixels to bottom border.");
+IMPLEMENT_RANGE_SETTING(MinDepth, 0.4f, 0.4f, 0, 5.0f, 0.1f, BoundaryExtractor, "Min depth threshold.");
+IMPLEMENT_RANGE_SETTING(MaxDepth, 8.0f, 8.0f, 0, 10000.0f, 0.5f, BoundaryExtractor, "Max depth threshold.");
+IMPLEMENT_RANGE_SETTING(CudaNormalKernalRadius, 20, 20, 5, 40, 1, BoundaryExtractor, "Normal estimation kernal radius.");
+IMPLEMENT_RANGE_SETTING(CudaNormalKnnRadius, 0.1, 0.1, 0.01, 1, 0.01, BoundaryExtractor, "Normal estimation knn radius.");
+IMPLEMENT_RANGE_SETTING(CudaBEDistance, 0.1f, 0.1f, 0.01, 1, 0.01, BoundaryExtractor, "Cuda boundary estimation distance.");
+IMPLEMENT_RANGE_SETTING(CudaBEAngleThreshold, 45, 45, 45, 180, 5, BoundaryExtractor, "Cuda boundary estimation max angle threshold.");
+IMPLEMENT_RANGE_SETTING(CudaBEKernalRadius, 20, 20, 5, 50, 1, BoundaryExtractor, "Cuda boundary estimation kernal radius.");
+IMPLEMENT_RANGE_SETTING(CudaGaussianSigma, 4.0f, 4.0f, 0.1f, 40.0f, 0.5f, BoundaryExtractor, "Cuda gaussian sigma radius.");
+IMPLEMENT_RANGE_SETTING(CudaGaussianKernalRadius, 20, 20, 5, 50, 1, BoundaryExtractor, "Cuda gaussian kernal radius.");
+IMPLEMENT_RANGE_SETTING(CudaClassifyKernalRadius, 20, 20, 5, 50, 1, BoundaryExtractor, "Cuda classify kernal radius.");
+IMPLEMENT_RANGE_SETTING(CudaClassifyDistance, 0.2f, 0.2f, 0.1f, 1.0f, 0.01f, BoundaryExtractor, "Cuda classify distance.");
+IMPLEMENT_RANGE_SETTING(CudaPeakClusterTolerance, 5, 5, 1, 90, 1, BoundaryExtractor, "Cuda peak cluster tolerance.");
+IMPLEMENT_RANGE_SETTING(CudaMinClusterPeaks, 2, 2, 1, 5, 1, BoundaryExtractor, "Cuda min cluster peaks.");
+IMPLEMENT_RANGE_SETTING(CudaMaxClusterPeaks, 3, 3, 1, 5, 1, BoundaryExtractor, "Cuda max cluster peaks.");
+IMPLEMENT_RANGE_SETTING(CudaCornerHistSigma, 1.0f, 1.0f, 0, 10.f, 0.1, BoundaryExtractor, "Cuda corner hist sigma.");
 
-#define END_CHECK_GROUP(group) \
-    if (group != DEFAULT_SETTINGS_GROUP) \
-        m_settings->endGroup()
+IMPLEMENT_RANGE_SETTING(BoundaryCloudA1dThreshold, 4.0f, 4.0f, 1.0f, 100.f, 1.0f, LineExtractor, "Using for a1d judgement.");
+IMPLEMENT_RANGE_SETTING(CornerCloudA1dThreshold, 3.0f, 3.0f, 1.0f, 100.f, 1.0f, LineExtractor, "Using for a1d judgement.");
+IMPLEMENT_RANGE_SETTING(BoundaryCloudSearchRadius, 0.1f, 0.1f, 0.01f, 1.f, 0.1f, LineExtractor, "Boundary cloud search radius.");
+IMPLEMENT_RANGE_SETTING(CornerCloudSearchRadius, 0.2f, 0.2f, 0.01f, 1.f, 0.1f, LineExtractor, "Corner cloud search radius.");
+IMPLEMENT_RANGE_SETTING(PCASearchRadius, 0.1f, 0.1f, 0.01f, 1.f, 0.01f, LineExtractor, "PCA search radius.");
+IMPLEMENT_RANGE_SETTING(MinNeighboursCount, 10, 10, 3, 5000, 5, LineExtractor, "Min neighbours count.");
+IMPLEMENT_RANGE_SETTING(AngleCloudSearchRadius, 20, 20, 1, 90, 1, LineExtractor, "Angle cloud search radius.");
+IMPLEMENT_RANGE_SETTING(AngleCloudMinNeighboursCount, 10, 10, 3, 5000, 1, LineExtractor, "Angle cloud min neighbours count.");
+IMPLEMENT_RANGE_SETTING(MinLineLength, 0.1f, 0.1f, 0.01f, 1, 0.01f, LineExtractor, "Min line length.");
+IMPLEMENT_RANGE_SETTING(BoundaryLineInterval, 0.1f, 0.1f, 0.01f, 1.f, 0.05f, LineExtractor, "");
+IMPLEMENT_RANGE_SETTING(CornerLineInterval, 0.2f, 0.2f, 0.01f, 1.f, 0.05f, LineExtractor, "");
+IMPLEMENT_RANGE_SETTING(BoundaryMaxZDistance, 0.01f, 0.01f, 0.001f, 1.f, 0.01f, LineExtractor, "");
+IMPLEMENT_RANGE_SETTING(CornerMaxZDistance, 0.05f, 0.05f, 0.001f, 1.f, 0.01f, LineExtractor, "");
+IMPLEMENT_RANGE_SETTING(CornerGroupLinesSearchRadius, 0.05f, 0.05f, 0.001f, 3.f, 0.01f, LineExtractor, "");
 
-Parameters::Parameters(QObject *parent) 
-    : QObject(parent)
-    , m_settings(nullptr)
-    , m_writer(new ParameterWriter)
+IMPLEMENT_STRING_SETTING(SamplePath, "samples/office3.sens", "samples/office3.sens", SensorReader, "Sample dataset's file path.");
+
+void Settings::save()
 {
-    m_writer->moveToThread(&m_writerThread);
-    connect(&m_writerThread, &QThread::finished, m_writer, &QObject::deleteLater);
-    connect(this, &Parameters::setValueSignal, m_writer, &ParameterWriter::setValue, Qt::QueuedConnection);
-    connect(this, &Parameters::setValuesSignal, m_writer, &ParameterWriter::setValues, Qt::QueuedConnection);
-    m_writerThread.start();
-}
-
-Parameters::~Parameters()
-{
-    //m_writer->setValues(m_cache);
-    m_writerThread.quit();
-    m_writerThread.wait();
-}
-
-Parameters &Parameters::Global()
-{
-    static Parameters params;
-    return params;
-}
-
-void Parameters::load(const QString &path)
-{
-    QFile file(path);
-    if (!file.exists())
+    QSettings settings("config2.ini", QSettings::IniFormat);
+    for (SettingItem::SettingMap::iterator i = SettingItem::items().begin(); i != SettingItem::items().end(); i++)
     {
-        file.open(QIODevice::Text | QIODevice::NewOnly);
-        file.close();
-    }
-    m_settings.reset(new QSettings(path, QSettings::IniFormat));
-    m_writer->setSettings(m_settings.data());
+        QString fullKey = i.key();
+        SettingItem* setting = i.value();
 
-    m_cache.clear();
-    QStringList keys = m_settings->allKeys();
-    for (QStringList::iterator i = keys.begin(); i != keys.end(); i++)
+        QVariant value = setting->serialize();
+
+        setting->debugPrint();
+
+        settings.setValue(fullKey, value.toString());
+    }
+}
+
+void Settings::load()
+{
+    QSettings settings("config2.ini", QSettings::IniFormat);
+    for (SettingItem::SettingMap::iterator i = SettingItem::items().begin(); i != SettingItem::items().end(); i++)
     {
-        qDebug() << *i << "--" << m_settings->value(*i);
-        m_cache.insert(*i, m_settings->value(*i));
+        QString fullKey = i.key();
+        SettingItem* setting = i.value();
+
+        if (settings.contains(fullKey))
+        {
+            setting->deserialize(settings.value(fullKey));
+        }
+        else
+        {
+            setting->restore();
+        }
+
+        setting->debugPrint();
     }
 }
 
-QString Parameters::stringValue(const QString &key, const QString &defaultValue, const QString &group)
+void Settings::restore()
 {
-    QString fullKey = getFullKey(key, group);
-    return value(fullKey, defaultValue).toString();
-}
-
-bool Parameters::boolValue(const QString &key, bool defaultValue, const QString &group)
-{
-    QString fullKey = getFullKey(key, group);
-    return value(fullKey, defaultValue).toBool();
-}
-
-int Parameters::intValue(const QString& key, int defaultValue, const QString& group)
-{
-    QString fullKey = getFullKey(key, group);
-    return value(fullKey, defaultValue).toInt();
-}
-
-float Parameters::floatValue(const QString& key, float defaultValue, const QString& group)
-{
-    QString fullKey = getFullKey(key, group);
-    return value(fullKey, defaultValue).toFloat();
-}
-
-void Parameters::setValue(const QString& key, const QVariant& value, const QString &group)
-{
-    QString fullKey = getFullKey(key, group);
-    m_cache[fullKey] = value;
-    emit setValueSignal(fullKey, value);
-}
-
-QVariant Parameters::value(const QString& key, const QVariant& value)
-{
-    if (!m_cache.contains(key))
+    for (SettingItem::SettingMap::iterator i = SettingItem::items().begin(); i != SettingItem::items().end(); i++)
     {
-        m_cache.insert(key, value);
-        emit setValueSignal(key, value);
+        QString fullKey = i.key();
+        SettingItem* setting = i.value();
+        setting->restore();
     }
-    return m_cache[key];
 }
 
-void Parameters::save()
-{
-    emit setValuesSignal(m_cache);
-}
-
-bool Parameters::debugMode()
-{
-    return boolValue("debug_mode");
-}
-
-void Parameters::setDebugMode(bool value)
-{
-    setValue("debug_mode", value);
-}
-
-QString Parameters::version()
-{
-    return stringValue("version");
-}
-
-void Parameters::setVersion(const QString &value)
-{
-    setValue("version", value);
-}
-
-QString Parameters::getFullKey(const QString& key, const QString& group)
-{
-    QString fullKey;
-    if (group == DEFAULT_SETTINGS_GROUP)
-    {
-        fullKey = key;
-    }
-    else
-    {
-        fullKey = QString("%1/%2").arg(group).arg(key);
-    }
-    return fullKey;
-}

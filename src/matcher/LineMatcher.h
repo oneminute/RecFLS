@@ -18,23 +18,19 @@ class LineMatcher : public QObject
 public:
     explicit LineMatcher(QObject* parent = nullptr);
 
-    Eigen::Matrix4f compute(
+    /*Eigen::Matrix4f compute(
         QList<LineChain>& chains1,
         pcl::PointCloud<Line>::Ptr& lines1,
         pcl::PointCloud<LineDescriptor3>::Ptr& desc1,
         QList<LineChain>& chains2,
         pcl::PointCloud<Line>::Ptr& lines2,
         pcl::PointCloud<LineDescriptor3>::Ptr& desc2
-    );
+    );*/
 
-    Eigen::Quaternionf stepRotation(
-        float firstDiameter,
-        pcl::PointCloud<MSLPoint>::Ptr firstPointCloud,
+    Eigen::Matrix3f stepRotation(
         pcl::PointCloud<Line>::Ptr firstLineCloud,
-        float secondDiameter,
-        pcl::PointCloud<MSLPoint>::Ptr secondPointCloud,
         pcl::PointCloud<Line>::Ptr secondLineCloud,
-        pcl::KdTreeFLANN<MSLPoint>::Ptr tree,
+        pcl::KdTreeFLANN<Line>::Ptr tree,
         float& rotationError,
         float& translationError,
         QMap<int, int>& pairs = QMap<int, int>()
@@ -43,7 +39,7 @@ public:
     Eigen::Vector3f stepTranslation(
         pcl::PointCloud<Line>::Ptr firstLineCloud,
         pcl::PointCloud<Line>::Ptr secondLineCloud,
-        pcl::KdTreeFLANN<MSLPoint>::Ptr tree,
+        pcl::KdTreeFLANN<Line>::Ptr tree,
         float& translationError,
         QMap<int, int>& pairs = QMap<int, int>()
     );
@@ -57,8 +53,8 @@ public:
 protected:
 
 private:
-    pcl::PointCloud<LineDescriptor2>::Ptr m_descriptors1;
-    pcl::PointCloud<LineDescriptor2>::Ptr m_descriptors2;
+    pcl::PointCloud<LineDescriptor>::Ptr m_descriptors1;
+    pcl::PointCloud<LineDescriptor>::Ptr m_descriptors2;
     QList<LineChain> m_chains1;
     QList<LineChain> m_chains2;
     QMap<int, int> m_pairs;

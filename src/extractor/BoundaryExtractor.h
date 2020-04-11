@@ -15,6 +15,7 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "common/Common.h"
 #include "cuda/CudaInternal.h"
 
 struct Plane
@@ -74,8 +75,6 @@ public:
 
     explicit BoundaryExtractor(QObject* parent = nullptr);
 
-    pcl::PointCloud<pcl::PointXYZI>::Ptr compute();
-
     pcl::PointCloud<pcl::PointXYZI>::Ptr computeCUDA(cuda::GpuFrame& frame);
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr computeVBRG();
@@ -86,29 +85,12 @@ public:
 
     void boundaryEstimation(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr gaussianFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
-
-    pcl::PointCloud<pcl::PointXYZ>::Ptr outlierRemoval(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
-
-    pcl::PointCloud<pcl::PointXYZ>::Ptr downSampling(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
-
-    void classifyBoundaryPoints();
-
-    void classifyBoundaryPoints2();
-
     void setInputCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr& _cloud)
     {
         m_cloud = _cloud;
     }
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud() const { return m_cloud; }
-
-    /*void setIndices(const pcl::IndicesPtr& _indices)
-    {
-        m_indices = _indices;
-    }
-
-    pcl::IndicesPtr indices() const { return m_indices; }*/
 
     void setNormals(const pcl::PointCloud<pcl::Normal>::Ptr& _normals)
     {
@@ -134,7 +116,7 @@ public:
 
     QMap<qulonglong, VoxelInfo> voxelInfos() { return m_voxelInfos; }
 
-    int OutlierRemovalMeanK() const { return m_outlierRemovalMeanK; }
+    /*int OutlierRemovalMeanK() const { return m_outlierRemovalMeanK; }
     void setOutlierRemovalMeanK(int _outlierRemovalMeanK) { m_outlierRemovalMeanK = _outlierRemovalMeanK; }
 
     float StddevMulThresh() const { return m_stddevMulThresh; }
@@ -167,35 +149,8 @@ public:
     float matHeight() const { return m_matHeight; }
     void setMatHeight(int _matHeight) { m_matHeight = _matHeight; }
 
-    float depthShift() const { return m_depthShift; }
-    void setDepthShift(float _value) { m_depthShift = _value; }
-
-    float cx() const { return m_cx; }
-    void setCx(float _cx) { m_cx = _cx; }
-
-    float cy() const { return m_cy; }
-    void setCy(float _cy) { m_cy = _cy; }
-
-    float fx() const { return m_fx; }
-    void setFx(float _fx) { m_fx = _fx; }
-
-    float fy() const { return m_fy; }
-    void setFy(float _fy) { m_fy = _fy; }
-
     float projectedRadiusSearch() const { return m_projectedRadiusSearch; }
     void setProjectedRadiusSearch(float _projectedRadiusSearch) { m_projectedRadiusSearch = _projectedRadiusSearch; }
-
-    float borderLeft() const { return m_borderLeft; }
-    void setBorderLeft(float _borderLeft) { m_borderLeft = _borderLeft; }
-
-    float borderRight() const { return m_borderRight; }
-    void setBorderRight(float _borderRight) { m_borderRight = _borderRight; }
-
-    float borderTop() const { return m_borderTop; }
-    void setBorderTop(float _borderTop) { m_borderTop = _borderTop; }
-
-    float borderBottom() const { return m_borderBottom; }
-    void setBorderBottom(float _borderBottom) { m_borderBottom = _borderBottom; }
 
     float veilDistanceThreshold() const { return m_veilDistanceThreshold; }
     void setVeilDistanceThreshold(float _veilDistanceThreshold) { m_veilDistanceThreshold = _veilDistanceThreshold; }
@@ -225,12 +180,7 @@ public:
     void setPlaneDistanceThreshold(float _value) { m_planeDistanceThreshold = _value; }
 
     float planePointsRate() const { return m_planePointsRate; }
-    void setPlanePointsRate(float _value) { m_planePointsRate = _value; }
-
-protected:
-    void computeNormals(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
-
-    void extractPlanes();
+    void setPlanePointsRate(float _value) { m_planePointsRate = _value; }*/
 
 private:
     //  ‰»Îµ„‘∆
@@ -280,7 +230,7 @@ private:
 
     QMap<qulonglong, VoxelInfo> m_voxelInfos;
 
-    DOWNSAMPLING_METHOD m_downsamplingMethod;
+    /*DOWNSAMPLING_METHOD m_downsamplingMethod;
     bool m_enableRemovalFilter;
     float m_downsampleLeafSize;
     int m_outlierRemovalMeanK;
@@ -293,15 +243,6 @@ private:
     float m_boundaryAngleThreshold;
     int m_matWidth;
     int m_matHeight;
-    float m_depthShift;
-    float m_cx;
-    float m_cy;
-    float m_fx;
-    float m_fy;
-    float m_borderLeft;
-    float m_borderRight;
-    float m_borderTop;
-    float m_borderBottom;
     float m_projectedRadiusSearch;
     float m_veilDistanceThreshold;
     float m_crossPointsRadiusSearch;
@@ -312,7 +253,37 @@ private:
     float m_planeDistanceThreshold;
 
     int m_classifyRadius;
-    float m_planePointsRate;
+    float m_planePointsRate;*/
+
+    PROPERTY(float, Cx)
+    PROPERTY(float, Cy)
+    PROPERTY(float, Fx)
+    PROPERTY(float, Fy)
+    PROPERTY(int, Width)
+    PROPERTY(int, Height)
+    PROPERTY(float, BorderLeft)
+    PROPERTY(float, BorderRight)
+    PROPERTY(float, BorderTop)
+    PROPERTY(float, BorderBottom)
+    PROPERTY(float, DepthShift)
+    PROPERTY(float, MinDepth)
+    PROPERTY(float, MaxDepth)
+    PROPERTY(int, CudaNormalKernalRadius)
+    PROPERTY(float, CudaNormalKnnRadius)
+    PROPERTY(float, CudaBEDistance)
+    PROPERTY(float, CudaBEAngleThreshold)
+    PROPERTY(int, CudaBEKernalRadius)
+    PROPERTY(float, CudaGaussianSigma)
+    PROPERTY(int, CudaGaussianKernalRadius)
+    PROPERTY(int, CudaClassifyKernalRadius)
+    PROPERTY(float, CudaClassifyDistance)
+    PROPERTY(int, CudaPeakClusterTolerance)
+    PROPERTY(int, CudaMinClusterPeaks)
+    PROPERTY(int, CudaMaxClusterPeaks)
+    PROPERTY(float, CudaCornerHistSigma)
+
+    PROPERTY(float, VBRGResolution)
+    PROPERTY(int, VBRGMinPoints)
 };
 
 class BEOctree : public pcl::octree::OctreePointCloudPointVector<pcl::PointXYZ>

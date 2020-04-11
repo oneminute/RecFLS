@@ -19,8 +19,8 @@ ToolWindowLineMatcher::ToolWindowLineMatcher(QWidget *parent)
     , m_isInit(false)
     , m_isLoaded(false)
     , m_iteration(0)
-    , m_diameter1(0)
-    , m_diameter2(0)
+    //, m_diameter1(0)
+    //, m_diameter2(0)
     , m_rotationDelta(Eigen::Quaternionf::Identity())
     , m_translationDelta(Eigen::Vector3f::Zero())
     , m_rotationError(0)
@@ -75,35 +75,41 @@ void ToolWindowLineMatcher::initCompute()
         m_lineMatcher.reset(new LineMatcher);
     }
 
-    m_boundaryExtractor->setDownsamplingMethod(PARAMETERS.intValue("downsampling_method", 0, "BoundaryExtractor"));
-    m_boundaryExtractor->setEnableRemovalFilter(PARAMETERS.boolValue("enable_removal_filter", false, "BoundaryExtractor"));
-    m_boundaryExtractor->setDownsampleLeafSize(PARAMETERS.floatValue("downsample_leaf_size", 0.0075f, "BoundaryExtractor"));
-    m_boundaryExtractor->setOutlierRemovalMeanK(PARAMETERS.floatValue("outlier_removal_mean_k", 20.f, "BoundaryExtractor"));
-    m_boundaryExtractor->setStddevMulThresh(PARAMETERS.floatValue("std_dev_mul_thresh", 1.f, "BoundaryExtractor"));
-    m_boundaryExtractor->setGaussianSigma(PARAMETERS.floatValue("gaussian_sigma", 4.f, "BoundaryExtractor"));
-    m_boundaryExtractor->setGaussianRSigma(PARAMETERS.floatValue("gaussian_r_sigma", 4.f, "BoundaryExtractor"));
-    m_boundaryExtractor->setGaussianRadiusSearch(PARAMETERS.floatValue("gaussian_radius_search", 0.05f, "BoundaryExtractor"));
-    m_boundaryExtractor->setNormalsRadiusSearch(PARAMETERS.floatValue("normals_radius_search", 0.05f, "BoundaryExtractor"));
-    m_boundaryExtractor->setBoundaryRadiusSearch(PARAMETERS.floatValue("boundary_radius_search", 0.1f, "BoundaryExtractor"));
-    m_boundaryExtractor->setBoundaryAngleThreshold(PARAMETERS.floatValue("boundary_angle_threshold", M_PI_2, "BoundaryExtractor"));
-    m_boundaryExtractor->setBorderLeft(PARAMETERS.floatValue("border_left", 26, "BoundaryExtractor"));
-    m_boundaryExtractor->setBorderRight(PARAMETERS.floatValue("border_right", 22, "BoundaryExtractor"));
-    m_boundaryExtractor->setBorderTop(PARAMETERS.floatValue("border_top", 16, "BoundaryExtractor"));
-    m_boundaryExtractor->setBorderBottom(PARAMETERS.floatValue("border_bottom", 16, "BoundaryExtractor"));
-    m_boundaryExtractor->setProjectedRadiusSearch(qDegreesToRadians(PARAMETERS.floatValue("projected_radius_search", 5, "BoundaryExtractor")));
-    m_boundaryExtractor->setVeilDistanceThreshold(PARAMETERS.floatValue("veil_distance_threshold", 0.1f, "BoundaryExtractor"));
-    m_boundaryExtractor->setPlaneDistanceThreshold(PARAMETERS.floatValue("plane_distance_threshold", 0.01f, "BoundaryExtractor"));
+    m_lineExtractor->setBoundaryCloudA1dThreshold(Settings::LineExtractor_BoundaryCloudA1dThreshold.value());
+    m_lineExtractor->setCornerCloudA1dThreshold(Settings::LineExtractor_CornerCloudA1dThreshold.value());
+    m_lineExtractor->setBoundaryCloudSearchRadius(Settings::LineExtractor_BoundaryCloudSearchRadius.value());
+    m_lineExtractor->setCornerCloudSearchRadius(Settings::LineExtractor_CornerCloudSearchRadius.value());
+    m_lineExtractor->setPCASearchRadius(Settings::LineExtractor_PCASearchRadius.value());
+    m_lineExtractor->setMinNeighboursCount(Settings::LineExtractor_MinNeighboursCount.intValue());
+    m_lineExtractor->setAngleCloudSearchRadius(Settings::LineExtractor_AngleCloudSearchRadius.value());
+    m_lineExtractor->setAngleCloudMinNeighboursCount(Settings::LineExtractor_AngleCloudMinNeighboursCount.intValue());
+    m_lineExtractor->setMinLineLength(Settings::LineExtractor_MinLineLength.value());
+    m_lineExtractor->setBoundaryLineInterval(Settings::LineExtractor_BoundaryLineInterval.value());
+    m_lineExtractor->setCornerLineInterval(Settings::LineExtractor_CornerLineInterval.value());
+    m_lineExtractor->setBoundaryMaxZDistance(Settings::LineExtractor_BoundaryMaxZDistance.value());
+    m_lineExtractor->setCornerMaxZDistance(Settings::LineExtractor_CornerMaxZDistance.value());
+    m_lineExtractor->setCornerGroupLinesSearchRadius(Settings::LineExtractor_CornerGroupLinesSearchRadius.value());
 
-    m_lineExtractor->setSearchRadius(PARAMETERS.floatValue("search_radius", 0.1f, "LineExtractor"));
-    m_lineExtractor->setMinNeighbours(PARAMETERS.intValue("min_neighbours", 3, "LineExtractor"));
-    m_lineExtractor->setSearchErrorThreshold(PARAMETERS.floatValue("search_error_threshold", 0.05f, "LineExtractor"));
-    m_lineExtractor->setAngleSearchRadius(PARAMETERS.floatValue("angle_search_radius", M_PI_4, "LineExtractor"));
-    m_lineExtractor->setAngleMinNeighbours(PARAMETERS.intValue("angle_min_neighbours", 10, "LineExtractor"));
-    m_lineExtractor->setMappingTolerance(PARAMETERS.floatValue("mapping_tolerance", 0.01f, "LineExtractor"));
-    m_lineExtractor->setAngleMappingMethod(PARAMETERS.intValue("angle_mapping_method", 0, "LineExtractor"));
-    m_lineExtractor->setMinLineLength(PARAMETERS.floatValue("min_line_length", 0.05f, "LineExtractor"));
-    m_lineExtractor->setRegionGrowingZDistanceThreshold(PARAMETERS.floatValue("region_growing_z_distance_threshold", 0.005f, "LineExtractor"));
-    m_lineExtractor->setMslRadiusSearch(PARAMETERS.floatValue("msl_radius_search", 0.01f, "LineExtractor"));
+    m_boundaryExtractor.reset(new BoundaryExtractor);
+    m_boundaryExtractor->setBorderLeft(Settings::BoundaryExtractor_BorderLeft.value());
+    m_boundaryExtractor->setBorderRight(Settings::BoundaryExtractor_BorderRight.value());
+    m_boundaryExtractor->setBorderTop(Settings::BoundaryExtractor_BorderTop.value());
+    m_boundaryExtractor->setBorderBottom(Settings::BoundaryExtractor_BorderBottom.value());
+    m_boundaryExtractor->setMinDepth(Settings::BoundaryExtractor_MinDepth.value());
+    m_boundaryExtractor->setMaxDepth(Settings::BoundaryExtractor_MaxDepth.value());
+    m_boundaryExtractor->setCudaNormalKernalRadius(Settings::BoundaryExtractor_CudaNormalKernalRadius.intValue());
+    m_boundaryExtractor->setCudaNormalKnnRadius(Settings::BoundaryExtractor_CudaNormalKnnRadius.value());
+    m_boundaryExtractor->setCudaBEDistance(Settings::BoundaryExtractor_CudaBEDistance.value());
+    m_boundaryExtractor->setCudaBEAngleThreshold(Settings::BoundaryExtractor_CudaBEAngleThreshold.value());
+    m_boundaryExtractor->setCudaBEKernalRadius(Settings::BoundaryExtractor_CudaBEKernalRadius.value());
+    m_boundaryExtractor->setCudaGaussianSigma(Settings::BoundaryExtractor_CudaGaussianSigma.value());
+    m_boundaryExtractor->setCudaGaussianKernalRadius(Settings::BoundaryExtractor_CudaGaussianKernalRadius.value());
+    m_boundaryExtractor->setCudaClassifyKernalRadius(Settings::BoundaryExtractor_CudaClassifyKernalRadius.value());
+    m_boundaryExtractor->setCudaClassifyDistance(Settings::BoundaryExtractor_CudaClassifyDistance.value());
+    m_boundaryExtractor->setCudaPeakClusterTolerance(Settings::BoundaryExtractor_CudaPeakClusterTolerance.intValue());
+    m_boundaryExtractor->setCudaMinClusterPeaks(Settings::BoundaryExtractor_CudaMinClusterPeaks.intValue());
+    m_boundaryExtractor->setCudaMaxClusterPeaks(Settings::BoundaryExtractor_CudaMaxClusterPeaks.intValue());
+    m_boundaryExtractor->setCudaCornerHistSigma(Settings::BoundaryExtractor_CudaCornerHistSigma.value());
 
     int frameIndex1 = m_ui->comboBoxFirstFrame->currentIndex();
     Frame frame1 = m_device->getFrame(frameIndex1);
@@ -131,13 +137,13 @@ void ToolWindowLineMatcher::initCompute()
             m_frameGpu1.parameters.colorHeight = frame1.getColorHeight();
             m_frameGpu1.parameters.depthWidth = frame1.getDepthWidth();
             m_frameGpu1.parameters.depthHeight = frame1.getDepthHeight();
-            m_frameGpu1.allocate(41);
+            m_frameGpu1.allocate();
 
             m_frameGpu2.parameters.colorWidth = frame2.getColorWidth();
             m_frameGpu2.parameters.colorHeight = frame2.getColorHeight();
             m_frameGpu2.parameters.depthWidth = frame2.getDepthWidth();
             m_frameGpu2.parameters.depthHeight = frame2.getDepthHeight();
-            m_frameGpu2.allocate(41);
+            m_frameGpu2.allocate();
             m_isInit = true;
         }
 
@@ -158,10 +164,12 @@ void ToolWindowLineMatcher::initCompute()
     cv::Mat pointsMat2;
     pcl::PointCloud<pcl::Normal>::Ptr normals1;
     pcl::PointCloud<pcl::Normal>::Ptr normals2;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr cornerPoints1;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr cornerPoints2;
     {
         m_boundaryExtractor->setInputCloud(m_cloud1);
-        m_boundaryExtractor->setMatWidth(frame1.getDepthWidth());
-        m_boundaryExtractor->setMatHeight(frame1.getDepthHeight());
+        m_boundaryExtractor->setWidth(frame1.getDepthWidth());
+        m_boundaryExtractor->setHeight(frame1.getDepthHeight());
         m_boundaryExtractor->setCx(frame1.getDevice()->cx());
         m_boundaryExtractor->setCy(frame1.getDevice()->cy());
         m_boundaryExtractor->setFx(frame1.getDevice()->fx());
@@ -173,19 +181,19 @@ void ToolWindowLineMatcher::initCompute()
         }
         else
         {
-            m_boundaryExtractor->compute();
+            //m_boundaryExtractor->compute();
         }
         boundaryPoints1 = m_boundaryExtractor->boundaryPoints();
         m_filteredCloud1 = m_boundaryExtractor->filteredCloud();
         //m_planes1 = m_boundaryExtractor->planes();
         pointsMat1 = m_boundaryExtractor->pointsMat();
         normals1 = m_boundaryExtractor->normals();
-        pcl::PointCloud<pcl::PointXYZI>::Ptr cornerPoints1 = m_boundaryExtractor->cornerPoints();
-        *boundaryPoints1 += *cornerPoints1;
+        cornerPoints1 = m_boundaryExtractor->cornerPoints();
+        //*boundaryPoints1 += *cornerPoints1;
 
         m_boundaryExtractor->setInputCloud(m_cloud2);
-        m_boundaryExtractor->setMatWidth(frame2.getDepthWidth());
-        m_boundaryExtractor->setMatHeight(frame2.getDepthHeight());
+        m_boundaryExtractor->setWidth(frame2.getDepthWidth());
+        m_boundaryExtractor->setHeight(frame2.getDepthHeight());
         m_boundaryExtractor->setCx(frame2.getDevice()->cx());
         m_boundaryExtractor->setCy(frame2.getDevice()->cy());
         m_boundaryExtractor->setFx(frame2.getDevice()->fx());
@@ -197,15 +205,15 @@ void ToolWindowLineMatcher::initCompute()
         }
         else
         {
-            m_boundaryExtractor->compute();
+            //m_boundaryExtractor->compute();
         }
         boundaryPoints2 = m_boundaryExtractor->boundaryPoints();
         m_filteredCloud2 = m_boundaryExtractor->filteredCloud();
         //m_planes2 = m_boundaryExtractor->planes();
         pointsMat2 = m_boundaryExtractor->pointsMat();
         normals2 = m_boundaryExtractor->normals();
-        pcl::PointCloud<pcl::PointXYZI>::Ptr cornerPoints2 = m_boundaryExtractor->cornerPoints();
-        *boundaryPoints2 += *cornerPoints2;
+        cornerPoints2 = m_boundaryExtractor->cornerPoints();
+        //*boundaryPoints2 += *cornerPoints2;
     }
 
     QList<LineSegment> lines1;
@@ -213,39 +221,39 @@ void ToolWindowLineMatcher::initCompute()
     Eigen::Vector3f center1;
     Eigen::Vector3f center2;
     {
-        m_lineExtractor->setMatWidth(frame1.getDepthWidth());
+        /*m_lineExtractor->setMatWidth(frame1.getDepthWidth());
         m_lineExtractor->setMatHeight(frame1.getDepthHeight());
         m_lineExtractor->setCx(frame1.getDevice()->cx());
         m_lineExtractor->setCy(frame1.getDevice()->cy());
         m_lineExtractor->setFx(frame1.getDevice()->fx());
-        m_lineExtractor->setFy(frame1.getDevice()->fy());
+        m_lineExtractor->setFy(frame1.getDevice()->fy());*/
 
-        lines1 = m_lineExtractor->compute(boundaryPoints1);
+        lines1 = m_lineExtractor->compute(boundaryPoints1, cornerPoints1);
         //m_lineExtractor->extractLinesFromPlanes(m_planes1);
-        m_lineExtractor->segmentLines();
-        m_lineExtractor->generateLineChains();
+        //m_lineExtractor->groupLines();
+        //m_lineExtractor->generateLineChains();
         //m_lineExtractor->generateDescriptors2();
         qDebug() << pointsMat1.type();
-        m_lineExtractor->generateDescriptors3(m_cloud1, normals1, pointsMat1);
-        m_mslCloud1 = m_lineExtractor->mslCloud();
+        //m_lineExtractor->generateDescriptors3(m_cloud1, normals1, pointsMat1);
+        m_lineCloud1 = m_lineExtractor->lineCloud();
         //m_mslPointCloud1 = m_lineExtractor->mslPointCloud();
-        m_diameter1 = m_lineExtractor->boundBoxDiameter();
-        m_chains1 = m_lineExtractor->chains();
-        m_desc1 = m_lineExtractor->descriptors3();
-        center1 = m_lineExtractor->lcLocalMiddle();
+        //m_diameter1 = m_lineExtractor->boundBoxDiameter();
+        //m_chains1 = m_lineExtractor->chains();
+        m_desc1 = m_lineExtractor->descriptors();
+        //center1 = m_lineExtractor->lcLocalMiddle();
 
-        lines2 = m_lineExtractor->compute(boundaryPoints2);
+        lines2 = m_lineExtractor->compute(boundaryPoints2, cornerPoints1);
         //m_lineExtractor->extractLinesFromPlanes(m_planes2);
-        m_lineExtractor->segmentLines();
-        m_lineExtractor->generateLineChains();
+        //m_lineExtractor->groupLines();
+        //m_lineExtractor->generateLineChains();
         //m_lineExtractor->generateDescriptors2();
-        m_lineExtractor->generateDescriptors3(m_cloud2, normals2, pointsMat2);
-        m_mslCloud2 = m_lineExtractor->mslCloud();
+        //m_lineExtractor->generateDescriptors3(m_cloud2, normals2, pointsMat2);
+        m_lineCloud2 = m_lineExtractor->lineCloud();
         //m_mslPointCloud2 = m_lineExtractor->mslPointCloud();
-        m_diameter2 = m_lineExtractor->boundBoxDiameter();
-        m_chains2 = m_lineExtractor->chains();
-        m_desc2 = m_lineExtractor->descriptors3();
-        center2 = m_lineExtractor->lcLocalMiddle();
+        //m_diameter2 = m_lineExtractor->boundBoxDiameter();
+        //m_chains2 = m_lineExtractor->chains();
+        m_desc2 = m_lineExtractor->descriptors();
+        //center2 = m_lineExtractor->lcLocalMiddle();
     }
 
     m_cloudViewer1->visualizer()->removeAllPointClouds();
@@ -255,19 +263,19 @@ void ToolWindowLineMatcher::initCompute()
     m_cloudViewer3->visualizer()->removeAllPointClouds();
     m_cloudViewer3->visualizer()->removeAllShapes();
 
-    //m_tree.reset(new pcl::KdTreeFLANN<MSLPoint>());
-    //m_tree->setInputCloud(m_mslPointCloud2);
+    m_tree.reset(new pcl::KdTreeFLANN<Line>());
+    m_tree->setInputCloud(m_lineCloud2);
     //qDebug() << "msl point cloud2:" << m_mslPointCloud2->size();
 
     // œ‘ æµ„‘∆
     {
         pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> h1(m_colorCloud1, 127, 127, 127);
-        //m_cloudViewer2->visualizer()->addPointCloud(m_colorCloud1, h1, "cloud");
+        m_cloudViewer2->visualizer()->addPointCloud(m_colorCloud1, h1, "cloud");
         pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> h2(m_colorCloud2, 127, 127, 127);
-        //m_cloudViewer3->visualizer()->addPointCloud(m_colorCloud2, h2, "cloud");
+        m_cloudViewer3->visualizer()->addPointCloud(m_colorCloud2, h2, "cloud");
     }
-    showCloudAndLines(m_cloudViewer2, m_planes1, lines1, m_mslCloud1);
-    showCloudAndLines(m_cloudViewer3, m_planes2, lines2, m_mslCloud2);
+    showCloudAndLines(m_cloudViewer2, lines1, m_lineCloud1);
+    showCloudAndLines(m_cloudViewer3, lines2, m_lineCloud2);
     //showCloudAndLines(m_cloudViewer2, QList<LineSegment>(), m_mslCloud1);
     //showCloudAndLines(m_cloudViewer3, QList<LineSegment>(), m_mslCloud2);
 
@@ -289,7 +297,7 @@ void ToolWindowLineMatcher::initCompute()
 void ToolWindowLineMatcher::compute()
 {
     initCompute();
-    Eigen::Matrix4f M = m_lineMatcher->compute(m_chains1, m_mslCloud1, m_desc1, m_chains2, m_mslCloud2, m_desc2);
+    /*Eigen::Matrix4f M = m_lineMatcher->compute(m_chains1, m_lineCloud1, m_desc1, m_chains2, m_lineCloud2, m_desc2);
 
     m_rotation = M.topLeftCorner(3, 3);
     m_translation = M.topRightCorner(3, 1);
@@ -308,10 +316,10 @@ void ToolWindowLineMatcher::compute()
     }
     
     showMatchedClouds();
-    updateWidgets();
+    updateWidgets();*/
 }
 
-void ToolWindowLineMatcher::showCloudAndLines(CloudViewer* viewer, QList<Plane>& planes, QList<LineSegment>& lines, boost::shared_ptr<pcl::PointCloud<Line>>& mslCloud)
+void ToolWindowLineMatcher::showCloudAndLines(CloudViewer* viewer, QList<LineSegment>& lines, boost::shared_ptr<pcl::PointCloud<Line>>& mslCloud)
 {
     QColor color;
     //for (int i = 0; i < planes.size(); i++)
@@ -394,69 +402,69 @@ void ToolWindowLineMatcher::showMatchedClouds()
         //pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> h2(m_colorCloud2, 0, 0, 255);
         m_cloudViewer1->visualizer()->addPointCloud(m_colorCloud2, h2, "cloud2");
 
-        for (QMap<int, int>::iterator i = m_pairs.begin(); i != m_pairs.end(); i++)
-        {
-            LineChain lc1 = m_chains1[i.value()];
-            LineChain lc2 = m_chains2[i.key()];
-            {
-                pcl::PointXYZI start, end, middle;
+        //for (QMap<int, int>::iterator i = m_pairs.begin(); i != m_pairs.end(); i++)
+        //{
+        //    LineChain lc1 = m_chains1[i.value()];
+        //    LineChain lc2 = m_chains2[i.key()];
+        //    {
+        //        pcl::PointXYZI start, end, middle;
 
-                //MSL msl = m_mslCloud1->points[lc1.line1];
-                start.getVector3fMap() = lc1.line1.getEndPoint(-3);
-                end.getVector3fMap() = lc1.line1.getEndPoint(3);
-                middle.getVector3fMap() = lc1.line1.point;
-                QString lineName = QString("msl_1_%1").arg(lc1.lineNo1);
-                std::string textNo = "text_1_" + std::to_string(lc1.lineNo1);
-                if (!m_cloudViewer1->visualizer()->contains(textNo))
-                {
-                    m_cloudViewer1->visualizer()->addText3D(std::to_string(lc1.lineNo1), middle, 0.05, 255, 0, 0, textNo);
-                    m_cloudViewer1->visualizer()->addLine(start, end, 255, 255, 0, lineName.toStdString());
-                    m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 1, lineName.toStdString());
-                }
+        //        //MSL msl = m_mslCloud1->points[lc1.line1];
+        //        start.getVector3fMap() = lc1.line1.getEndPoint(-3);
+        //        end.getVector3fMap() = lc1.line1.getEndPoint(3);
+        //        middle.getVector3fMap() = lc1.line1.point;
+        //        QString lineName = QString("msl_1_%1").arg(lc1.lineNo1);
+        //        std::string textNo = "text_1_" + std::to_string(lc1.lineNo1);
+        //        if (!m_cloudViewer1->visualizer()->contains(textNo))
+        //        {
+        //            m_cloudViewer1->visualizer()->addText3D(std::to_string(lc1.lineNo1), middle, 0.05, 255, 0, 0, textNo);
+        //            m_cloudViewer1->visualizer()->addLine(start, end, 255, 255, 0, lineName.toStdString());
+        //            m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 1, lineName.toStdString());
+        //        }
 
-                //msl = m_mslCloud1->points[lc1.line2];
-                start.getVector3fMap() = lc1.line2.getEndPoint(-3);
-                end.getVector3fMap() = lc1.line2.getEndPoint(3);
-                middle.getVector3fMap() = lc1.line2.point;
-                lineName = QString("msl_1_%1").arg(lc1.lineNo2);
-                textNo = "text_1_" + std::to_string(lc1.lineNo2);
-                if (!m_cloudViewer1->visualizer()->contains(textNo))
-                {
-                    m_cloudViewer1->visualizer()->addText3D(std::to_string(lc1.lineNo2), middle, 0.05, 255, 0, 0, textNo);
-                    m_cloudViewer1->visualizer()->addLine(start, end, 255, 255, 0, lineName.toStdString());
-                    m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 1, lineName.toStdString());
-                }
-            }
-            {
-                pcl::PointXYZI start, end, middle;
+        //        //msl = m_mslCloud1->points[lc1.line2];
+        //        start.getVector3fMap() = lc1.line2.getEndPoint(-3);
+        //        end.getVector3fMap() = lc1.line2.getEndPoint(3);
+        //        middle.getVector3fMap() = lc1.line2.point;
+        //        lineName = QString("msl_1_%1").arg(lc1.lineNo2);
+        //        textNo = "text_1_" + std::to_string(lc1.lineNo2);
+        //        if (!m_cloudViewer1->visualizer()->contains(textNo))
+        //        {
+        //            m_cloudViewer1->visualizer()->addText3D(std::to_string(lc1.lineNo2), middle, 0.05, 255, 0, 0, textNo);
+        //            m_cloudViewer1->visualizer()->addLine(start, end, 255, 255, 0, lineName.toStdString());
+        //            m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 1, lineName.toStdString());
+        //        }
+        //    }
+        //    {
+        //        pcl::PointXYZI start, end, middle;
 
-                //MSL msl = m_mslCloud2->points[lc2.line1];
-                start.getVector3fMap() = lc2.line1.getEndPoint(-3);
-                end.getVector3fMap() = lc2.line1.getEndPoint(3);
-                middle.getVector3fMap() = lc2.line1.point;
-                QString lineName = QString("msl_2_%1").arg(lc2.lineNo1);
-                std::string textNo = "text_2_" + std::to_string(lc2.lineNo1);
-                if (!m_cloudViewer1->visualizer()->contains(textNo))
-                {
-                    m_cloudViewer1->visualizer()->addText3D(std::to_string(lc2.lineNo1), middle, 0.05, 0, 0, 255, textNo);
-                    m_cloudViewer1->visualizer()->addLine(start, end, 0, 255, 255, lineName.toStdString());
-                    m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 1, lineName.toStdString());
-                }
+        //        //MSL msl = m_mslCloud2->points[lc2.line1];
+        //        start.getVector3fMap() = lc2.line1.getEndPoint(-3);
+        //        end.getVector3fMap() = lc2.line1.getEndPoint(3);
+        //        middle.getVector3fMap() = lc2.line1.point;
+        //        QString lineName = QString("msl_2_%1").arg(lc2.lineNo1);
+        //        std::string textNo = "text_2_" + std::to_string(lc2.lineNo1);
+        //        if (!m_cloudViewer1->visualizer()->contains(textNo))
+        //        {
+        //            m_cloudViewer1->visualizer()->addText3D(std::to_string(lc2.lineNo1), middle, 0.05, 0, 0, 255, textNo);
+        //            m_cloudViewer1->visualizer()->addLine(start, end, 0, 255, 255, lineName.toStdString());
+        //            m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 1, lineName.toStdString());
+        //        }
 
-                //msl = m_mslCloud2->points[lc2.line2];
-                start.getVector3fMap() = lc2.line2.getEndPoint(-3);
-                end.getVector3fMap() = lc2.line2.getEndPoint(3);
-                middle.getVector3fMap() = lc2.line2.point;
-                lineName = QString("msl_2_%1").arg(lc2.lineNo2);
-                textNo = "text_2_" + std::to_string(lc2.lineNo2);
-                if (!m_cloudViewer1->visualizer()->contains(textNo))
-                {
-                    m_cloudViewer1->visualizer()->addText3D(std::to_string(lc2.lineNo2), middle, 0.05, 0, 0, 255, textNo);
-                    m_cloudViewer1->visualizer()->addLine(start, end, 0, 255, 255, lineName.toStdString());
-                    m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 1, lineName.toStdString());
-                }
-            }
-        }
+        //        //msl = m_mslCloud2->points[lc2.line2];
+        //        start.getVector3fMap() = lc2.line2.getEndPoint(-3);
+        //        end.getVector3fMap() = lc2.line2.getEndPoint(3);
+        //        middle.getVector3fMap() = lc2.line2.point;
+        //        lineName = QString("msl_2_%1").arg(lc2.lineNo2);
+        //        textNo = "text_2_" + std::to_string(lc2.lineNo2);
+        //        if (!m_cloudViewer1->visualizer()->contains(textNo))
+        //        {
+        //            m_cloudViewer1->visualizer()->addText3D(std::to_string(lc2.lineNo2), middle, 0.05, 0, 0, 255, textNo);
+        //            m_cloudViewer1->visualizer()->addLine(start, end, 0, 255, 255, lineName.toStdString());
+        //            m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 1, lineName.toStdString());
+        //        }
+        //    }
+        //}
     }
 }
 
@@ -516,13 +524,14 @@ void ToolWindowLineMatcher::onActionBeginStep()
 
 void ToolWindowLineMatcher::onActionStepRotationMatch()
 {
-    //m_rotationDelta = m_lineMatcher->stepRotation(m_diameter1, m_mslPointCloud1, m_mslCloud1, 
-        //m_diameter2, m_mslPointCloud2, m_mslCloud2, m_tree, m_rotationError, m_translationError, m_pairs);
+    m_rotationDelta = m_lineMatcher->stepRotation(m_lineCloud1, m_lineCloud2, m_tree, m_rotationError, m_translationError, m_pairs);
     m_translationDelta = Eigen::Vector3f::Zero();
+    m_rotation = m_rotation * m_rotationDelta;
+    m_translation = Eigen::Vector3f::Zero();
     m_iteration++;
 
     showMatchedClouds();
-    updateWidgets();
+    //updateWidgets();
 }
 
 void ToolWindowLineMatcher::onActionStepTranslationMatch()
@@ -570,65 +579,65 @@ void ToolWindowLineMatcher::onActionShowPair(bool isChecked)
 
     int index2 = m_pairIndices[m_ui->comboBoxLineChainPairs->currentIndex()];
     int index1 = m_pairs[index2];
-    LineChain lc1 = m_chains1[index1];
-    LineChain lc2 = m_chains2[index2];
-    qDebug() << index1 << lc1.name() << index2 << lc2.name();
+    //LineChain lc1 = m_chains1[index1];
+    //LineChain lc2 = m_chains2[index2];
+    //qDebug() << index1 << lc1.name() << index2 << lc2.name();
 
-    {
-        pcl::PointXYZ start, end;
-        //MSL msl = m_mslCloud1->points[lc1.line1];
-        start.getVector3fMap() = lc1.line1.getEndPoint(-3);
-        end.getVector3fMap() = lc1.line1.getEndPoint(3);
-        m_cloudViewer2->visualizer()->addLine(start, end, 255, 0, 0, "chain_line_1");
-        m_cloudViewer2->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "chain_line_1");
+    //{
+    //    pcl::PointXYZ start, end;
+    //    //MSL msl = m_mslCloud1->points[lc1.line1];
+    //    start.getVector3fMap() = lc1.line1.getEndPoint(-3);
+    //    end.getVector3fMap() = lc1.line1.getEndPoint(3);
+    //    m_cloudViewer2->visualizer()->addLine(start, end, 255, 0, 0, "chain_line_1");
+    //    m_cloudViewer2->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "chain_line_1");
 
-        //msl = m_mslCloud1->points[lc1.line2];
-        start.getVector3fMap() = lc1.line2.getEndPoint(-3);
-        end.getVector3fMap() = lc1.line2.getEndPoint(3);
-        m_cloudViewer2->visualizer()->addLine(start, end, 0, 0, 255, "chain_line_2");
-        m_cloudViewer2->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "chain_line_2");
+    //    //msl = m_mslCloud1->points[lc1.line2];
+    //    start.getVector3fMap() = lc1.line2.getEndPoint(-3);
+    //    end.getVector3fMap() = lc1.line2.getEndPoint(3);
+    //    m_cloudViewer2->visualizer()->addLine(start, end, 0, 0, 255, "chain_line_2");
+    //    m_cloudViewer2->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "chain_line_2");
 
-        start.getVector3fMap() = lc1.point1;
-        end.getVector3fMap() = lc1.point2;
-        m_cloudViewer2->visualizer()->addLine(start, end, 0, 255, 0, "chain_line");
-        m_cloudViewer2->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "chain_line");
+    //    start.getVector3fMap() = lc1.point1;
+    //    end.getVector3fMap() = lc1.point2;
+    //    m_cloudViewer2->visualizer()->addLine(start, end, 0, 255, 0, "chain_line");
+    //    m_cloudViewer2->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "chain_line");
 
-        end.getVector3fMap() = lc1.point;
-        start.getVector3fMap() = lc1.point + lc1.xLocal * 0.2f;
-        m_cloudViewer2->visualizer()->addArrow(start, end, 255, 0, 0, false, "xaxis");
-        start.getVector3fMap() = lc1.point + lc1.yLocal * 0.2f;
-        m_cloudViewer2->visualizer()->addArrow(start, end, 0, 255, 0, false, "yaxis");
-        start.getVector3fMap() = lc1.point + lc1.zLocal * 0.2f;
-        m_cloudViewer2->visualizer()->addArrow(start, end, 0, 0, 255, false, "zaxis");
-    }
+    //    end.getVector3fMap() = lc1.point;
+    //    start.getVector3fMap() = lc1.point + lc1.xLocal * 0.2f;
+    //    m_cloudViewer2->visualizer()->addArrow(start, end, 255, 0, 0, false, "xaxis");
+    //    start.getVector3fMap() = lc1.point + lc1.yLocal * 0.2f;
+    //    m_cloudViewer2->visualizer()->addArrow(start, end, 0, 255, 0, false, "yaxis");
+    //    start.getVector3fMap() = lc1.point + lc1.zLocal * 0.2f;
+    //    m_cloudViewer2->visualizer()->addArrow(start, end, 0, 0, 255, false, "zaxis");
+    //}
 
-    {
-        pcl::PointXYZ start, end;
-        //MSL msl = m_mslCloud2->points[lc2.line1];
-        start.getVector3fMap() = lc2.line1.getEndPoint(-3);
-        end.getVector3fMap() = lc2.line1.getEndPoint(3);
-        m_cloudViewer3->visualizer()->addLine(start, end, 255, 0, 0, "chain_line_1");
-        m_cloudViewer3->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "chain_line_1");
+    //{
+    //    pcl::PointXYZ start, end;
+    //    //MSL msl = m_mslCloud2->points[lc2.line1];
+    //    start.getVector3fMap() = lc2.line1.getEndPoint(-3);
+    //    end.getVector3fMap() = lc2.line1.getEndPoint(3);
+    //    m_cloudViewer3->visualizer()->addLine(start, end, 255, 0, 0, "chain_line_1");
+    //    m_cloudViewer3->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "chain_line_1");
 
-        //msl = m_mslCloud2->points[lc2.line2];
-        start.getVector3fMap() = lc2.line2.getEndPoint(-3);
-        end.getVector3fMap() = lc2.line2.getEndPoint(3);
-        m_cloudViewer3->visualizer()->addLine(start, end, 0, 0, 255, "chain_line_2");
-        m_cloudViewer3->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "chain_line_2");
+    //    //msl = m_mslCloud2->points[lc2.line2];
+    //    start.getVector3fMap() = lc2.line2.getEndPoint(-3);
+    //    end.getVector3fMap() = lc2.line2.getEndPoint(3);
+    //    m_cloudViewer3->visualizer()->addLine(start, end, 0, 0, 255, "chain_line_2");
+    //    m_cloudViewer3->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "chain_line_2");
 
-        start.getVector3fMap() = lc2.point1;
-        end.getVector3fMap() = lc2.point2;
-        m_cloudViewer3->visualizer()->addLine(start, end, 0, 255, 0, "chain_line");
-        m_cloudViewer3->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "chain_line");
+    //    start.getVector3fMap() = lc2.point1;
+    //    end.getVector3fMap() = lc2.point2;
+    //    m_cloudViewer3->visualizer()->addLine(start, end, 0, 255, 0, "chain_line");
+    //    m_cloudViewer3->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3, "chain_line");
 
-        end.getVector3fMap() = lc2.point;
-        start.getVector3fMap() = lc2.point + lc2.xLocal * 0.2f;
-        m_cloudViewer3->visualizer()->addArrow(start, end, 255, 0, 0, false, "xaxis");
-        start.getVector3fMap() = lc2.point + lc2.yLocal * 0.2f;
-        m_cloudViewer3->visualizer()->addArrow(start, end, 0, 255, 0, false, "yaxis");
-        start.getVector3fMap() = lc2.point + lc2.zLocal * 0.2f;
-        m_cloudViewer3->visualizer()->addArrow(start, end, 0, 0, 255, false, "zaxis");
-    }
+    //    end.getVector3fMap() = lc2.point;
+    //    start.getVector3fMap() = lc2.point + lc2.xLocal * 0.2f;
+    //    m_cloudViewer3->visualizer()->addArrow(start, end, 255, 0, 0, false, "xaxis");
+    //    start.getVector3fMap() = lc2.point + lc2.yLocal * 0.2f;
+    //    m_cloudViewer3->visualizer()->addArrow(start, end, 0, 255, 0, false, "yaxis");
+    //    start.getVector3fMap() = lc2.point + lc2.zLocal * 0.2f;
+    //    m_cloudViewer3->visualizer()->addArrow(start, end, 0, 0, 255, false, "zaxis");
+    //}
 }
 
 void ToolWindowLineMatcher::updateWidgets()

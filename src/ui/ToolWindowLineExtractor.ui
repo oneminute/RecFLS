@@ -82,8 +82,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>481</width>
-          <height>848</height>
+          <width>498</width>
+          <height>717</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -120,381 +120,6 @@
            </layout>
           </widget>
          </item>
-         <item>
-          <widget class="QGroupBox" name="groupBox">
-           <property name="title">
-            <string>Parameterized Points Analysis</string>
-           </property>
-           <layout class="QFormLayout" name="formLayout">
-            <item row="0" column="0">
-             <widget class="QLabel" name="label_3">
-              <property name="text">
-               <string>Enable Random</string>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="1">
-             <widget class="QCheckBox" name="checkBoxEnableRandom">
-              <property name="text">
-               <string/>
-              </property>
-              <property name="checkable">
-               <bool>true</bool>
-              </property>
-              <property name="checked">
-               <bool>false</bool>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="0">
-             <widget class="QLabel" name="label">
-              <property name="text">
-               <string>Random Offset</string>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="1">
-             <widget class="QDoubleSpinBox" name="doubleSpinBoxRandomOffset">
-              <property name="decimals">
-               <number>6</number>
-              </property>
-              <property name="maximum">
-               <double>0.100000000000000</double>
-              </property>
-              <property name="singleStep">
-               <double>0.000010000000000</double>
-              </property>
-              <property name="value">
-               <double>0.000500000000000</double>
-              </property>
-             </widget>
-            </item>
-            <item row="3" column="0">
-             <widget class="QLabel" name="labelSearchRadius">
-              <property name="text">
-               <string>Search Radius</string>
-              </property>
-             </widget>
-            </item>
-            <item row="3" column="1">
-             <widget class="QDoubleSpinBox" name="doubleSpinBoxSearchRadius">
-              <property name="decimals">
-               <number>5</number>
-              </property>
-              <property name="maximum">
-               <double>1.000000000000000</double>
-              </property>
-              <property name="singleStep">
-               <double>0.000100000000000</double>
-              </property>
-              <property name="value">
-               <double>0.100000000000000</double>
-              </property>
-             </widget>
-            </item>
-            <item row="4" column="0">
-             <widget class="QLabel" name="label_8">
-              <property name="text">
-               <string>Min Neighbours</string>
-              </property>
-             </widget>
-            </item>
-            <item row="4" column="1">
-             <widget class="QSpinBox" name="spinBoxMinNeighbours">
-              <property name="maximum">
-               <number>1000</number>
-              </property>
-              <property name="value">
-               <number>3</number>
-              </property>
-             </widget>
-            </item>
-            <item row="5" column="0">
-             <widget class="QLabel" name="label_9">
-              <property name="text">
-               <string>Search Error Threshold</string>
-              </property>
-             </widget>
-            </item>
-            <item row="5" column="1">
-             <widget class="QDoubleSpinBox" name="doubleSpinBoxSearchErrorThreshold">
-              <property name="decimals">
-               <number>5</number>
-              </property>
-              <property name="maximum">
-               <double>1.000000000000000</double>
-              </property>
-              <property name="singleStep">
-               <double>0.000100000000000</double>
-              </property>
-              <property name="value">
-               <double>0.050000000000000</double>
-              </property>
-             </widget>
-            </item>
-            <item row="6" column="0">
-             <widget class="QLabel" name="label_10">
-              <property name="text">
-               <string>Angle Search Radius</string>
-              </property>
-             </widget>
-            </item>
-            <item row="6" column="1">
-             <widget class="QDoubleSpinBox" name="doubleSpinBoxAngleSearchRadius">
-              <property name="maximum">
-               <double>360.000000000000000</double>
-              </property>
-              <property name="value">
-               <double>15.000000000000000</double>
-              </property>
-             </widget>
-            </item>
-            <item row="7" column="0">
-             <widget class="QLabel" name="label_11">
-              <property name="text">
-               <string>Angle Min Neighbours</string>
-              </property>
-             </widget>
-            </item>
-            <item row="7" column="1">
-             <widget class="QSpinBox" name="spinBoxAngleMinNeighbours">
-              <property name="maximum">
-               <number>1000</number>
-              </property>
-              <property name="value">
-               <number>10</number>
-              </property>
-             </widget>
-            </item>
-            <item row="13" column="0">
-             <widget class="QLabel" name="label_5">
-              <property name="text">
-               <string>Point Cloud</string>
-              </property>
-             </widget>
-            </item>
-            <item row="13" column="1">
-             <widget class="QWidget" name="widget" native="true">
-              <layout class="QVBoxLayout" name="verticalLayout_5">
-               <item>
-                <widget class="QRadioButton" name="radioButtonShowBoundaryCloud">
-                 <property name="text">
-                  <string>Show Boundary Cloud</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QRadioButton" name="radioButtonShowGroupedCloud">
-                 <property name="text">
-                  <string>Show Grouped Cloud</string>
-                 </property>
-                 <property name="checked">
-                  <bool>false</bool>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QRadioButton" name="radioButtonShowLinedCloud">
-                 <property name="text">
-                  <string>Show Lined Cloud</string>
-                 </property>
-                 <property name="checked">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-            </item>
-            <item row="14" column="0">
-             <widget class="QLabel" name="label_4">
-              <property name="text">
-               <string>Angle Cloud</string>
-              </property>
-             </widget>
-            </item>
-            <item row="14" column="1">
-             <widget class="QWidget" name="widget_2" native="true">
-              <layout class="QVBoxLayout" name="verticalLayout_4">
-               <item>
-                <widget class="QRadioButton" name="radioButtonShowAngleCloud">
-                 <property name="text">
-                  <string>Show Angle Cloud</string>
-                 </property>
-                 <property name="checked">
-                  <bool>false</bool>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QRadioButton" name="radioButtonShowDensityCloud">
-                 <property name="text">
-                  <string>Show Density Cloud</string>
-                 </property>
-                 <property name="checked">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-            </item>
-            <item row="15" column="0">
-             <widget class="QLabel" name="label_6">
-              <property name="text">
-               <string>Sub Clouds</string>
-              </property>
-             </widget>
-            </item>
-            <item row="8" column="0">
-             <widget class="QLabel" name="label_2">
-              <property name="text">
-               <string>Cluster Tolerance</string>
-              </property>
-             </widget>
-            </item>
-            <item row="8" column="1">
-             <widget class="QDoubleSpinBox" name="doubleSpinBoxClusterTolerance">
-              <property name="decimals">
-               <number>6</number>
-              </property>
-              <property name="maximum">
-               <double>1.000000000000000</double>
-              </property>
-              <property name="singleStep">
-               <double>0.000100000000000</double>
-              </property>
-              <property name="value">
-               <double>0.010000000000000</double>
-              </property>
-             </widget>
-            </item>
-            <item row="10" column="0">
-             <widget class="QLabel" name="labelMinLineLength">
-              <property name="text">
-               <string>Min Line Length</string>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="0">
-             <widget class="QLabel" name="labelAngleMappingMethod">
-              <property name="text">
-               <string>Angle Mapping Method</string>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="1">
-             <widget class="QComboBox" name="comboBoxAngleMappingMethod">
-              <item>
-               <property name="text">
-                <string>Two Dims</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Three Dims</string>
-               </property>
-              </item>
-             </widget>
-            </item>
-            <item row="11" column="0">
-             <widget class="QLabel" name="label_7">
-              <property name="text">
-               <string>Z Distance Threshold</string>
-              </property>
-             </widget>
-            </item>
-            <item row="10" column="1">
-             <widget class="QDoubleSpinBox" name="doubleSpinBoxMinLineLength">
-              <property name="decimals">
-               <number>5</number>
-              </property>
-              <property name="maximum">
-               <double>10.000000000000000</double>
-              </property>
-              <property name="singleStep">
-               <double>0.001000000000000</double>
-              </property>
-              <property name="value">
-               <double>0.050000000000000</double>
-              </property>
-             </widget>
-            </item>
-            <item row="11" column="1">
-             <widget class="QDoubleSpinBox" name="doubleSpinBoxZDistanceThreshold">
-              <property name="decimals">
-               <number>5</number>
-              </property>
-              <property name="maximum">
-               <double>1.000000000000000</double>
-              </property>
-              <property name="singleStep">
-               <double>0.001000000000000</double>
-              </property>
-              <property name="value">
-               <double>0.005000000000000</double>
-              </property>
-             </widget>
-            </item>
-            <item row="12" column="0">
-             <widget class="QLabel" name="label_12">
-              <property name="text">
-               <string>MSL Radius Search</string>
-              </property>
-             </widget>
-            </item>
-            <item row="12" column="1">
-             <widget class="QDoubleSpinBox" name="doubleSpinBoxMSLRadiusSearch">
-              <property name="decimals">
-               <number>5</number>
-              </property>
-              <property name="maximum">
-               <double>1.000000000000000</double>
-              </property>
-              <property name="singleStep">
-               <double>0.001000000000000</double>
-              </property>
-              <property name="value">
-               <double>0.010000000000000</double>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <widget class="QGroupBox" name="groupBox_2">
-           <property name="title">
-            <string>Line Chain</string>
-           </property>
-           <layout class="QFormLayout" name="formLayout_2">
-            <item row="0" column="0">
-             <widget class="QLabel" name="label_13">
-              <property name="text">
-               <string>Line Chains</string>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="1">
-             <widget class="QComboBox" name="comboBoxLineChains"/>
-            </item>
-            <item row="1" column="1">
-             <widget class="QPushButton" name="pushButtonShowLineChain">
-              <property name="text">
-               <string>Show Line Chain</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <widget class="QGroupBox" name="groupBox_4">
-           <property name="title">
-            <string>GroupBox</string>
-           </property>
-          </widget>
-         </item>
         </layout>
        </widget>
       </widget>
@@ -515,15 +140,11 @@
     <property name="title">
      <string>&amp;File</string>
     </property>
-    <addaction name="actionLoad_Point_Cloud"/>
-    <addaction name="actionGenerate_Line_Point_Cloud"/>
    </widget>
    <widget class="QMenu" name="menuAction">
     <property name="title">
      <string>Action</string>
     </property>
-    <addaction name="actionParameterized_Points_Analysis"/>
-    <addaction name="actionSave_Config"/>
    </widget>
    <addaction name="menu_File"/>
    <addaction name="menuAction"/>
@@ -540,27 +161,11 @@
     <bool>false</bool>
    </attribute>
    <addaction name="actionLoad_Data_Set"/>
-   <addaction name="actionLoad_Point_Cloud"/>
-   <addaction name="actionParameterized_Points_Analysis"/>
    <addaction name="actionCompute_GPU"/>
-   <addaction name="actionSave_Config"/>
   </widget>
-  <action name="actionLoad_Point_Cloud">
-   <property name="text">
-    <string>Load Point Cloud</string>
-   </property>
-  </action>
   <action name="actionGenerate_Line_Point_Cloud">
    <property name="text">
     <string>Generate Line Point Cloud</string>
-   </property>
-  </action>
-  <action name="actionParameterized_Points_Analysis">
-   <property name="text">
-    <string>Parameterized Points Analysis</string>
-   </property>
-   <property name="toolTip">
-    <string>Parameterized Points Analysis</string>
    </property>
   </action>
   <action name="actionGenerate_Lines">
@@ -571,11 +176,6 @@
   <action name="actionUpdate_Clouds">
    <property name="text">
     <string>Update Clouds</string>
-   </property>
-  </action>
-  <action name="actionSave_Config">
-   <property name="text">
-    <string>Save Config</string>
    </property>
   </action>
   <action name="actionLoad_Data_Set">

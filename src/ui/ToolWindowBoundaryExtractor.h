@@ -26,7 +26,7 @@ public:
 private slots:
     void init();
     void onActionLoadDataSet();
-    void onActionCompute();
+    //void onActionCompute();
     void onActionComputeGPU();
     void onActionComputeVBRG();
     void onActionSave();

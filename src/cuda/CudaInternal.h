@@ -31,7 +31,8 @@ namespace cuda
         int depthWidth;
         int depthHeight;
         float depthShift;
-        float normalKernelMaxDistance;
+        float normalKnnRadius;
+        int normalKernalRadius;
         float boundaryGaussianSigma;
         int boundaryGaussianRadius;
         int boundaryEstimationRadius;
@@ -43,9 +44,12 @@ namespace cuda
         int borderRight;
         int borderTop;
         int borderBottom;
-        int neighbourRadius;
         int debugX;
         int debugY;
+        int peakClusterTolerance;
+        int minClusterPeaks;
+        int maxClusterPeaks;
+        float cornerHistSigma;
     };
 
     struct GpuFrame
@@ -62,9 +66,8 @@ namespace cuda
 
         Parameters parameters;
 
-        bool allocate(int neighbourRadius)
+        bool allocate()
         {
-            parameters.neighbourRadius = neighbourRadius;
             colorImage.create(parameters.colorHeight, parameters.colorWidth);
             depthImage.create(parameters.depthHeight, parameters.depthWidth);
             indicesImage.create(parameters.depthHeight, parameters.depthWidth);
@@ -73,7 +76,6 @@ namespace cuda
             pointCloudNormals.create(parameters.depthWidth * parameters.depthHeight);
             boundaries.create(parameters.depthWidth * parameters.depthHeight);
             boundaryImage.create(parameters.depthHeight, parameters.depthWidth);
-            //neighbours.create(parameters.depthWidth * parameters.depthHeight * (neighbourRadius * neighbourRadius + 1));
             return 1;
         }
 
@@ -87,7 +89,6 @@ namespace cuda
             pointCloudNormals.release();
             boundaries.release();
             boundaryImage.release();
-            //neighbours.release();
         }
     };
 

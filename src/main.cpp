@@ -30,16 +30,19 @@ int main(int argc, char *argv[])
 
     Utils::registerTypes();
 
-    Parameters::Global().load();
+    //Parameters::Global().load();
 
-    Parameters::Global().setVersion("0.1.01");
-    qDebug() << "version:" << Parameters::Global().version();
+    //Parameters::Global().setVersion("0.1.01");
+    //qDebug() << "version:" << Parameters::Global().version();
 
     size_t size;
     cudaDeviceGetLimit(&size, cudaLimitMallocHeapSize);
     qDebug() << "cuda limit malloc heap size:" << size << "bytes";
 
     StopWatch::instance().start();
+
+    Settings::load();
+    Settings::save();
 
     Device *device = new SensorReaderDevice;
     Controller *controller = new  DefaultController(device);

@@ -31,10 +31,8 @@ private slots:
     void compute();
     void onActionLoadDataSet();
     void onActionLoadPointCloud();
-    void onActionGenerateLinePointCloud();
     void onActionParameterizedPointsAnalysis();
     void onActionComputeGPU();
-    void onActionSaveConfig();
     void onActionShowLineChain(bool checked = false);
 
 private:
@@ -54,7 +52,7 @@ private:
     QList<Plane> m_planes;
     QList<LineChain> m_chains;
     QList<LineSegment> m_lines;
-    pcl::PointCloud<Line>::Ptr m_mslCloud;
+    pcl::PointCloud<Line>::Ptr m_lineCloud;
     cuda::GpuFrame m_frameGpu;
 
     bool m_fromDataSet;

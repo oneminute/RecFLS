@@ -9,6 +9,7 @@
 #include "ToolWindowLineExtractor.h"
 #include "ToolWindowLineMatcher.h"
 #include "ToolWindowBoundaryExtractor.h"
+#include "PreferencesWindow.h"
 
 namespace Ui {
 class MainWindow;
@@ -37,6 +38,7 @@ private:
     void onActionToolWindowLineMatcher();
     void onActionToolWindowBoundaryExtractor();
     void onActionSaveCurrentFrame();
+    void onActionPreferences();
 
     void onFrameFetched(Frame& frame);
 
@@ -45,6 +47,7 @@ private:
     QScopedPointer<ToolWindowLineExtractor> m_toolWindowLineExtractor;
     QScopedPointer<ToolWindowLineMatcher> m_toolWindowLineMatcher;
     QScopedPointer<ToolWindowBoundaryExtractor> m_toolWindowBoundaryExtractor;
+    QScopedPointer<PreferencesWindow> m_preferencesWindow;
 
     Controller *m_controller;
     CloudViewer *m_cloudViewer;
