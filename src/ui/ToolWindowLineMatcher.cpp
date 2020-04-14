@@ -44,6 +44,7 @@ ToolWindowLineMatcher::ToolWindowLineMatcher(QWidget *parent)
     connect(m_ui->actionMatch, &QAction::triggered, this, &ToolWindowLineMatcher::onActionMatch);
     connect(m_ui->actionMatch_Gpu, &QAction::triggered, this, &ToolWindowLineMatcher::onActionMatchGpu);
     connect(m_ui->actionBegin_Step, &QAction::triggered, this, &ToolWindowLineMatcher::onActionBeginStep);
+    connect(m_ui->actionStep, &QAction::triggered, this, &ToolWindowLineMatcher::onActionStep);
     connect(m_ui->actionStep_Rotation_Match, &QAction::triggered, this, &ToolWindowLineMatcher::onActionStepRotationMatch);
     connect(m_ui->actionStep_Translate_Match, &QAction::triggered, this, &ToolWindowLineMatcher::onActionStepTranslationMatch);
     connect(m_ui->actionReset, &QAction::triggered, this, &ToolWindowLineMatcher::onActionReset);
@@ -74,6 +75,8 @@ void ToolWindowLineMatcher::initCompute()
     {
         m_lineMatcher.reset(new LineMatcher);
     }
+
+    m_lineMatcher->setMaxIterations(Settings::LineMatcher_MaxIterations.intValue());
 
     m_lineExtractor->setBoundaryCloudA1dThreshold(Settings::LineExtractor_BoundaryCloudA1dThreshold.value());
     m_lineExtractor->setCornerCloudA1dThreshold(Settings::LineExtractor_CornerCloudA1dThreshold.value());
@@ -288,10 +291,11 @@ void ToolWindowLineMatcher::initCompute()
     //    m_cloudViewer3->visualizer()->addSphere(center, 0.1f, 255, 0, 0, "center");
     //}
 
-    m_rotationDelta = Eigen::Quaternionf::Identity();
+    m_rotationDelta = Eigen::Matrix3f::Identity();
     m_translationDelta = Eigen::Vector3f::Zero();
-    m_rotation = Eigen::Quaternionf::Identity();
+    m_rotation = Eigen::Matrix3f::Identity();
     m_translation = Eigen::Vector3f::Zero();
+    m_m = Eigen::Matrix4f::Identity();
 
     m_isInit = true;
 }
@@ -299,26 +303,12 @@ void ToolWindowLineMatcher::initCompute()
 void ToolWindowLineMatcher::compute()
 {
     initCompute();
-    /*Eigen::Matrix4f M = m_lineMatcher->compute(m_chains1, m_lineCloud1, m_desc1, m_chains2, m_lineCloud2, m_desc2);
-
-    m_rotation = M.topLeftCorner(3, 3);
-    m_translation = M.topRightCorner(3, 1);
-
-    m_pairs = m_lineMatcher->pairs();
-    m_pairIndices = m_lineMatcher->pairIndices();
+    Eigen::Matrix4f M = m_lineMatcher->compute(m_lineCloud1, m_lineCloud2, m_rotationError, m_translationError);
 
     m_ui->comboBoxLineChainPairs->clear();
-    for (int i = 0; i < m_pairIndices.size(); i++)
-    {
-        int index2 = m_pairIndices[i];
-        int index1 = m_pairs[index2];
-        LineChain& lc1 = m_chains1[index1];
-        LineChain& lc2 = m_chains2[index2];
-        m_ui->comboBoxLineChainPairs->addItem(QString("%1[%3, %4] --> %2[%5, %6]").arg(index1).arg(index2).arg(lc1.lineNo1).arg(lc1.lineNo2).arg(lc2.lineNo1).arg(lc2.lineNo2));
-    }
     
     showMatchedClouds();
-    updateWidgets();*/
+    updateWidgets();
 }
 
 void ToolWindowLineMatcher::showCloudAndLines(CloudViewer* viewer, QList<LineSegment>& lines, boost::shared_ptr<pcl::PointCloud<Line>>& mslCloud)
@@ -387,11 +377,11 @@ void ToolWindowLineMatcher::showCloudAndLines(CloudViewer* viewer, QList<LineSeg
 
 void ToolWindowLineMatcher::showMatchedClouds()
 {
-    Eigen::Matrix4f rotMat(Eigen::Matrix4f::Identity());
-    rotMat.topLeftCorner(3, 3) = m_rotation;
-    rotMat.topRightCorner(3, 1) = m_translation;
+    //Eigen::Matrix4f rotMat(Eigen::Matrix4f::Identity());
+    //rotMat.topLeftCorner(3, 3) = m_rotation;
+    //rotMat.topRightCorner(3, 1) = m_translation;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_tmpCloud1(new pcl::PointCloud<pcl::PointXYZRGB>);
-    pcl::transformPointCloud(*m_colorCloud1, *m_tmpCloud1, rotMat);
+    pcl::transformPointCloud(*m_colorCloud1, *m_tmpCloud1, m_m);
 
     {
         m_cloudViewer1->visualizer()->removeAllPointClouds();
@@ -461,9 +451,18 @@ void ToolWindowLineMatcher::onActionBeginStep()
     updateWidgets();
 }
 
+void ToolWindowLineMatcher::onActionStep()
+{
+    Eigen::Matrix4f M = m_lineMatcher->step(m_lineCloud1, m_lineCloud2, m_tree, m_rotationError, m_translationError, m_pairs);
+    m_m = M * m_m;
+    m_iteration++;
+    showMatchedClouds();
+    updateWidgets();
+}
+
 void ToolWindowLineMatcher::onActionStepRotationMatch()
 {
-    m_rotationDelta = m_lineMatcher->stepRotation(m_lineCloud1, m_lineCloud2, m_tree, m_rotationError, m_translationError, m_pairs);
+    m_rotationDelta = m_lineMatcher->stepRotation(m_lineCloud1, m_lineCloud2, m_tree, m_pairs);
     m_translationDelta = Eigen::Vector3f::Zero();
 
     m_rotation = m_rotation * m_rotationDelta;
@@ -476,7 +475,7 @@ void ToolWindowLineMatcher::onActionStepRotationMatch()
 
 void ToolWindowLineMatcher::onActionStepTranslationMatch()
 {
-    m_translationDelta = m_lineMatcher->stepTranslation(m_lineCloud1, m_lineCloud2, m_tree, m_translationError, m_pairs);
+    m_translationDelta = m_lineMatcher->stepTranslation(m_lineCloud1, m_lineCloud2, m_tree, m_pairs);
     m_rotationDelta = Eigen::Quaternionf::Identity();
 
     m_translation += m_translationDelta;

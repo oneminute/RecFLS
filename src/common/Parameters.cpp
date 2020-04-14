@@ -42,6 +42,8 @@ IMPLEMENT_RANGE_SETTING(BoundaryMaxZDistance, 0.01f, 0.01f, 0.001f, 1.f, 0.01f, 
 IMPLEMENT_RANGE_SETTING(CornerMaxZDistance, 0.05f, 0.05f, 0.001f, 1.f, 0.01f, LineExtractor, "");
 IMPLEMENT_RANGE_SETTING(CornerGroupLinesSearchRadius, 0.05f, 0.05f, 0.001f, 3.f, 0.01f, LineExtractor, "");
 
+IMPLEMENT_RANGE_SETTING(MaxIterations, 30, 30, 1, 100, 1, LineMatcher, "Max iterations.");
+
 IMPLEMENT_STRING_SETTING(SamplePath, "samples/office3.sens", "samples/office3.sens", SensorReader, "Sample dataset's file path.");
 
 void Settings::save()

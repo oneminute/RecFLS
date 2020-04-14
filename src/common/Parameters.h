@@ -275,6 +275,8 @@ public:
     DECLARE_SETTING(RangeSetting, CornerMaxZDistance, LineExtractor);
     DECLARE_SETTING(RangeSetting, CornerGroupLinesSearchRadius, LineExtractor);
 
+    DECLARE_SETTING(RangeSetting, MaxIterations, LineMatcher);
+
     DECLARE_SETTING(StringSetting, SamplePath, SensorReader);
 
 private:

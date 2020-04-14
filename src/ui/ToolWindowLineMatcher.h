@@ -35,6 +35,7 @@ protected:
     void onActionMatch();
     void onActionMatchGpu();
     void onActionBeginStep();
+    void onActionStep();
     void onActionStepRotationMatch();
     void onActionStepTranslationMatch();
     void onActionReset();
@@ -89,6 +90,7 @@ private:
     Eigen::Vector3f m_translationDelta;
     Eigen::Matrix3f m_rotation;
     Eigen::Vector3f m_translation;
+    Eigen::Matrix4f m_m;
     float m_rotationError;
     float m_translationError;
 

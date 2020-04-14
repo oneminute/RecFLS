@@ -49,7 +49,7 @@ LineExtractor::LineExtractor(QObject* parent)
 
 QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>::Ptr& boundaryCloud, const pcl::PointCloud<pcl::PointXYZI>::Ptr& cornerCloud)
 {
-    qDebug() << "angleMappingMethod" << m_angleMappingMethod;
+    //qDebug() << "angleMappingMethod" << m_angleMappingMethod;
     //qDebug() << "searchRadius:" << m_searchRadius;
     //qDebug() << "minNeighbours:" << m_minNeighbours;
     //qDebug() << "searchErrorThreshold:" << m_searchErrorThreshold;
@@ -225,7 +225,7 @@ void LineExtractor::computeInternal(const pcl::PointCloud<pcl::PointXYZI>::Ptr& 
     outErrors = QList<float>();
     outLinePointsCount = QList<int>();
     outCloud.reset(new pcl::PointCloud<pcl::PointXYZI>);
-    outIndices.reset(new pcl::Indices);
+    outIndices.reset(new std::vector<int>);
 
     // 计算每一个点的PCA主方向，
     pcl::PointCloud<pcl::PointXYZI>::Ptr tmpCloud(new pcl::PointCloud<pcl::PointXYZI>);
@@ -384,23 +384,23 @@ void LineExtractor::computeInternal(const pcl::PointCloud<pcl::PointXYZI>::Ptr& 
 
         Eigen::Vector3f eulerAngles(Eigen::Vector3f::Zero());
         // 使用二维或三维的映射角。二维使用计算出的俯仰角和航向角
-        if (m_angleMappingMethod == TWO_DIMS)
-        {
-            float alpha, beta;
-            // 计算俯仰角和水平角
-            calculateAlphaBeta(primeDir, alpha, beta);
+        //if (m_angleMappingMethod == TWO_DIMS)
+        //{
+        float alpha, beta;
+        // 计算俯仰角和水平角
+        calculateAlphaBeta(primeDir, alpha, beta);
 
-            eulerAngles.x() = alpha * M_1_PI;
-            eulerAngles.y() = beta * M_1_PI;
-        }
-        else if (m_angleMappingMethod = THREE_DIMS)
-        {
-            // 计算欧拉角
-            Eigen::Quaternionf rotQuat = Eigen::Quaternionf();
-            rotQuat.setFromTwoVectors(globalDir, primeDir);
-            Eigen::Matrix3f rotMatrix = rotQuat.toRotationMatrix();
-            eulerAngles = rotMatrix.eulerAngles(0, 1, 2) * M_1_PI;
-        }
+        eulerAngles.x() = alpha * M_1_PI;
+        eulerAngles.y() = beta * M_1_PI;
+        //}
+        //else if (m_angleMappingMethod = THREE_DIMS)
+        //{
+        //    // 计算欧拉角
+        //    Eigen::Quaternionf rotQuat = Eigen::Quaternionf();
+        //    rotQuat.setFromTwoVectors(globalDir, primeDir);
+        //    Eigen::Matrix3f rotMatrix = rotQuat.toRotationMatrix();
+        //    eulerAngles = rotMatrix.eulerAngles(0, 1, 2) * M_1_PI;
+        //}
 
         if (qIsNaN(eulerAngles.x()) || qIsNaN(eulerAngles.y()) || qIsNaN(eulerAngles.z()))
             continue;

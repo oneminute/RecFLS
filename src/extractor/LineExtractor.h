@@ -303,7 +303,7 @@ private:
 
     cv::Mat m_board;
 
-    ANGLE_MAPPING_METHOD m_angleMappingMethod;
+    //ANGLE_MAPPING_METHOD m_angleMappingMethod;
 
     Eigen::Vector3f m_lcLocalMiddle;
     Eigen::Matrix4f m_lcLocalTransform;

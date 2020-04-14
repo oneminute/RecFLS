@@ -15,16 +15,55 @@
 
 LineMatcher::LineMatcher(QObject* parent)
     : QObject(parent)
+    , PROPERTY_INIT(MaxIterations, 30)
 {
 
+}
+
+Eigen::Matrix4f LineMatcher::compute(pcl::PointCloud<Line>::Ptr lines1, pcl::PointCloud<Line>::Ptr lines2, float& rotationError, float& translationError)
+{
+    Eigen::Matrix4f out = Eigen::Matrix4f::Identity();
+    pcl::KdTreeFLANN<Line>::Ptr tree(new pcl::KdTreeFLANN<Line>());
+    tree->setInputCloud(lines2);
+    QMap<int, int> pairs;
+    for (int i = 0; i < MaxIterations(); i++)
+    {
+        Eigen::Matrix4f stepM = step(lines1, lines2, tree, rotationError, translationError, pairs);
+        out = stepM * out;
+    }
+    return out;
+}
+
+Eigen::Matrix4f LineMatcher::step(pcl::PointCloud<Line>::Ptr lines1, pcl::PointCloud<Line>::Ptr lines2, pcl::KdTreeFLANN<Line>::Ptr tree, float& rotationError, float& translationError, QMap<int, int>& pairs)
+{
+    Eigen::Matrix4f M = Eigen::Matrix4f::Identity();
+    M.topLeftCorner(3, 3) = stepRotation(lines1, lines2, tree, pairs);
+    M.topRightCorner(3, 1) = stepTranslation(lines1, lines2, tree, pairs);
+
+    rotationError = 0;
+    translationError = 0;
+
+    for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
+    {
+        Line line1 = lines1->points[i.value()];
+        Line line2 = lines2->points[i.key()];
+
+        float transError = qAbs(distanceBetweenLines(line1.dir, line1.point, line2.dir, line2.point));
+        float rotError = qAbs(qAcos(line1.dir.dot(line2.dir)));
+
+        translationError += transError;
+        rotationError += rotError;
+    }
+    translationError /= pairs.size();
+    rotationError /= pairs.size();
+
+    return M;
 }
 
 Eigen::Matrix3f LineMatcher::stepRotation(
     pcl::PointCloud<Line>::Ptr lines1,
     pcl::PointCloud<Line>::Ptr lines2,
     pcl::KdTreeFLANN<Line>::Ptr tree,
-    float& rotationError,
-    float& translationError,
     QMap<int, int>& pairs)
 {
     // 在高帧速下，假设前后帧同一位置的直线位姿变化有限，所以可以通过映射后的直线点云，
@@ -172,7 +211,6 @@ Eigen::Vector3f LineMatcher::stepTranslation(
     pcl::PointCloud<Line>::Ptr lines1,
     pcl::PointCloud<Line>::Ptr lines2,
     pcl::KdTreeFLANN<Line>::Ptr tree,
-    float& translationError,
     QMap<int, int>& pairs)
 {
     qDebug() <<"- - - - translation - - - -";
