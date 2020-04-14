@@ -14,6 +14,7 @@
 #include "common/Common.h"
 #include "LineSegment.h"
 #include "BoundaryExtractor.h"
+#include "util/Utils.h"
 
 #define LINE_MATCHER_DIVISION 4
 #define LINE_MATCHER_DIST_DIVISION 6
@@ -74,15 +75,70 @@ public:
 
 struct Line
 {
+    union
+    {
+        float props[6];
+        struct
+        {
+            float rx;
+            float ry;
+            float rz;
+            float x;
+            float y;
+            float z;
+        };
+    };
     Eigen::Vector3f dir;
     Eigen::Vector3f point;
     float weight;
+
+    static int propsSize() { return 6; }
 
     Eigen::Vector3f getEndPoint(float length)
     {
         return point + dir * length;
     }
+
+    void generateDescriptor()
+    {
+        Eigen::Vector3f vPoint = point.cross(dir);
+        float angleV, angleH;
+        calculateAlphaBeta(dir, angleV, angleH);
+        //props[0] = angleV;
+        //props[1] = angleH;
+        rx = dir.x();
+        ry = dir.y();
+        rz = dir.z();
+        //props[2] = vPoint.x() * 5;
+        //props[3] = vPoint.y() * 5;
+        //props[4] = vPoint.z() * 5;
+        x = vPoint.x();
+        y = vPoint.y();
+        z = vPoint.z();
+    }
+
+    void debugPrint()
+    {
+        qDebug() << rx << ry << rz << x << y << z;
+    }
+
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+
+template <>
+class pcl::DefaultPointRepresentation<Line> : public PointRepresentation<Line>
+{
+public:
+    DefaultPointRepresentation()
+    {
+        nr_dimensions_ = Line::propsSize();
+    }
+
+    void copyToFloatArray(const Line& p, float* out) const override
+    {
+        for (int i = 0; i < nr_dimensions_; ++i)
+            out[i] = p.props[i];
+    }
 };
 
 // ÏßÁ´
@@ -206,7 +262,7 @@ public:
         QList<LineSegment>& outLineSegments
     );
 
-    void generateDescriptors();
+    //void generateDescriptors();
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud() const
     {

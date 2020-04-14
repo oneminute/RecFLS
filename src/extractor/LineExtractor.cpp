@@ -154,6 +154,14 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
     m_lineSegments += groupedLineSegments;
     //m_lineSegments += outLineSegments;
     *m_lineCloud += *outLineCloud;
+
+    for (int i = 0; i < m_lineCloud->size(); i++)
+    {
+        Line& line = m_lineCloud->points[i];
+
+        line.generateDescriptor();
+        m_lineCloud->points[i].debugPrint();
+    }
     
     m_cloud->width = m_cloud->points.size();
     m_cloud->height = 1;
@@ -175,7 +183,7 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
     //m_linedCloud->height = 1;
     //m_linedCloud->is_dense = true;
     //qDebug() << "Extract" << m_subCloudIndices.size() << "groups.";
-    generateDescriptors();
+    //generateDescriptors();
     
     qDebug() << "[LineExtractor::compute] exit";
     return m_lineSegments;
@@ -899,6 +907,8 @@ void LineExtractor::groupLines(
             line.dir = dir;
             line.point = point + dir * (point.dot(dir));
             line.weight = 1;
+            //line.generateDescriptor();
+            //line.debugPrint();
             outLineCloud->push_back(line);
             outLineSegments.append(ls);
         }
@@ -908,26 +918,15 @@ void LineExtractor::groupLines(
     }
 }
 
-void LineExtractor::generateDescriptors()
-{
-    m_descriptors.reset(new pcl::PointCloud<LineDescriptor>);
-    for (int i = 0; i < m_lineCloud->size(); i++)
-    {
-        Line line = m_lineCloud->points[i];
-        Eigen::Vector3f vPoint = line.point.cross(line.dir);
-        //float projYLen = line.dir.dot(Eigen::Vector3f::UnitY());
-        //Eigen::Vector3f projY = Eigen::Vector3f::UnitY() * projYLen;
-        //float angleV = qAcos(projYLen);
-        //float angleH = qAcos((line.dir - projY).dot(line.dir.cross(Eigen::Vector3f::UnitY()).normalized()));
-        float angleV, angleH;
-        calculateAlphaBeta(line.dir, angleV, angleH);
-        LineDescriptor desc;
-        desc.props[0] = vPoint.x() * 10;
-        desc.props[1] = vPoint.y() * 10;
-        desc.props[2] = vPoint.z() * 10;
-        desc.props[3] = angleV;
-        desc.props[4] = angleH;
-        m_descriptors->points.push_back(desc);
-    }
-}
+//void LineExtractor::generateDescriptors()
+//{
+//    m_descriptors.reset(new pcl::PointCloud<LineDescriptor>);
+//    for (int i = 0; i < m_lineCloud->size(); i++)
+//    {
+//        Line& line = m_lineCloud->points[i];
+//
+//        line.generateDescriptor();
+//        //m_descriptors->points.push_back(desc);
+//    }
+//}
 
