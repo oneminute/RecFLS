@@ -10,23 +10,18 @@
 #include <pcl/gpu/containers/device_array.h>
 #include <cuda_runtime.h>
 
+#include "extractor/BoundaryExtractor.h"
+#include "extractor/LineExtractor.h"
+#include "matcher/LineMatcher.h"
+#include "device/SensorReaderDevice.h"
+
 class LineMatchCudaOdometry : public Odometry
 {
     Q_OBJECT
 public:
     explicit LineMatchCudaOdometry(
-        int bilateralFilterKernelSize = 5, 
-        float bilateralSigmaColor = 100, 
-        float bilateralSigmaSpatial = 100, 
-        int normalEstimationKernelHalfSize = 9,
-        float normalEstimationMaxDistance = 0.05f,
         QObject* parent = nullptr)
         : Odometry(parent)
-        , m_bilateralFilterKernelSize(bilateralFilterKernelSize)
-        , m_bilateralFilterSigmaColor(bilateralSigmaColor)
-        , m_bilateralFilterSigmaSpatial(bilateralSigmaSpatial)
-        , m_normalEstimationKernelHalfSize(normalEstimationKernelHalfSize)
-        , m_normalEstimationMaxDistance(normalEstimationMaxDistance)
         , m_init(false)
     {}
 
@@ -45,11 +40,17 @@ private:
 
     bool m_init;
 
-    int m_bilateralFilterKernelSize;
-    float m_bilateralFilterSigmaColor;
-    float m_bilateralFilterSigmaSpatial;
-    float m_normalEstimationMaxDistance;
-    float m_normalEstimationKernelHalfSize;
+    QScopedPointer<BoundaryExtractor> m_boundaryExtractor;
+    QScopedPointer<LineExtractor> m_lineExtractor;
+    QScopedPointer<LineMatcher> m_lineMatcher;
+
+    Eigen::Matrix4f m_pose;
+
+    QList<Frame> m_frames;
+    QList<pcl::PointCloud<Line>::Ptr> m_lines;
+    QList<Eigen::Matrix4f> m_poses;
+    QList<float> m_rotationErrors;
+    QList<float> m_transErrors;
 };
 
 #endif // LINEMATCHCUDAODOMETRY_H

@@ -132,34 +132,31 @@ void ToolWindowLineMatcher::initCompute()
     pcl::copyPointCloud<pcl::PointXYZRGB, pcl::PointXYZ>(*m_colorCloud1, *m_cloud1);
     pcl::copyPointCloud<pcl::PointXYZRGB, pcl::PointXYZ>(*m_colorCloud2, *m_cloud2);
 
-    if (m_useCuda)
+    if (!m_isInit)
     {
-        if (!m_isInit)
-        {
-            m_frameGpu1.parameters.colorWidth = frame1.getColorWidth();
-            m_frameGpu1.parameters.colorHeight = frame1.getColorHeight();
-            m_frameGpu1.parameters.depthWidth = frame1.getDepthWidth();
-            m_frameGpu1.parameters.depthHeight = frame1.getDepthHeight();
-            m_frameGpu1.allocate();
+        m_frameGpu1.parameters.colorWidth = frame1.getColorWidth();
+        m_frameGpu1.parameters.colorHeight = frame1.getColorHeight();
+        m_frameGpu1.parameters.depthWidth = frame1.getDepthWidth();
+        m_frameGpu1.parameters.depthHeight = frame1.getDepthHeight();
+        m_frameGpu1.allocate();
 
-            m_frameGpu2.parameters.colorWidth = frame2.getColorWidth();
-            m_frameGpu2.parameters.colorHeight = frame2.getColorHeight();
-            m_frameGpu2.parameters.depthWidth = frame2.getDepthWidth();
-            m_frameGpu2.parameters.depthHeight = frame2.getDepthHeight();
-            m_frameGpu2.allocate();
-            m_isInit = true;
-        }
-
-        cv::cuda::GpuMat colorMatGpu1(frame1.getColorHeight(), frame1.getColorWidth(), CV_8UC3, m_frameGpu1.colorImage);
-        cv::cuda::GpuMat depthMatGpu1(frame1.getDepthHeight(), frame1.getDepthWidth(), CV_16U, m_frameGpu1.depthImage);
-        colorMatGpu1.upload(frame1.colorMat());
-        depthMatGpu1.upload(frame1.depthMat());
-
-        cv::cuda::GpuMat colorMatGpu2(frame2.getColorHeight(), frame2.getColorWidth(), CV_8UC3, m_frameGpu2.colorImage);
-        cv::cuda::GpuMat depthMatGpu2(frame2.getDepthHeight(), frame2.getDepthWidth(), CV_16U, m_frameGpu2.depthImage);
-        colorMatGpu2.upload(frame2.colorMat());
-        depthMatGpu2.upload(frame2.depthMat());
+        m_frameGpu2.parameters.colorWidth = frame2.getColorWidth();
+        m_frameGpu2.parameters.colorHeight = frame2.getColorHeight();
+        m_frameGpu2.parameters.depthWidth = frame2.getDepthWidth();
+        m_frameGpu2.parameters.depthHeight = frame2.getDepthHeight();
+        m_frameGpu2.allocate();
+        m_isInit = true;
     }
+
+    cv::cuda::GpuMat colorMatGpu1(frame1.getColorHeight(), frame1.getColorWidth(), CV_8UC3, m_frameGpu1.colorImage);
+    cv::cuda::GpuMat depthMatGpu1(frame1.getDepthHeight(), frame1.getDepthWidth(), CV_16U, m_frameGpu1.depthImage);
+    colorMatGpu1.upload(frame1.colorMat());
+    depthMatGpu1.upload(frame1.depthMat());
+
+    cv::cuda::GpuMat colorMatGpu2(frame2.getColorHeight(), frame2.getColorWidth(), CV_8UC3, m_frameGpu2.colorImage);
+    cv::cuda::GpuMat depthMatGpu2(frame2.getDepthHeight(), frame2.getDepthWidth(), CV_16U, m_frameGpu2.depthImage);
+    colorMatGpu2.upload(frame2.colorMat());
+    depthMatGpu2.upload(frame2.depthMat());
     
     pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryPoints1;
     pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryPoints2;
@@ -169,95 +166,46 @@ void ToolWindowLineMatcher::initCompute()
     pcl::PointCloud<pcl::Normal>::Ptr normals2;
     pcl::PointCloud<pcl::PointXYZI>::Ptr cornerPoints1;
     pcl::PointCloud<pcl::PointXYZI>::Ptr cornerPoints2;
-    {
-        m_boundaryExtractor->setInputCloud(m_cloud1);
-        m_boundaryExtractor->setWidth(frame1.getDepthWidth());
-        m_boundaryExtractor->setHeight(frame1.getDepthHeight());
-        m_boundaryExtractor->setCx(frame1.getDevice()->cx());
-        m_boundaryExtractor->setCy(frame1.getDevice()->cy());
-        m_boundaryExtractor->setFx(frame1.getDevice()->fx());
-        m_boundaryExtractor->setFy(frame1.getDevice()->fy());
-        m_boundaryExtractor->setNormals(nullptr);
-        if (m_useCuda)
-        {
-            m_boundaryExtractor->computeCUDA(m_frameGpu1);
-        }
-        else
-        {
-            //m_boundaryExtractor->compute();
-        }
-        boundaryPoints1 = m_boundaryExtractor->boundaryPoints();
-        m_filteredCloud1 = m_boundaryExtractor->filteredCloud();
-        //m_planes1 = m_boundaryExtractor->planes();
-        pointsMat1 = m_boundaryExtractor->pointsMat();
-        normals1 = m_boundaryExtractor->normals();
-        cornerPoints1 = m_boundaryExtractor->cornerPoints();
-        //*boundaryPoints1 += *cornerPoints1;
+    m_boundaryExtractor->setInputCloud(m_cloud1);
+    m_boundaryExtractor->setWidth(frame1.getDepthWidth());
+    m_boundaryExtractor->setHeight(frame1.getDepthHeight());
+    m_boundaryExtractor->setCx(frame1.getDevice()->cx());
+    m_boundaryExtractor->setCy(frame1.getDevice()->cy());
+    m_boundaryExtractor->setFx(frame1.getDevice()->fx());
+    m_boundaryExtractor->setFy(frame1.getDevice()->fy());
+    m_boundaryExtractor->setNormals(nullptr);
+    m_boundaryExtractor->computeCUDA(m_frameGpu1);
+    boundaryPoints1 = m_boundaryExtractor->boundaryPoints();
+    m_filteredCloud1 = m_boundaryExtractor->filteredCloud();
+    pointsMat1 = m_boundaryExtractor->pointsMat();
+    normals1 = m_boundaryExtractor->normals();
+    cornerPoints1 = m_boundaryExtractor->cornerPoints();
 
-        m_boundaryExtractor->setInputCloud(m_cloud2);
-        m_boundaryExtractor->setWidth(frame2.getDepthWidth());
-        m_boundaryExtractor->setHeight(frame2.getDepthHeight());
-        m_boundaryExtractor->setCx(frame2.getDevice()->cx());
-        m_boundaryExtractor->setCy(frame2.getDevice()->cy());
-        m_boundaryExtractor->setFx(frame2.getDevice()->fx());
-        m_boundaryExtractor->setFy(frame2.getDevice()->fy());
-        m_boundaryExtractor->setNormals(nullptr);
-        if (m_useCuda)
-        {
-            m_boundaryExtractor->computeCUDA(m_frameGpu2);
-        }
-        else
-        {
-            //m_boundaryExtractor->compute();
-        }
-        boundaryPoints2 = m_boundaryExtractor->boundaryPoints();
-        m_filteredCloud2 = m_boundaryExtractor->filteredCloud();
-        //m_planes2 = m_boundaryExtractor->planes();
-        pointsMat2 = m_boundaryExtractor->pointsMat();
-        normals2 = m_boundaryExtractor->normals();
-        cornerPoints2 = m_boundaryExtractor->cornerPoints();
-        //*boundaryPoints2 += *cornerPoints2;
-    }
+    m_boundaryExtractor->setInputCloud(m_cloud2);
+    m_boundaryExtractor->setWidth(frame2.getDepthWidth());
+    m_boundaryExtractor->setHeight(frame2.getDepthHeight());
+    m_boundaryExtractor->setCx(frame2.getDevice()->cx());
+    m_boundaryExtractor->setCy(frame2.getDevice()->cy());
+    m_boundaryExtractor->setFx(frame2.getDevice()->fx());
+    m_boundaryExtractor->setFy(frame2.getDevice()->fy());
+    m_boundaryExtractor->setNormals(nullptr);
+    m_boundaryExtractor->computeCUDA(m_frameGpu2);
+    boundaryPoints2 = m_boundaryExtractor->boundaryPoints();
+    m_filteredCloud2 = m_boundaryExtractor->filteredCloud();
+    pointsMat2 = m_boundaryExtractor->pointsMat();
+    normals2 = m_boundaryExtractor->normals();
+    cornerPoints2 = m_boundaryExtractor->cornerPoints();
 
     QList<LineSegment> lines1;
     QList<LineSegment> lines2;
     Eigen::Vector3f center1;
     Eigen::Vector3f center2;
-    {
-        /*m_lineExtractor->setMatWidth(frame1.getDepthWidth());
-        m_lineExtractor->setMatHeight(frame1.getDepthHeight());
-        m_lineExtractor->setCx(frame1.getDevice()->cx());
-        m_lineExtractor->setCy(frame1.getDevice()->cy());
-        m_lineExtractor->setFx(frame1.getDevice()->fx());
-        m_lineExtractor->setFy(frame1.getDevice()->fy());*/
+    lines1 = m_lineExtractor->compute(boundaryPoints1, cornerPoints1);
+    qDebug() << pointsMat1.type();
+    m_lineCloud1 = m_lineExtractor->lineCloud();
 
-        lines1 = m_lineExtractor->compute(boundaryPoints1, cornerPoints1);
-        //m_lineExtractor->extractLinesFromPlanes(m_planes1);
-        //m_lineExtractor->groupLines();
-        //m_lineExtractor->generateLineChains();
-        //m_lineExtractor->generateDescriptors2();
-        qDebug() << pointsMat1.type();
-        //m_lineExtractor->generateDescriptors3(m_cloud1, normals1, pointsMat1);
-        m_lineCloud1 = m_lineExtractor->lineCloud();
-        //m_mslPointCloud1 = m_lineExtractor->mslPointCloud();
-        //m_diameter1 = m_lineExtractor->boundBoxDiameter();
-        //m_chains1 = m_lineExtractor->chains();
-        //m_desc1 = m_lineExtractor->descriptors();
-        //center1 = m_lineExtractor->lcLocalMiddle();
-
-        lines2 = m_lineExtractor->compute(boundaryPoints2, cornerPoints1);
-        //m_lineExtractor->extractLinesFromPlanes(m_planes2);
-        //m_lineExtractor->groupLines();
-        //m_lineExtractor->generateLineChains();
-        //m_lineExtractor->generateDescriptors2();
-        //m_lineExtractor->generateDescriptors3(m_cloud2, normals2, pointsMat2);
-        m_lineCloud2 = m_lineExtractor->lineCloud();
-        //m_mslPointCloud2 = m_lineExtractor->mslPointCloud();
-        //m_diameter2 = m_lineExtractor->boundBoxDiameter();
-        //m_chains2 = m_lineExtractor->chains();
-        //m_desc2 = m_lineExtractor->descriptors();
-        //center2 = m_lineExtractor->lcLocalMiddle();
-    }
+    lines2 = m_lineExtractor->compute(boundaryPoints2, cornerPoints1);
+    m_lineCloud2 = m_lineExtractor->lineCloud();
 
     m_cloudViewer1->visualizer()->removeAllPointClouds();
     m_cloudViewer1->visualizer()->removeAllShapes();
@@ -279,17 +227,6 @@ void ToolWindowLineMatcher::initCompute()
     }
     showCloudAndLines(m_cloudViewer2, lines1, m_lineCloud1);
     showCloudAndLines(m_cloudViewer3, lines2, m_lineCloud2);
-    //showCloudAndLines(m_cloudViewer2, QList<LineSegment>(), m_mslCloud1);
-    //showCloudAndLines(m_cloudViewer3, QList<LineSegment>(), m_mslCloud2);
-
-    //// 绘制帧局部原点
-    //{
-    //    pcl::PointXYZ center;
-    //    center.getArray3fMap() = center1;
-    //    m_cloudViewer2->visualizer()->addSphere(center, 0.1f, 255, 0, 0, "center");
-    //    center.getArray3fMap() = center2;
-    //    m_cloudViewer3->visualizer()->addSphere(center, 0.1f, 255, 0, 0, "center");
-    //}
 
     m_rotationDelta = Eigen::Matrix3f::Identity();
     m_translationDelta = Eigen::Vector3f::Zero();
@@ -314,28 +251,6 @@ void ToolWindowLineMatcher::compute()
 void ToolWindowLineMatcher::showCloudAndLines(CloudViewer* viewer, QList<LineSegment>& lines, boost::shared_ptr<pcl::PointCloud<Line>>& mslCloud)
 {
     QColor color;
-    //for (int i = 0; i < planes.size(); i++)
-    //{
-    //    QColor color;
-    //    color.setHsv(255 * i / planes.size(), 255, 255);
-
-    //    QString planeCloudName = QString("plane_cloud_%1").arg(i);
-    //    QString planeName = QString("plane_%1").arg(i);
-    //    QString sphereName = QString("sphere_%1").arg(i);
-    //    QString normalName = QString("normal_%1").arg(i);
-    //    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> iColor(planes[i].cloud, color.red(), color.green(), color.blue());
-    //    viewer->visualizer()->addPointCloud(planes[i].cloud, iColor, planeCloudName.toStdString());
-    //    viewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, planeCloudName.toStdString());
-
-    //    pcl::PointXYZ center;
-    //    pcl::PointXYZ end;
-    //    center.getVector3fMap() = planes[i].point;
-    //    end.getArray3fMap() = planes[i].point + planes[i].dir * 0.1f;
-    //    qDebug() << "plane" << i << planes[i].parameters->values[0] << planes[i].parameters->values[1] << planes[i].parameters->values[2];
-    //    viewer->visualizer()->addPlane(*planes[i].parameters, center.x, center.y, center.z, planeName.toStdString());
-    //    //m_planeViewer->visualizer()->addSphere(center, 0.05f, 255, 0, 0, sphereName.toStdString());
-    //    viewer->visualizer()->addLine(center, end, 255, 0, 0, normalName.toStdString());
-    //}
 
     for (int i = 0; i < lines.size()/* && errors[i]*/; i++)
     {
@@ -438,7 +353,6 @@ void ToolWindowLineMatcher::onActionMatch()
 
 void ToolWindowLineMatcher::onActionMatchGpu()
 {
-    m_useCuda = true;
     compute();
     updateWidgets();
 }
@@ -589,7 +503,7 @@ void ToolWindowLineMatcher::updateWidgets()
     m_ui->actionBegin_Step->setEnabled(!m_isInit && m_isLoaded);
     m_ui->actionStep_Rotation_Match->setEnabled(m_isInit && m_isStepMode);
     m_ui->actionStep_Translate_Match->setEnabled(m_isInit && m_isStepMode);
-    m_ui->actionReset->setEnabled(m_isInit);
+    m_ui->actionReset->setEnabled(m_isLoaded);
 
     m_ui->labelIteration->setText(QString::number(m_iteration));
     m_ui->labelRotationError->setText(QString::number(qRadiansToDegrees(m_rotationError)));

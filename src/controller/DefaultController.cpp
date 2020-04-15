@@ -16,13 +16,7 @@ DefaultController::DefaultController(Device *device, QObject *parent)
 {
     connect(m_device, &Device::frameFetched, this, &DefaultController::onFrameFetched);
 
-    /*m_odometry.reset(new LineMatchCudaOdometry(
-        Parameters::Global().intValue("bilateral_filter_kernel_size", 5, "LineMatchOdometry"),
-        Parameters::Global().floatValue("bilateral_filter_sigma_color", 100, "LineMatchOdometry"),
-        Parameters::Global().floatValue("bilateral_filter_sigma_spatial", 100, "LineMatchOdometry"),
-        Parameters::Global().intValue("normal_estimation_kernel_half_size", 9, "LineMatchOdometry"),
-        Parameters::Global().floatValue("normal_estimation_max_distance", 0.05f, "LineMatchOdometry")));*/
-    //m_odometry.reset(new LineMatchOdometry);
+    m_odometry.reset(new LineMatchCudaOdometry);
 }
 
 QString DefaultController::name() const
