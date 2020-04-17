@@ -36,7 +36,6 @@ bool LineMatchCudaOdometry::beforeProcessing(Frame& frame)
 {
     if (!m_init)
     {
-        m_frameGpu.allocate();
         m_frameGpu.parameters.cx = frame.getDevice()->cx();
         m_frameGpu.parameters.cy = frame.getDevice()->cy();
         m_frameGpu.parameters.fx = frame.getDevice()->fx();
@@ -46,9 +45,13 @@ bool LineMatchCudaOdometry::beforeProcessing(Frame& frame)
         m_frameGpu.parameters.depthWidth = frame.getDepthWidth();
         m_frameGpu.parameters.depthHeight = frame.getDepthHeight();
         m_frameGpu.parameters.depthShift = frame.getDevice()->depthShift();
+        m_frameGpu.allocate();
+
+
 
         m_cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr(new pcl::PointCloud<pcl::PointXYZRGB>());
         m_normals = pcl::PointCloud<pcl::Normal>::Ptr(new pcl::PointCloud<pcl::Normal>());
+        m_cloudIndices = pcl::IndicesPtr(new std::vector<int>);
 
         if (!m_boundaryExtractor)
         {
@@ -80,6 +83,7 @@ bool LineMatchCudaOdometry::beforeProcessing(Frame& frame)
         m_lineExtractor->setCornerLineInterval(Settings::LineExtractor_CornerLineInterval.value());
         m_lineExtractor->setBoundaryMaxZDistance(Settings::LineExtractor_BoundaryMaxZDistance.value());
         m_lineExtractor->setCornerMaxZDistance(Settings::LineExtractor_CornerMaxZDistance.value());
+        m_lineExtractor->setBoundaryGroupLinesSearchRadius(Settings::LineExtractor_BoundaryGroupLinesSearchRadius.value());
         m_lineExtractor->setCornerGroupLinesSearchRadius(Settings::LineExtractor_CornerGroupLinesSearchRadius.value());
 
         m_boundaryExtractor.reset(new BoundaryExtractor);
@@ -164,21 +168,21 @@ void LineMatchCudaOdometry::doProcessing(Frame& frame)
 
     float rotationError = 0;
     float transError = 0;
+    Eigen::Matrix4f pose(Eigen::Matrix4f::Identity());
     if (m_frames.size() > 0)
     {
         pcl::PointCloud<Line>::Ptr lastLines = m_lines[m_frames.size() - 1];
-        m_frames.append(frame);
-        m_lines.append(lines);
 
-        Eigen::Matrix4f M = m_lineMatcher->compute(lastLines, lines, rotationError, transError);
-        m_poses.append(M);
-        m_rotationErrors.append(rotationError);
-        m_transErrors.append(transError);
-
-        m_pose = M * m_pose;
-
+        pose = m_lineMatcher->compute(lastLines, lines, rotationError, transError);
+        m_pose = m_pose * pose;
         std::cout << m_pose << std::endl;
     }
+    
+    m_frames.append(frame);
+    m_lines.append(lines);
+    m_poses.append(m_pose);
+    m_rotationErrors.append(rotationError);
+    m_transErrors.append(transError);
 }
 
 void LineMatchCudaOdometry::afterProcessing(Frame& frame)

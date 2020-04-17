@@ -44,13 +44,7 @@ private:
     QScopedPointer<LineExtractor> m_lineExtractor;
     QScopedPointer<LineMatcher> m_lineMatcher;
 
-    Eigen::Matrix4f m_pose;
-
-    QList<Frame> m_frames;
     QList<pcl::PointCloud<Line>::Ptr> m_lines;
-    QList<Eigen::Matrix4f> m_poses;
-    QList<float> m_rotationErrors;
-    QList<float> m_transErrors;
 };
 
 #endif // LINEMATCHCUDAODOMETRY_H

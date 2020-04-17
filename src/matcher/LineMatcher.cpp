@@ -31,6 +31,8 @@ Eigen::Matrix4f LineMatcher::compute(pcl::PointCloud<Line>::Ptr lines1, pcl::Poi
         Eigen::Matrix4f stepM = step(lines1, lines2, tree, rotationError, translationError, pairs);
         out = stepM * out;
     }
+    std::cout << "out matrix:" << std::endl;
+    std::cout << out << std::endl;
     return out;
 }
 
@@ -69,9 +71,7 @@ Eigen::Matrix3f LineMatcher::stepRotation(
     // 在高帧速下，假设前后帧同一位置的直线位姿变化有限，所以可以通过映射后的直线点云，
     // 直接用kdtree寻找最近的匹配，然后分别计算角度误差和位移误差。先角度后位移。
     float distAvg = 0;
-    Eigen::Matrix3f rotOut(Eigen::Matrix3f::Identity());
-    qDebug() <<"- - - - rotation - - - -";
-    //qDebug() << initRot.x() << initRot.y() << initRot.z() << initRot.w();
+    //qDebug() <<"- - - - rotation - - - -";
     QMap<int, float> errors;
     QMap<int, Eigen::Quaternionf> rots;
     QMap<int, float> dists;
@@ -106,7 +106,6 @@ Eigen::Matrix3f LineMatcher::stepRotation(
         pairs[indices[0]] = i;
         errors[indices[0]] = distances[0];
 
-        //qDebug() << i << "-->" << indices[0] << distances[0];
         count++;
     }
 
@@ -123,25 +122,24 @@ Eigen::Matrix3f LineMatcher::stepRotation(
     {
         int index2 = i.key();
         int index1 = i.value();
-        qDebug().noquote() << index1 << "-->" << index2 << errors[index1];
+        //qDebug().noquote() << index1 << "-->" << index2 << errors[index1];
 
         dirAvg1 += lines1->points[index1].dir;
         dirAvg2 += lines2->points[index2].dir;
 
-        weights[count]  = 1.f / pairs.size();
+        //weights[count]  = 1.f / pairs.size();
+        weights[count]  = 1.f;
     }
     dirAvg1 /= (pairs.size());
     dirAvg2 /= (pairs.size());
-    std::cout << "dirAvg1:" << dirAvg1.transpose() << std::endl;
-    std::cout << "dirAvg2:" << dirAvg2.transpose() << std::endl;
+    //std::cout << "dirAvg1:" << dirAvg1.transpose() << std::endl;
+    //std::cout << "dirAvg2:" << dirAvg2.transpose() << std::endl;
 
     weights /= weights.sum();
     // W是各样本的权值主对角矩阵，它的迹应为1
     Eigen::MatrixXf W(weights.asDiagonal());
-    std::cout << "W:" << std::endl << W << std::endl;
+    //std::cout << "W:" << std::endl << W << std::endl;
 
-    Eigen::Vector3f p1(Eigen::Vector3f::Zero());
-    Eigen::Vector3f p2(Eigen::Vector3f::Zero());
     Eigen::MatrixXf X;
     Eigen::MatrixXf Y;
     X.resize(3, pairs.size());
@@ -153,15 +151,15 @@ Eigen::Matrix3f LineMatcher::stepRotation(
         int index1 = i.value();
 
         Eigen::Vector3f dir1 = lines1->points[index1].dir - dirAvg1;
-        Eigen::Vector3f dir2 = lines2->points[index2].dir - dirAvg1;
+        Eigen::Vector3f dir2 = lines2->points[index2].dir - dirAvg2;
 
         X.col(count) = dir1;
         Y.col(count) = dir2;
     }
-    std::cout << "X:" << std::endl << X << std::endl;
-    std::cout << "Y:" << std::endl << Y << std::endl;
+    //std::cout << "X:" << std::endl << X << std::endl;
+    //std::cout << "Y:" << std::endl << Y << std::endl;
     H = X * W * Y.transpose();
-    std::cout << "H:" << std::endl << H << std::endl;
+    //std::cout << "H:" << std::endl << H << std::endl;
 
     Eigen::JacobiSVD<Eigen::MatrixXf> svd(H, Eigen::ComputeThinU | Eigen::ComputeThinV);
     Eigen::Matrix3f V = svd.matrixV();
@@ -169,28 +167,19 @@ Eigen::Matrix3f LineMatcher::stepRotation(
     Eigen::Vector3f sigma = svd.singularValues();
     Eigen::Matrix3f S = Eigen::Matrix3f::Identity();
     Eigen::Matrix3f tmp = V * U.transpose();
-    std::cout << "sigma: " << sigma.transpose() << std::endl;
+    //std::cout << "sigma: " << sigma.transpose() << std::endl;
     float det = tmp.determinant();
     if (det < 0)
         det = -1;
     S.col(2)[2] = det;
-    qDebug() << "det =" << det;
-    std::cout << "V:" << std::endl << V << std::endl;
-    std::cout << "S:" << std::endl << S << std::endl;
-    std::cout << "U:" << std::endl << U << std::endl;
+    //qDebug() << "det =" << det;
+    //std::cout << "V:" << std::endl << V << std::endl;
+    //std::cout << "S:" << std::endl << S << std::endl;
+    //std::cout << "U:" << std::endl << U << std::endl;
     Eigen::Matrix3f R = V * S * U.transpose();
 
-    Eigen::Vector3f t = p2 - R * p1;
-
-    std::cout << "         p1: " << p1.transpose() << std::endl;
-    std::cout << "         p2: " << p2.transpose() << std::endl;
-    std::cout << "R * posAvg1: " << (R * p1).transpose() << std::endl;
-
-    std::cout << "R:" << std::endl;
-    std::cout << R << std::endl;
-    std::cout << "t: " << t.transpose() << std::endl;
-
-    rotOut = R * rotOut ;
+    //std::cout << "R:" << std::endl;
+    //std::cout << R << std::endl;
 
     // 更新数据
     for (int i = 0; i < lines1->size(); i++)
@@ -198,13 +187,14 @@ Eigen::Matrix3f LineMatcher::stepRotation(
         Line& line1 = lines1->points[i];
 
         line1.dir = R * line1.dir;
-        Eigen::Vector3f point = R * line1.point;
-        line1.point = closedPointOnLine(point, line1.dir, line1.point);
+        line1.point = R * line1.point;
+        //Eigen::Vector3f point = R * line1.point;
+        //line1.point = closedPointOnLine(point, line1.dir, line1.point);
 
         line1.generateDescriptor();
     }
     
-    return rotOut;
+    return R;
 }
 
 Eigen::Vector3f LineMatcher::stepTranslation(
@@ -213,7 +203,7 @@ Eigen::Vector3f LineMatcher::stepTranslation(
     pcl::KdTreeFLANN<Line>::Ptr tree,
     QMap<int, int>& pairs)
 {
-    qDebug() <<"- - - - translation - - - -";
+    //qDebug() <<"- - - - translation - - - -";
     QMap<int, float> errors;
     float distAvg = 0;
     Eigen::Vector3f trans(Eigen::Vector3f::Zero());
@@ -226,7 +216,7 @@ Eigen::Vector3f LineMatcher::stepTranslation(
         float dist = 0;
         Eigen::Vector3f t = transBetweenLines(line1.dir, line1.point, line2.dir, line2.point, dist);
 
-        std::cout << i.key() << " --> " << i.value() << t.transpose() << std::endl;
+        //std::cout << i.key() << " --> " << i.value() << t.transpose() << std::endl;
 
         trans += t;
     }
@@ -242,7 +232,7 @@ Eigen::Vector3f LineMatcher::stepTranslation(
         line1.generateDescriptor();
     }
 
-    std::cout << trans.transpose() << std::endl;
+    //std::cout << trans.transpose() << std::endl;
 
     return trans;
 }

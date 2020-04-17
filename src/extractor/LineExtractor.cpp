@@ -42,6 +42,7 @@ LineExtractor::LineExtractor(QObject* parent)
     , PROPERTY_INIT(CornerLineInterval, 0.2f)
     , PROPERTY_INIT(BoundaryMaxZDistance, 0.01f)
     , PROPERTY_INIT(CornerMaxZDistance, 0.05f)
+    , PROPERTY_INIT(BoundaryGroupLinesSearchRadius, 0.05f)
     , PROPERTY_INIT(CornerGroupLinesSearchRadius, 0.05f)
 {
 
@@ -95,6 +96,7 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
     QList<LineSegment> outLineSegments;
     QList<float> outErrors;
     QList<int> outLinePointsCount;
+    QList<LineSegment> groupedLineSegments;
 
     //pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
     // 对Boundary点和Corner点分别进行漂移。
@@ -121,8 +123,10 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
         outErrors,
         outLinePointsCount
         );
+    groupLines(outLineSegments, outPointLineCloud, BoundaryGroupLinesSearchRadius(), outLineCloud, groupedLineSegments);
     *m_cloud += *outCloud;
-    m_lineSegments += outLineSegments;
+    m_lineSegments += groupedLineSegments;
+    //m_lineSegments += outLineSegments;
     *m_lineCloud += *outLineCloud;
 
     computeInternal(cornerCloud, 
@@ -148,7 +152,6 @@ QList<LineSegment> LineExtractor::compute(const pcl::PointCloud<pcl::PointXYZI>:
         outErrors,
         outLinePointsCount
         );
-    QList<LineSegment> groupedLineSegments;
     groupLines(outLineSegments, outPointLineCloud, CornerGroupLinesSearchRadius(), outLineCloud, groupedLineSegments);
     *m_cloud += *outCloud;
     m_lineSegments += groupedLineSegments;

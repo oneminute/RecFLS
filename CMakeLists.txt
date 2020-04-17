@@ -86,6 +86,7 @@ FILE(GLOB MOCS ${CMAKE_BINARY_DIR}/${PROJECT_NAME}_autogen/*.cpp)
 
 set(OTHER_FILES
     config.ini
+    config2.ini
     README
     .gitignore
 )

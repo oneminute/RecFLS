@@ -273,11 +273,13 @@ public:
     DECLARE_SETTING(RangeSetting, CornerLineInterval, LineExtractor);
     DECLARE_SETTING(RangeSetting, BoundaryMaxZDistance, LineExtractor);
     DECLARE_SETTING(RangeSetting, CornerMaxZDistance, LineExtractor);
+    DECLARE_SETTING(RangeSetting, BoundaryGroupLinesSearchRadius, LineExtractor);
     DECLARE_SETTING(RangeSetting, CornerGroupLinesSearchRadius, LineExtractor);
 
     DECLARE_SETTING(RangeSetting, MaxIterations, LineMatcher);
 
     DECLARE_SETTING(StringSetting, SamplePath, SensorReader);
+    DECLARE_SETTING(RangeSetting, SkipFrames, SensorReader);
 
 private:
     SettingMap m_settings;

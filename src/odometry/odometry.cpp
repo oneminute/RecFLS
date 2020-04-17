@@ -19,6 +19,7 @@ void Odometry::process(Frame& frame)
 
     // 实例类的doProcessing函数调用，执行实际业务代码。
     doProcessing(frame);
+    //frame.setFrameIndex(m_frames.size());
 
     afterProcessing(frame);
     TOCK("odometry_process");

@@ -28,8 +28,6 @@ private slots:
     void onFrameFetched(Frame &frame);
 
 private:
-    //std::vector<pcl::EDLine3D> m_lastMergedLines;
-    pcl::PointCloud<pcl::PointXYZI>::Ptr m_lastLineCloud;
 
 };
 

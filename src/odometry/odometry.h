@@ -34,6 +34,11 @@ public:
 
     virtual void saveCurrentFrame() {}
 
+    Eigen::Matrix4f pose() const
+    {
+        return m_pose;
+    }
+
 signals:
 
 protected:
@@ -47,6 +52,12 @@ protected:
     pcl::PointCloud<pcl::Normal>::Ptr m_normals;
     pcl::IndicesPtr m_cloudIndices;
     QList<QPair<QString, cv::Mat>> m_filteredMats;
+    QList<Frame> m_frames;
+    QList<Eigen::Matrix4f> m_poses;
+    QList<float> m_rotationErrors;
+    QList<float> m_transErrors;
+
+    Eigen::Matrix4f m_pose;
 };
 
 #endif // ODOMETRY_H

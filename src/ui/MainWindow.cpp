@@ -5,6 +5,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/filters/filter.h>
+#include <pcl/common/pca.h>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -19,6 +20,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_cloudViewer = new CloudViewer(m_ui->dockWidgetContentsMainScene);
     m_ui->layoutDockMainScene->addWidget(m_cloudViewer);
 //    m_cloudViewer->setCameraPosition(0, 0, 0, 0, 0, 1, 0, -1, 0);
+    m_cloudViewer->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, -1, 0);
     Eigen::Matrix4f targetPos;
 
     removeDockWidget(m_ui->dockWidgetMainScene);
@@ -190,14 +192,20 @@ void MainWindow::onFrameFetched(Frame &frame)
         }
     }
 
+    QString frameId = QString("cloud_%1").arg(frame.deviceFrameIndex());
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = m_controller->cloud();
     if (cloud && !cloud->empty())
-        m_cloudViewer->addCloud("main_scene", cloud);
+    {
+        Eigen::Matrix4f pose = m_controller->pose();
+        pose = pose.inverse();
+        std::cout << "pose:" << std::endl;
+        std::cout << pose << std::endl;
+        
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmpCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+        pcl::transformPointCloud(*cloud, *tmpCloud, pose);
+        m_cloudViewer->addCloud(frameId, tmpCloud);
+    }
 
-    /*pcl::PointCloud<pcl::Normal>::Ptr normals = m_controller->normals();
-    if (normals && !normals->empty())
-        m_cloudViewer->addCloud("main_scene-normals", normals);
-*/
     m_cloudViewer->update();
 }
 

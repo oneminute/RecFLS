@@ -10,7 +10,6 @@ SensorReaderDevice::SensorReaderDevice()
     : m_frameCount(0)
     , m_imuFrameCount(0)
 {
-
 }
 
 
@@ -138,7 +137,7 @@ bool SensorReaderDevice::open()
 
     initRectifyMap();
 
-    m_currentIndex = 0;
+    m_currentIndex = qMin<unsigned long long>(Settings::SensorReader_SkipFrames.intValue(), m_frameCount - 1);
     return true;
 }
 
@@ -153,6 +152,7 @@ bool SensorReaderDevice::supportRandomAccessing()
 
 void SensorReaderDevice::skip(int skipCount)
 {
+    m_currentIndex = qMin<unsigned long long>(m_currentIndex + skipCount, m_frameCount - 1);
 }
 
 Frame SensorReaderDevice::getFrame(int frameIndex)

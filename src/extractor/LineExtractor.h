@@ -321,6 +321,7 @@ private:
     PROPERTY(float, CornerLineInterval)
     PROPERTY(float, BoundaryMaxZDistance)
     PROPERTY(float, CornerMaxZDistance)
+    PROPERTY(float, BoundaryGroupLinesSearchRadius)
     PROPERTY(float, CornerGroupLinesSearchRadius)
 
 public:

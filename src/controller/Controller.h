@@ -58,6 +58,11 @@ public:
         m_cloudViewer = cloudViewer;
     }
 
+    Eigen::Matrix4f pose() const
+    {
+        return m_odometry->pose();
+    }
+
 signals:
     void frameFetched(Frame& frame);
 

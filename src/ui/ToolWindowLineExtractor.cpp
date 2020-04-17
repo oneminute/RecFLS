@@ -37,6 +37,9 @@ ToolWindowLineExtractor::ToolWindowLineExtractor(QWidget* parent)
 
     m_cloudViewer1->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, -1, 0);
     m_cloudViewer2->setCameraPosition(0, 0, 1.5f, 0, 0, 0, 1, 0, 0);
+
+    connect(m_ui->actionLoad_Data_Set, &QAction::triggered, this, &ToolWindowLineExtractor::onActionLoadDataSet);
+    connect(m_ui->actionCompute_GPU, &QAction::triggered, this, &ToolWindowLineExtractor::onActionComputeGPU);
 }
 
 ToolWindowLineExtractor::~ToolWindowLineExtractor()
@@ -106,6 +109,7 @@ void ToolWindowLineExtractor::init()
     m_lineExtractor->setCornerLineInterval(Settings::LineExtractor_CornerLineInterval.value());
     m_lineExtractor->setBoundaryMaxZDistance(Settings::LineExtractor_BoundaryMaxZDistance.value());
     m_lineExtractor->setCornerMaxZDistance(Settings::LineExtractor_CornerMaxZDistance.value());
+    m_lineExtractor->setBoundaryGroupLinesSearchRadius(Settings::LineExtractor_BoundaryGroupLinesSearchRadius.value());
     m_lineExtractor->setCornerGroupLinesSearchRadius(Settings::LineExtractor_CornerGroupLinesSearchRadius.value());
 
     m_boundaryExtractor.reset(new BoundaryExtractor);
