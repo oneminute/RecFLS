@@ -12,12 +12,16 @@
 
 #include <cuda_runtime.h>
 
-namespace cuda
-{
 #define SQR(x)      ((x)*(x))                        // x^2 
 #define SQR_ABS(x)  (SQR(cfloat(x)) + SQR(cimag(x)))  // |x|^2
-
 #define M_SQRT3    1.73205080756887729352744634151   // sqrt(3)
+
+namespace cuda
+{
+    __device__ __forceinline__ float3 operator*(const Mat33& m, const float3& vec)
+    {
+        return make_float3(dot(m.data[0], vec), dot(m.data[1], vec), dot(m.data[2], vec));
+    }
 
     // calculates eigenvalues of 2x2 float symmetric matrix
     __device__ void dsyevc2(float A, float B, float C, float* rt1, float* rt2) {
@@ -681,7 +685,8 @@ namespace cuda
             x = (ix - parameters.cx) * z / parameters.fx;
             y = (iy - parameters.cy) * z / parameters.fy;
 
-            //const float qnan = std::numeric_limits<float>::quiet_NaN();
+            float qnan = std::numeric_limits<float>::quiet_NaN();
+            pointCloud[index].x = qnan;
 
             //if (index % 1024 == 0)
             //{
@@ -697,7 +702,7 @@ namespace cuda
             }
         }
 
-        __device__ void estimateNormals()
+        __device__ __forceinline__ void estimateNormals()
         {
             size_t index = blockIdx.x * blockDim.x + threadIdx.x;
             int ix = index % parameters.depthWidth;
@@ -752,7 +757,7 @@ namespace cuda
             pointCloudNormals[index].z = normal.z;
         }
 
-        __device__ void extractBoundaries()
+        __device__ __forceinline__ void extractBoundaries()
         {
             size_t index = blockIdx.x * blockDim.x + threadIdx.x;
             int ix = index % parameters.depthWidth;
@@ -1048,7 +1053,7 @@ namespace cuda
             }
         }
 
-        __device__ void classifyBoundaries()
+        __device__ __forceinline__ void classifyBoundaries()
         {
             size_t index = blockIdx.x * blockDim.x + threadIdx.x;
             int ix = index % parameters.depthWidth;
@@ -1141,7 +1146,7 @@ namespace cuda
             }
         }
 
-        __device__ void gaussianBlur()
+        __device__ __forceinline__ void gaussianBlur()
         {
             size_t index = blockIdx.x * blockDim.x + threadIdx.x;
             int ix = index % parameters.depthWidth;
@@ -1278,4 +1283,5 @@ namespace cuda
         safeCall(cudaDeviceSynchronize());
         TOCK("cuda_classifyBoundaries");
     }
+
 }
