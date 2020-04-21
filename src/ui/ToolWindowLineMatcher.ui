@@ -298,10 +298,6 @@
    <addaction name="actionLoad_Data_Set"/>
    <addaction name="actionMatch"/>
    <addaction name="actionMatch_Gpu"/>
-   <addaction name="actionBegin_Step"/>
-   <addaction name="actionStep"/>
-   <addaction name="actionStep_Rotation_Match"/>
-   <addaction name="actionStep_Translate_Match"/>
    <addaction name="actionReset"/>
   </widget>
   <action name="actionLoad_Data_Set">

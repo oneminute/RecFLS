@@ -28,15 +28,15 @@ ToolWindowLineExtractor::ToolWindowLineExtractor(QWidget* parent)
     m_ui->setupUi(this);
 
     m_cloudViewer1 = new CloudViewer(this);
-    m_cloudViewer2 = new CloudViewer(this);
-    m_cloudViewer3 = new CloudViewer(this);
+    //m_cloudViewer2 = new CloudViewer(this);
+    //m_cloudViewer3 = new CloudViewer(this);
 
     m_ui->layoutPointCloud->addWidget(m_cloudViewer1);
-    m_ui->layoutSecondary->addWidget(m_cloudViewer2);
-    m_ui->layoutSecondary->addWidget(m_cloudViewer3);
+    //m_ui->layoutSecondary->addWidget(m_cloudViewer2);
+    //m_ui->layoutSecondary->addWidget(m_cloudViewer3);
 
     m_cloudViewer1->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, -1, 0);
-    m_cloudViewer2->setCameraPosition(0, 0, 1.5f, 0, 0, 0, 1, 0, 0);
+    //m_cloudViewer2->setCameraPosition(0, 0, 1.5f, 0, 0, 0, 1, 0, 0);
 
     connect(m_ui->actionLoad_Data_Set, &QAction::triggered, this, &ToolWindowLineExtractor::onActionLoadDataSet);
     connect(m_ui->actionCompute_GPU, &QAction::triggered, this, &ToolWindowLineExtractor::onActionComputeGPU);
@@ -147,7 +147,7 @@ void ToolWindowLineExtractor::compute()
         pcl::PointCloud<pcl::PointXYZI>::Ptr boundaryPoints;
         m_cloud.reset(new pcl::PointCloud<pcl::PointXYZI>);
 
-        //m_ui->widgetRGBFrame->setImage(cvMat2QImage(frame.colorMat(), true));
+        m_ui->widgetRGBFrame->setImage(cvMat2QImage(frame.colorMat(), true));
         board = frame.colorMat();
 
         m_colorCloud = frame.getCloud(*indices);
@@ -199,10 +199,10 @@ void ToolWindowLineExtractor::compute()
 
     m_cloudViewer1->visualizer()->removeAllPointClouds();
     m_cloudViewer1->visualizer()->removeAllShapes();
-    m_cloudViewer2->visualizer()->removeAllPointClouds();
-    m_cloudViewer2->visualizer()->removeAllShapes();
-    m_cloudViewer3->visualizer()->removeAllPointClouds();
-    m_cloudViewer3->visualizer()->removeAllShapes(); 
+    //m_cloudViewer2->visualizer()->removeAllPointClouds();
+    //m_cloudViewer2->visualizer()->removeAllShapes();
+    //m_cloudViewer3->visualizer()->removeAllPointClouds();
+    //m_cloudViewer3->visualizer()->removeAllShapes(); 
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr densityCloud(new pcl::PointCloud<pcl::PointXYZI>);
     
@@ -213,8 +213,10 @@ void ToolWindowLineExtractor::compute()
     }
 
     {
-        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> iColor(m_originalCloud, 127, 127, 127);
-        m_cloudViewer1->visualizer()->addPointCloud(m_originalCloud, iColor, "original cloud");
+        pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbHandler(m_colorCloud);
+        m_cloudViewer1->visualizer()->addPointCloud(m_colorCloud, rgbHandler, "scene cloud");
+        //pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> iColor(m_originalCloud, 127, 127, 127);
+        //m_cloudViewer1->visualizer()->addPointCloud(m_originalCloud, iColor, "original cloud");
     }
 
     showLines();

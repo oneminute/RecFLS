@@ -26,17 +26,17 @@ ToolWindowBoundaryExtractor::ToolWindowBoundaryExtractor(QWidget *parent)
 
     m_cloudViewer = new CloudViewer;
     m_cloudViewer->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, -1, 0);
-    m_projectedCloudViewer = new CloudViewer;
-    m_projectedCloudViewer->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, 1, 0);
-    m_planeViewer = new CloudViewer;
-    m_planeViewer->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, -1, 0);
-    m_depthViewer = new ImageViewer;
+    //m_projectedCloudViewer = new CloudViewer;
+    //m_projectedCloudViewer->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, 1, 0);
+    //m_planeViewer = new CloudViewer;
+    //m_planeViewer->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, -1, 0);
+    //m_depthViewer = new ImageViewer;
     m_depthViewer2 = new ImageViewer;
 
     m_ui->verticalLayout1->addWidget(m_cloudViewer);
-    m_ui->verticalLayout1->addWidget(m_planeViewer);
-    m_ui->verticalLayout2->addWidget(m_projectedCloudViewer);
-    m_ui->verticalLayout2->addWidget(m_depthViewer);
+    //m_ui->verticalLayout1->addWidget(m_planeViewer);
+    //m_ui->verticalLayout2->addWidget(m_projectedCloudViewer);
+    //m_ui->verticalLayout2->addWidget(m_depthViewer);
     m_ui->verticalLayout2->addWidget(m_depthViewer2);
 
     //m_ui->comboBoxDownsamplingMethod->setCurrentIndex(PARAMETERS.intValue();
@@ -78,10 +78,10 @@ void ToolWindowBoundaryExtractor::init()
 
     m_cloudViewer->visualizer()->removeAllPointClouds();
     m_cloudViewer->visualizer()->removeAllShapes();
-    m_projectedCloudViewer->visualizer()->removeAllPointClouds();
-    m_projectedCloudViewer->visualizer()->removeAllShapes();
-    m_planeViewer->visualizer()->removeAllPointClouds();
-    m_planeViewer->visualizer()->removeAllShapes();
+    //m_projectedCloudViewer->visualizer()->removeAllPointClouds();
+    //m_projectedCloudViewer->visualizer()->removeAllShapes();
+    //m_planeViewer->visualizer()->removeAllPointClouds();
+    //m_planeViewer->visualizer()->removeAllShapes();
 }
 
 void ToolWindowBoundaryExtractor::onActionComputeGPU()

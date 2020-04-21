@@ -20,9 +20,6 @@
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
-      <widget class="QWidget" name="widget_4" native="true">
-       <layout class="QVBoxLayout" name="verticalLayout2"/>
-      </widget>
       <widget class="QWidget" name="widget" native="true">
        <layout class="QVBoxLayout" name="verticalLayout1"/>
       </widget>
@@ -34,6 +31,11 @@
         </size>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_2">
+        <item>
+         <widget class="QWidget" name="widget_4" native="true">
+          <layout class="QVBoxLayout" name="verticalLayout2"/>
+         </widget>
+        </item>
         <item>
          <widget class="QGroupBox" name="groupBox_2">
           <property name="title">

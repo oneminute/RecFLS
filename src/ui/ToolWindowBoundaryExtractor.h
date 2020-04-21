@@ -38,8 +38,8 @@ private:
     QScopedPointer<Ui::ToolWindowBoundaryExtractor> m_ui;
     CloudViewer* m_cloudViewer;
     CloudViewer* m_projectedCloudViewer;
-    CloudViewer* m_planeViewer;
-    ImageViewer* m_depthViewer;
+    //CloudViewer* m_planeViewer;
+    //ImageViewer* m_depthViewer;
     ImageViewer* m_depthViewer2;
 
     QScopedPointer<BoundaryExtractor> m_boundaryExtractor;

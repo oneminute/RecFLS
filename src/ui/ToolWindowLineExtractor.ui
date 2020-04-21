@@ -20,28 +20,6 @@
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
-      <property name="handleWidth">
-       <number>2</number>
-      </property>
-      <widget class="QWidget" name="containerSecondary" native="true">
-       <layout class="QVBoxLayout" name="layoutSecondary">
-        <property name="spacing">
-         <number>2</number>
-        </property>
-        <property name="leftMargin">
-         <number>2</number>
-        </property>
-        <property name="topMargin">
-         <number>2</number>
-        </property>
-        <property name="rightMargin">
-         <number>2</number>
-        </property>
-        <property name="bottomMargin">
-         <number>2</number>
-        </property>
-       </layout>
-      </widget>
       <widget class="QWidget" name="containerPointCloud" native="true">
        <layout class="QHBoxLayout" name="layoutPointCloud">
         <property name="spacing">
