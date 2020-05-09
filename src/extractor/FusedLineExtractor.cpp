@@ -105,6 +105,7 @@ void FusedLineExtractor::computeGPU(cuda::FusedLineFrame& frame)
 
 void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
 {
+    // 抽取edline直线
     TICK("edlines");
     cv::Mat grayImage;
     cv::cvtColor(frame.colorMat(), grayImage, cv::COLOR_RGB2GRAY);
@@ -116,12 +117,14 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
     cv::imshow("lines", linesMat);
     int linesCount = lineHandler.getLinesNo();
 
+    // 抽取出的直线集合放在这儿
      m_groupPoints.clear();
     for (int i = 0; i < linesCount; i++)
     {
         m_groupPoints.insert(i, pcl::PointCloud<pcl::PointXYZI>::Ptr(new pcl::PointCloud<pcl::PointXYZI>));
     }
 
+    // 用cuda抽取be点和折线点
     frameGpu.parameters.cx = frame.getDevice()->cx();
     frameGpu.parameters.cy = frame.getDevice()->cy();
     frameGpu.parameters.fx = frame.getDevice()->fx();
@@ -164,6 +167,7 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
     std::vector<uchar> boundaries;
     frameGpu.boundaries.download(boundaries);
 
+    // 开始2d和3d的比对。
     m_cloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
     m_allBoundary.reset(new pcl::PointCloud<pcl::PointXYZI>);
     m_normals.reset(new pcl::PointCloud<pcl::Normal>);
@@ -232,6 +236,7 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
         if (m_groupPoints[i]->size() < 10)
             continue;
 
+        // 因为同一直线编号的点集中可能既有真点也有veil点，所以先做区域分割。
         pcl::IndicesClusters clusters;
         pcl::EuclideanClusterExtraction<pcl::PointXYZI> ece;
         ece.setClusterTolerance(0.05f);
@@ -242,6 +247,7 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
 
         int maxSize = 0;
         int maxIndex = 0;
+        // 分割后，找出点数最多的子区域作为初始内点集合。即cloud。
         for (int j = 0; j < clusters.size(); j++)
         {
             if (clusters.size() > maxSize)
@@ -253,6 +259,7 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
         pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
         pcl::copyPointCloud(*m_groupPoints[i], clusters[maxIndex].indices, *cloud);
 
+        // 计算这个初始内点集合的主方向和中点。
         pcl::PCA<pcl::PointXYZI> pca;
         pca.setInputCloud(cloud);
         Eigen::Vector3f eigenValues = pca.getEigenValues();
@@ -270,6 +277,7 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
         // 中点
         Eigen::Vector3f center = pca.getMean().head(3);
 
+        // 然后，遍历剩余的子区域点集，查看每一个点到这条直线的距离是否在阈值以内，在就加到内点集中，不在就抛弃。
         for (int j = 0; j < clusters.size(); j++)
         {
             if (j == maxIndex)
@@ -281,6 +289,7 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
                 pcl::PointXYZI pclPt = m_groupPoints[i]->points[nIndex];
                 Eigen::Vector3f pt = pclPt.getArray3fMap();
                 float dist = (pt - center).cross(dir).norm();
+                // 暂时硬编码的阈值。
                 if (dist <= 0.05f)
                 {
                     cloud->points.push_back(pclPt);
@@ -290,6 +299,7 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
         if (cloud->size() < 10)
             continue;
 
+        // 最后再计算一遍内点集的主方向与中点。
         std::cout << "    final: " << cloud->size() << std::endl;
         pcl::PCA<pcl::PointXYZI> pcaFinal;
         pca.setInputCloud(cloud);
@@ -297,6 +307,7 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
         dir = pca.getEigenVectors().col(0).normalized();
         center = pca.getMean().head(3);
 
+        // 确定端点。
         Eigen::Vector3f start(0, 0, 0);
         Eigen::Vector3f end(0, 0, 0);
         for (int j = 0; j < cloud->size(); j++)
