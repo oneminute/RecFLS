@@ -5,11 +5,6 @@
 
 namespace cuda
 {
-    struct Mat33
-    {
-        float3 data[3];
-    };
-
     struct Parameters
     {
         float cx;

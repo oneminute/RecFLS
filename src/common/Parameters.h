@@ -278,6 +278,13 @@ public:
 
     DECLARE_SETTING(RangeSetting, MaxIterations, LineMatcher);
 
+    DECLARE_SETTING(RangeSetting, AnglesThreshold, ICPMatcher);
+    DECLARE_SETTING(RangeSetting, DistanceThreshold, ICPMatcher);
+    DECLARE_SETTING(RangeSetting, IcpKernelRadius, ICPMatcher);
+    DECLARE_SETTING(RangeSetting, CudaBlockSize, ICPMatcher);
+    DECLARE_SETTING(RangeSetting, CudaNormalKernalRadius, ICPMatcher);
+    DECLARE_SETTING(RangeSetting, CudaNormalKnnRadius, ICPMatcher);
+
     DECLARE_SETTING(StringSetting, SamplePath, SensorReader);
     DECLARE_SETTING(RangeSetting, SkipFrames, SensorReader);
 

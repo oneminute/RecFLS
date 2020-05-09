@@ -45,6 +45,13 @@ IMPLEMENT_RANGE_SETTING(CornerGroupLinesSearchRadius, 0.05f, 0.05f, 0.001f, 3.f,
 
 IMPLEMENT_RANGE_SETTING(MaxIterations, 30, 30, 1, 100, 1, LineMatcher, "Max iterations.");
 
+IMPLEMENT_RANGE_SETTING(AnglesThreshold, 0.95f, 0.95f, 0.9f, 1.f, 0.01f, ICPMatcher, "");
+IMPLEMENT_RANGE_SETTING(DistanceThreshold, 0.05f, 0.05f, 0.01f, 0.2f, 0.01f, ICPMatcher, "");
+IMPLEMENT_RANGE_SETTING(IcpKernelRadius, 5, 5, 1, 20, 1, ICPMatcher, "");
+IMPLEMENT_RANGE_SETTING(CudaBlockSize, 32, 32, 32, 512, 16, ICPMatcher, "");
+IMPLEMENT_RANGE_SETTING(CudaNormalKernalRadius, 10, 10, 5, 40, 1, ICPMatcher, "Normal estimation kernal radius.");
+IMPLEMENT_RANGE_SETTING(CudaNormalKnnRadius, 0.1, 0.1, 0.01, 1, 0.01, ICPMatcher, "Normal estimation knn radius.");
+
 IMPLEMENT_STRING_SETTING(SamplePath, "samples/office3.sens", "samples/office3.sens", SensorReader, "Sample dataset's file path.");
 IMPLEMENT_RANGE_SETTING(SkipFrames, 0, 0, 0, 65535, 10, SensorReader, "Frames Skipped.");
 

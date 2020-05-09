@@ -19,7 +19,7 @@ __device__ void d_cov(const float3* pts, float* C, const int n){
 	for (int i = 0; i < n; ++i)
 	{
         float3 diff = pts[i]-m;
-		outerAdd(diff,C);
+		cuda::outerAdd(diff,C);
 	}
 
 	float fac=1.0f/(n-1.0f);
@@ -44,5 +44,6 @@ __global__ void cov(const float* pts, float* C, const int n){
 	const float3 *pts1= (float3*) pts;
     d_cov(pts1,C,n);
 }
+
 
 

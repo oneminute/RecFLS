@@ -7,6 +7,13 @@
 #include <pcl/filters/filter.h>
 #include <pcl/common/pca.h>
 
+#include "ToolWindowLineExtractor.h"
+#include "ToolWindowLineMatcher.h"
+#include "ToolWindowBoundaryExtractor.h"
+#include "ToolWindowICPMatcher.h"
+#include "ToolWindowFusedLineExtractor.h"
+#include "PreferencesWindow.h"
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_ui(new Ui::MainWindow)
@@ -55,6 +62,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_ui->actionLine_Extractor, &QAction::triggered, this, &MainWindow::onActionToolWindowLineExtractor);
     connect(m_ui->actionLine_Matcher, &QAction::triggered, this, &MainWindow::onActionToolWindowLineMatcher);
     connect(m_ui->actionBoundary_Extractor, &QAction::triggered, this, &MainWindow::onActionToolWindowBoundaryExtractor);
+    connect(m_ui->actionICP_Matcher, &QAction::triggered, this, &MainWindow::onActionToolWindowICPMatcher);
+    connect(m_ui->actionFused_Line_Extractor, &QAction::triggered, this, &MainWindow::onActionToolWindowFusedLineExtractor);
     connect(m_ui->actionNext_Frame, &QAction::triggered, this, &MainWindow::onActionNextFrame);
     connect(m_ui->actionSave_Current_Frame, &QAction::triggered, this, &MainWindow::onActionSaveCurrentFrame);
     connect(m_ui->actionPreferences, &QAction::triggered, this, &MainWindow::onActionPreferences);
@@ -135,22 +144,31 @@ void MainWindow::onActionCloseDevice()
 void MainWindow::onActionToolWindowLineExtractor()
 {
     m_toolWindowLineExtractor.reset(new ToolWindowLineExtractor);
-    //m_toolWindowLineExtractor->setWindowModality(Qt::WindowModality::ApplicationModal);
     m_toolWindowLineExtractor->show();
 }
 
 void MainWindow::onActionToolWindowLineMatcher()
 {
     m_toolWindowLineMatcher.reset(new ToolWindowLineMatcher);
-    //m_toolWindowLineMatcher->setWindowModality(Qt::WindowModality::ApplicationModal);
     m_toolWindowLineMatcher->show();
 }
 
 void MainWindow::onActionToolWindowBoundaryExtractor()
 {
     m_toolWindowBoundaryExtractor.reset(new ToolWindowBoundaryExtractor);
-    //m_toolWindowBoundaryExtractor->setWindowModality(Qt::WindowModality::ApplicationModal);
     m_toolWindowBoundaryExtractor->show();
+}
+
+void MainWindow::onActionToolWindowICPMatcher()
+{
+    m_toolWindowICPMatcher.reset(new ToolWindowICPMatcher);
+    m_toolWindowICPMatcher->show();
+}
+
+void MainWindow::onActionToolWindowFusedLineExtractor()
+{
+    m_fusedLineExtractor.reset(new ToolWindowFusedLineExtractor);
+    m_fusedLineExtractor->show();
 }
 
 void MainWindow::onActionSaveCurrentFrame()

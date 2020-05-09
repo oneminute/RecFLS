@@ -57,6 +57,11 @@ ToolWindowLineMatcher::ToolWindowLineMatcher(QWidget *parent)
 
 ToolWindowLineMatcher::~ToolWindowLineMatcher()
 {
+    if (m_isInit)
+    {
+        m_frameGpu1.free();
+        m_frameGpu2.free();
+    }
 }
 
 void ToolWindowLineMatcher::initCompute()

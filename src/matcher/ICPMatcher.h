@@ -11,7 +11,8 @@
 #include <Eigen/Dense>
 
 #include <extractor/LineExtractor.h>
-#include <cuda/CudaInternal.h>
+#include <cuda/IcpInternal.h>
+#include <common/Frame.h>
 
 class ICPMatcher : public QObject
 {
@@ -19,7 +20,24 @@ class ICPMatcher : public QObject
 public:
     explicit ICPMatcher(QObject* parent = nullptr);
 
-    Eigen::Matrix4f compute(cuda::GpuFrame* frame1, cuda::GpuFrame* frame2, const Eigen::Matrix4f& initPose, float& error);
+    Eigen::Matrix4f stepGPU(
+        cuda::IcpCache& cache,
+        const Eigen::Matrix3f& initRot,
+        const Eigen::Vector3f& initTrans,
+        float& error);
+
+    Eigen::Matrix4f step(
+        pcl::PointCloud<pcl::PointXYZI>::Ptr cloudSrc,
+        pcl::PointCloud<pcl::PointXYZI>::Ptr cloudDst,
+        pcl::PointCloud<pcl::Normal>::Ptr normalsSrc,
+        pcl::PointCloud<pcl::Normal>::Ptr normalsDst,
+        pcl::search::KdTree<pcl::PointXYZI>::Ptr tree,
+        const Eigen::Matrix3f& initRot,
+        const Eigen::Vector3f& initTrans,
+        float radius,
+        float angleThreshold,
+        int& pairsCount,
+        float& error);
 
 protected:
 

@@ -124,7 +124,6 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::computeCUDA(cuda::GpuFra
     frame.pointCloudNormals.download(normals);
     std::vector<uchar> boundaries;
     frame.boundaries.download(boundaries);
-    cv::imwrite("indices.png", m_pointsMat);
 
     m_cloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
     m_allBoundary.reset(new pcl::PointCloud<pcl::PointXYZI>);

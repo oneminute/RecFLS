@@ -10,6 +10,7 @@
 #include "util/StopWatch.h"
 
 #include <pcl/gpu/containers/initialization.h>
+#include <cuda_runtime.h>
 
 #ifdef _MSC_VER
 //#    ifdef NDEBUG

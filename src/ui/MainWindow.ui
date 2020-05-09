@@ -46,6 +46,8 @@
     <addaction name="actionBoundary_Extractor"/>
     <addaction name="actionLine_Extractor"/>
     <addaction name="actionLine_Matcher"/>
+    <addaction name="actionICP_Matcher"/>
+    <addaction name="actionFused_Line_Extractor"/>
    </widget>
    <addaction name="menu_File"/>
    <addaction name="menu_Device"/>
@@ -239,6 +241,16 @@
   <action name="actionPreferences">
    <property name="text">
     <string>Preferences</string>
+   </property>
+  </action>
+  <action name="actionICP_Matcher">
+   <property name="text">
+    <string>ICP Matcher</string>
+   </property>
+  </action>
+  <action name="actionFused_Line_Extractor">
+   <property name="text">
+    <string>Fused Line Extractor</string>
    </property>
   </action>
  </widget>

@@ -32,7 +32,7 @@ find_package(FLANN REQUIRED QUIET)
 find_package(VTK REQUIRED QUIET)
 find_package(CUDA)
 
-set(__cuda_arch_bin "3.0 3.5 5.0 5.2 5.3 6.0 6.1")
+set(__cuda_arch_bin "5.0 5.2 5.3 6.0 6.1")
 IF(MSVC)
     set(CUDA_NVCC_FLAGS "-Xcompiler \"/wd 4819\" --ftz=true;--prec-div=false;--prec-sqrt=false;--expt-relaxed-constexpr")
 ELSE(MSVC)
@@ -61,7 +61,7 @@ FILE(GLOB CONTROLLER_HEADERS src/controller/*.h)
 FILE(GLOB CONTROLLER_SRCS src/controller/*.cpp)
 
 FILE(GLOB CUDA_HEADERS src/cuda/*.h)
-FILE(GLOB CUDA_SRCS src/cuda/*.cu)
+FILE(GLOB CUDA_SRCS src/cuda/*.cu src/cuda/*.hpp)
 
 FILE(GLOB DEVICE_HEADERS src/device/*.h)
 FILE(GLOB DEVICE_SRCS src/device/*.cpp)
