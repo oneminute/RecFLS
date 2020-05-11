@@ -1,15 +1,30 @@
 #include "ICPMatcher.h"
 
 #include <QObject>
+#include <QFile>
 
 #include "cuda/IcpInternal.h"
 #include "cuda/cuda.hpp"
+#include "common/Parameters.h"
 
 ICPMatcher::ICPMatcher(QObject* parent)
     : QObject(parent)
     , PROPERTY_INIT(MaxIterations, 10)
 {
     
+}
+
+Eigen::Matrix4f ICPMatcher::compute(cuda::IcpCache& cache, const Eigen::Matrix3f& initRot, const Eigen::Vector3f& initTrans, float& error)
+{
+    int maxIterations = Settings::ICPMatcher_MaxIterations.intValue();
+    Eigen::Matrix4f pose(Eigen::Matrix4f::Identity());
+    for (int i = 0; i < maxIterations; i++)
+    {
+        Eigen::Matrix4f poseDelta = stepGPU(cache, initRot, initTrans, error);
+        pose = poseDelta * pose;
+
+    }
+    return pose;
 }
 
 Eigen::Matrix4f ICPMatcher::stepGPU(

@@ -51,6 +51,7 @@ IMPLEMENT_RANGE_SETTING(IcpKernelRadius, 5, 5, 1, 20, 1, ICPMatcher, "");
 IMPLEMENT_RANGE_SETTING(CudaBlockSize, 32, 32, 32, 512, 16, ICPMatcher, "");
 IMPLEMENT_RANGE_SETTING(CudaNormalKernalRadius, 10, 10, 5, 40, 1, ICPMatcher, "Normal estimation kernal radius.");
 IMPLEMENT_RANGE_SETTING(CudaNormalKnnRadius, 0.1, 0.1, 0.01, 1, 0.01, ICPMatcher, "Normal estimation knn radius.");
+IMPLEMENT_RANGE_SETTING(MaxIterations, 20, 20, 1, 50, 1, ICPMatcher, "Max iterations.");
 
 IMPLEMENT_STRING_SETTING(SamplePath, "samples/office3.sens", "samples/office3.sens", SensorReader, "Sample dataset's file path.");
 IMPLEMENT_RANGE_SETTING(SkipFrames, 0, 0, 0, 65535, 10, SensorReader, "Frames Skipped.");

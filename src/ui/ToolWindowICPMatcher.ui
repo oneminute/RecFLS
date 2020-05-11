@@ -163,6 +163,7 @@
    <addaction name="actionStep_Reset"/>
    <addaction name="actionStep"/>
    <addaction name="actionStep_GPU"/>
+   <addaction name="actionCompute_GPU"/>
   </widget>
   <action name="actionLoad_Data_Set">
    <property name="text">
@@ -190,6 +191,11 @@
   <action name="actionStep_GPU">
    <property name="text">
     <string>Step GPU</string>
+   </property>
+  </action>
+  <action name="actionCompute_GPU">
+   <property name="text">
+    <string>Compute GPU</string>
    </property>
   </action>
  </widget>

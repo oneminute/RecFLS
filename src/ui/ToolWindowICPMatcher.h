@@ -32,6 +32,7 @@ protected:
 
     void onActionLoadDataSet();
     void onActionMatch();
+    void onActionComputeGPU();
     void onActionStepReset();
     void onActionStep();
     void onActionStepGPU();

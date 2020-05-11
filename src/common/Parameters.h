@@ -284,6 +284,7 @@ public:
     DECLARE_SETTING(RangeSetting, CudaBlockSize, ICPMatcher);
     DECLARE_SETTING(RangeSetting, CudaNormalKernalRadius, ICPMatcher);
     DECLARE_SETTING(RangeSetting, CudaNormalKnnRadius, ICPMatcher);
+    DECLARE_SETTING(RangeSetting, MaxIterations, ICPMatcher);
 
     DECLARE_SETTING(StringSetting, SamplePath, SensorReader);
     DECLARE_SETTING(RangeSetting, SkipFrames, SensorReader);

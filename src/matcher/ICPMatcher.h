@@ -20,6 +20,12 @@ class ICPMatcher : public QObject
 public:
     explicit ICPMatcher(QObject* parent = nullptr);
 
+    Eigen::Matrix4f compute(
+        cuda::IcpCache& cache,
+        const Eigen::Matrix3f& initRot,
+        const Eigen::Vector3f& initTrans,
+        float& error);
+
     Eigen::Matrix4f stepGPU(
         cuda::IcpCache& cache,
         const Eigen::Matrix3f& initRot,

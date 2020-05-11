@@ -428,6 +428,10 @@ namespace cuda
             size_t index = blockIdx.x * blockDim.x + threadIdx.x;
             int ix = index % parameters.depthWidth;
             int iy = index / parameters.depthWidth;
+            if (index == 0)
+            {
+                printf("classifyRadius: %d\n", parameters.classifyRadius);
+            }
 
             if (boundaryImage[index] <= 1)
                 return;
@@ -481,9 +485,9 @@ namespace cuda
                     int cursorX = floor(cursor.x);
                     int cursorY = floor(cursor.y);
 
-                    for (int a = max(cursorY - 4, 0); a <= min(cursorY + 4, parameters.depthHeight - 1); a++)
+                    for (int a = max(cursorY - 2, 0); a <= min(cursorY + 2, parameters.depthHeight - 1); a++)
                     {
-                        for (int b = max(cursorX - 4, 0); b <= min(cursorX + 4, parameters.depthWidth - 1); b++)
+                        for (int b = max(cursorX - 2, 0); b <= min(cursorX + 2, parameters.depthWidth - 1); b++)
                         {
                             int nPxIndex = a * parameters.depthWidth + b;
                             //int nPtIndex = static_cast<int>(nPxIndex);

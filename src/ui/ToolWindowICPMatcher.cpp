@@ -41,6 +41,7 @@ ToolWindowICPMatcher::ToolWindowICPMatcher(QWidget *parent)
 
     connect(m_ui->actionLoad_Data_Set, &QAction::triggered, this, &ToolWindowICPMatcher::onActionLoadDataSet);
     connect(m_ui->actionMatch, &QAction::triggered, this, &ToolWindowICPMatcher::onActionMatch);
+    connect(m_ui->actionCompute_GPU, &QAction::triggered, this, &ToolWindowICPMatcher::onActionComputeGPU);
     connect(m_ui->actionStep_Reset, &QAction::triggered, this, &ToolWindowICPMatcher::onActionStepReset);
     connect(m_ui->actionStep, &QAction::triggered, this, &ToolWindowICPMatcher::onActionStep);
     connect(m_ui->actionStep_GPU, &QAction::triggered, this, &ToolWindowICPMatcher::onActionStepGPU);
@@ -280,6 +281,17 @@ void ToolWindowICPMatcher::onActionMatch()
     updateWidgets();
 }
 
+void ToolWindowICPMatcher::onActionComputeGPU()
+{
+    float error = 0;
+    m_pose = m_icp->compute(m_cache, m_rotation, m_translation, error);
+    m_iteration = Settings::ICPMatcher_MaxIterations.intValue();
+
+    showMatchedClouds();
+    updateWidgets();
+    StopWatch::instance().debugPrint();
+}
+
 void ToolWindowICPMatcher::onActionStepReset()
 {
     initCompute();
@@ -369,6 +381,7 @@ void ToolWindowICPMatcher::updateWidgets()
     m_ui->actionStep_Reset->setEnabled(m_isLoaded);
     m_ui->actionStep->setEnabled(m_isStepMode);
     m_ui->actionStep_GPU->setEnabled(m_isStepMode);
+    m_ui->actionCompute_GPU->setEnabled(m_isLoaded);
 
     if (m_isInit)
     {
