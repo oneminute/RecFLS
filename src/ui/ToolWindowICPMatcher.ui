@@ -160,10 +160,10 @@
    </attribute>
    <addaction name="actionLoad_Data_Set"/>
    <addaction name="actionMatch"/>
+   <addaction name="actionCompute_GPU"/>
    <addaction name="actionStep_Reset"/>
    <addaction name="actionStep"/>
    <addaction name="actionStep_GPU"/>
-   <addaction name="actionCompute_GPU"/>
   </widget>
   <action name="actionLoad_Data_Set">
    <property name="text">

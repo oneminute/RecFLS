@@ -38,7 +38,8 @@ Eigen::Matrix4f ICPMatcher::stepGPU(
     Eigen::Matrix3f covMatrix;
     float3 gpuAvgSrc, gpuAvgDst;
     Mat33 gpuCovMatrix;
-    cuda::icp(cache, toMat33(initRot), toFloat3(initTrans), gpuCovMatrix, gpuAvgSrc, gpuAvgDst, error);
+    int pairsCount;
+    cuda::icp(cache, toMat33(initRot), toFloat3(initTrans), gpuCovMatrix, gpuAvgSrc, gpuAvgDst, pairsCount);
     avgSrc = toVector3f(gpuAvgSrc);
     avgDst = toVector3f(gpuAvgDst);
     covMatrix = toMatrix3f(gpuCovMatrix);
@@ -69,6 +70,8 @@ Eigen::Matrix4f ICPMatcher::stepGPU(
     pose.topRightCorner(3, 1) = T;
 
     std::cout << "pose:" << std::endl << pose << std::endl;
+
+    cuda::calculateErrors(cache, toMat33(R), toFloat3(T), pairsCount, error);
     return pose;
 }
 

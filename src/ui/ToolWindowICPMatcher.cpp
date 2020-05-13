@@ -67,6 +67,7 @@ void ToolWindowICPMatcher::initCompute()
     int frameIndexSrc = m_ui->comboBoxFrameSrc->currentIndex();
     Frame frameSrc = m_device->getFrame(frameIndexSrc);
     int frameIndexDst = m_ui->comboBoxFrameDst->currentIndex();
+    //int frameIndexDst = m_ui->comboBoxFrameSrc->currentIndex();
     Frame frameDst = m_device->getFrame(frameIndexDst);
 
     m_ui->widgetImageSrc->setImage(cvMat2QImage(frameSrc.colorMat()));
@@ -188,21 +189,34 @@ void ToolWindowICPMatcher::initCompute()
 
     m_rotationDelta = Eigen::Matrix3f::Identity();
     m_translationDelta = Eigen::Vector3f::Zero();
+
+    //Eigen::AngleAxisf rollAngle(M_PI / 72, Eigen::Vector3f::UnitZ());
+    //Eigen::AngleAxisf yawAngle(0, Eigen::Vector3f::UnitY());
+    //Eigen::AngleAxisf pitchAngle(0, Eigen::Vector3f::UnitX());
+    //Eigen::Quaternion<float> q = rollAngle * yawAngle * pitchAngle;
+    //Eigen::Matrix3f rotationMatrix = q.matrix();
+
     m_rotation = Eigen::Matrix3f::Identity();
     m_translation = Eigen::Vector3f::Zero();
+    //m_rotation = rotationMatrix;
+    //m_translation = Eigen::Vector3f(0.05f, 0.02f, 0);
     m_pose = Eigen::Matrix4f::Identity();
+    m_pose.topLeftCorner(3, 3) = m_rotation;
+    m_pose.topRightCorner(3, 1) = m_translation;
     m_iteration = 0;
 
     // ÏÔÊ¾µãÔÆ
-    {
-        m_cloudViewer->removeAllClouds();
-        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> h1(m_cloudSrc, 255, 0, 0);
-        m_cloudViewer->visualizer()->addPointCloud(m_cloudSrc, h1, "cloud_src");
-        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> h2(m_cloudDst, 0, 0, 255);
-        m_cloudViewer->visualizer()->addPointCloud(m_cloudDst, h2, "cloud_dst");
-        //m_cloudViewer->visualizer()->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(m_cloudSrc, m_normalsSrc, 100, 0.1f);
-        //m_cloudViewer->visualizer()->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(m_cloudDst, m_normalsDst, 100, 0.1f);
-    }
+    //{
+    //    pcl::transformPointCloud(*m_cloudSrc, *m_cloudSrc, m_pose);
+    //    m_cloudViewer->removeAllClouds();
+    //    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> h1(m_cloudSrc, 255, 0, 0);
+    //    m_cloudViewer->visualizer()->addPointCloud(m_cloudSrc, h1, "cloud_src");
+    //    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> h2(m_cloudDst, 0, 0, 255);
+    //    m_cloudViewer->visualizer()->addPointCloud(m_cloudDst, h2, "cloud_dst");
+    //    //m_cloudViewer->visualizer()->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(m_cloudSrc, m_normalsSrc, 100, 0.1f);
+    //    //m_cloudViewer->visualizer()->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(m_cloudDst, m_normalsDst, 100, 0.1f);
+    //}
+    showMatchedClouds();
 
     m_isInit = true;
 }

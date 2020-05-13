@@ -287,13 +287,16 @@ void ToolWindowFusedLineExtractor::onActionShowPoints()
     QString cloudName = QString("cloud_%1").arg(cloudIndex);
     m_cloudViewer->visualizer()->removeAllPointClouds();
 
-    pcl::PointCloud<pcl::PointXYZI>::Ptr beCloud = m_extractor->allBoundary();
-    pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> h1(beCloud, "intensity");
-    m_cloudViewer->visualizer()->addPointCloud(beCloud, h1, "cloud_src");
+    if (m_ui->checkBoxShowPoints->isChecked())
+    {
+        pcl::PointCloud<pcl::PointXYZI>::Ptr beCloud = m_extractor->allBoundary();
+        pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> h1(beCloud, "intensity");
+        m_cloudViewer->visualizer()->addPointCloud(beCloud, h1, "cloud_src");
 
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> h2(cloud, 255, 0, 0);
-    m_cloudViewer->visualizer()->addPointCloud(cloud, h2, cloudName.toStdString());
-    m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, cloudName.toStdString());
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> h2(cloud, 255, 0, 0);
+        m_cloudViewer->visualizer()->addPointCloud(cloud, h2, cloudName.toStdString());
+        m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, cloudName.toStdString());
+    }
 
     m_cloudViewer->visualizer()->removeAllShapes();
     QMap<int, LS3D> lines = m_extractor->lines();

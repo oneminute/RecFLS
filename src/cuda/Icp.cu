@@ -27,6 +27,7 @@ namespace cuda
         pcl::gpu::PtrSz<float3> srcSum;
         pcl::gpu::PtrSz<float3> dstSum;
         pcl::gpu::PtrSz<Mat33> covMatrix;
+        pcl::gpu::PtrSz<float> errors;
         pcl::gpu::PtrSz<int> pairs;
         pcl::gpu::PtrSz<int> counts;
         Mat33 initRot;
@@ -41,12 +42,15 @@ namespace cuda
             return true;
         }
 
+        __device__ bool isValidCoord(int x, int y)
+        {
+            return x >= 0 && x < parameters.depthWidth&& y >= 0 && y < parameters.depthHeight;
+        }
+
         __device__ __forceinline__ void extracPointCloud()
         {
             size_t index = blockIdx.x * blockDim.x + threadIdx.x;
-
             
-
             int ix = index % parameters.depthWidth;
             int iy = index / parameters.depthWidth;
 
@@ -156,8 +160,10 @@ namespace cuda
             if (isValid(ptSrc) && ix >= 0 && iy >= 0 && ix < parameters.depthWidth && iy < parameters.depthHeight)
             {
                 // 针对src点云中的每一个点，在dst中查找法线最佳匹配的近邻点。
-                for (int j = max(0, iy - parameters.icpKernalRadius); j < min(iy + parameters.icpKernalRadius + 1, parameters.depthHeight); j++) {
-                    for (int i = max(0, ix - parameters.icpKernalRadius); i < min(ix + parameters.icpKernalRadius + 1, parameters.depthWidth); i++) {
+                for (int j = max(0, iy - parameters.icpKernalRadius); j < min(iy + parameters.icpKernalRadius + 1, parameters.depthHeight); j++) 
+                {
+                    for (int i = max(0, ix - parameters.icpKernalRadius); i < min(ix + parameters.icpKernalRadius + 1, parameters.depthWidth); i++) 
+                    {
                         int neighbourIndex = j * parameters.depthWidth + i;
                         if (!isValid(dst[neighbourIndex]))
                             continue;
@@ -266,6 +272,39 @@ namespace cuda
                 counts[blockMemIndex] = count;
             }
         }
+
+        __device__ __forceinline__ void calculateErrors(Mat33 rot, float3 trans)
+        {
+            int index = blockIdx.x * blockDim.x + threadIdx.x;
+            int blockIndex = blockIdx.x * blockDim.x;
+            int blockMemIndex = blockIndex / parameters.blockSize;
+            __shared__ float errorSmem[32];
+
+            float3 ptSrc = rot * src[index] + trans;
+
+            int ix = ptSrc.x * parameters.fx / ptSrc.z + parameters.cx;
+            int iy = ptSrc.y * parameters.fy / ptSrc.z + parameters.cy;
+            int dstIndex = iy * parameters.depthWidth + ix;
+            float3 ptDst = dst[dstIndex];
+            float3 nmDst = dstNormals[dstIndex];
+
+            float error = 0;
+            if (isValid(ptSrc) && isValid(ptDst) && isValidCoord(ix, iy))
+            {
+                error = abs(dot((ptSrc - ptDst), nmDst));
+            }
+            errorSmem[threadIdx.x] = error;
+
+            __syncthreads();
+            if (index == blockIndex)
+            {
+                errors[blockMemIndex] = 0;
+                for (int i = 0; i < parameters.blockSize; i++)
+                {
+                    errors[blockMemIndex] += errorSmem[threadIdx.x];
+                }
+            }
+        }
     };
 
     __global__ void extractPointCloud(ICP icp)
@@ -286,6 +325,11 @@ namespace cuda
     __global__ void icpMatch(ICP icp, float3 avgSrc, float3 avgDst)
     {
         icp.icpMatch(avgSrc, avgDst);
+    }
+
+    __global__ void calculateErrors(ICP icp, Mat33 rot, float3 trans)
+    {
+        icp.calculateErrors(rot, trans);
     }
 
     void icpGenerateCloud(IcpFrame& frame)
@@ -315,7 +359,7 @@ namespace cuda
         TOCK("cuda_estimateNormals");
     }
 
-    void icp(IcpCache& cache, const Mat33& initRot, const float3& initTrans, Mat33& covMatrix, float3& avgSrc, float3& avgDst, float& error)
+    void icp(IcpCache& cache, const Mat33& initRot, const float3& initTrans, Mat33& covMatrix, float3& avgSrc, float3& avgDst, int& pairsCout)
     {
         cache.parameters.blockSize = 32;
 
@@ -329,9 +373,7 @@ namespace cuda
         cudaMemset(cache.srcNormals.ptr(), 0, size * sizeof(Eigen::Vector3f) / cache.parameters.blockSize);
         cudaMemset(cache.dstNormals.ptr(), 0, size * sizeof(Eigen::Vector3f) / cache.parameters.blockSize);
         cudaMemset(cache.covMatrix.ptr(), 0, size * sizeof(Eigen::Matrix3f) / cache.parameters.blockSize);
-        //cudaMemset(cache.covMatrixCache.ptr(), 0, size * sizeof(Eigen::Matrix3f));
-        //cudaMemset(cache.srcCache.ptr(), 0, size * sizeof(Eigen::Vector3f));
-        //cudaMemset(cache.dstCache.ptr(), 0, size * sizeof(Eigen::Vector3f));
+        cudaMemset(cache.errors.ptr(), 0, size * sizeof(float) / cache.parameters.blockSize);
         safeCall(cudaDeviceSynchronize());
 
         ICP icp;
@@ -343,6 +385,7 @@ namespace cuda
         //icp.srcCache = cache.srcCache;
         //icp.dstCache = cache.dstCache;
         icp.covMatrix = cache.covMatrix;
+        icp.errors = cache.errors;
         //icp.covMatrixCache = cache.covMatrixCache;
         icp.pairs = cache.pairs;
         icp.srcSum = cache.srcSum;
@@ -409,6 +452,41 @@ namespace cuda
         }
         covMatrix /= count;
         std::cout << "cov matrix count = " << count << std::endl;
+    }
+
+    void calculateErrors(IcpCache& cache, const Mat33& rot, const float3& trans, int pairsCount, float& error)
+    {
+        cache.parameters.blockSize = 32;
+
+        dim3 block(cache.parameters.blockSize);
+        dim3 grid(cache.parameters.depthWidth * cache.parameters.depthHeight / block.x);
+
+        int size = cache.parameters.depthWidth * cache.parameters.depthHeight;
+        cudaMemset(cache.errors.ptr(), 0, size * sizeof(float) / cache.parameters.blockSize);
+        safeCall(cudaDeviceSynchronize());
+
+        ICP icp;
+        icp.parameters = cache.parameters;
+        icp.src = cache.srcCloud;
+        icp.dst = cache.dstCloud;
+        icp.srcNormals = cache.srcNormals;
+        icp.dstNormals = cache.dstNormals;
+        icp.covMatrix = cache.covMatrix;
+        icp.errors = cache.errors;
+
+        TICK("cuda_calc_errors");
+        calculateErrors << <grid, block >> > (icp, rot, trans);
+        safeCall(cudaDeviceSynchronize());
+        TOCK("cuda_calc_errors");
+
+        std::vector<float> errors;
+        cache.errors.download(errors);
+        for (int i = 0; i < grid.x; i++)
+        {
+            error += errors[i];
+        }
+        error /= pairsCount;
+        std::cout << "original error: " << error << std::endl;
     }
     
 }
