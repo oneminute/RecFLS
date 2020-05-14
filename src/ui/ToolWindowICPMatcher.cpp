@@ -190,11 +190,11 @@ void ToolWindowICPMatcher::initCompute()
     m_rotationDelta = Eigen::Matrix3f::Identity();
     m_translationDelta = Eigen::Vector3f::Zero();
 
-    //Eigen::AngleAxisf rollAngle(M_PI / 72, Eigen::Vector3f::UnitZ());
-    //Eigen::AngleAxisf yawAngle(0, Eigen::Vector3f::UnitY());
-    //Eigen::AngleAxisf pitchAngle(0, Eigen::Vector3f::UnitX());
-    //Eigen::Quaternion<float> q = rollAngle * yawAngle * pitchAngle;
-    //Eigen::Matrix3f rotationMatrix = q.matrix();
+    Eigen::AngleAxisf rollAngle(M_PI / 72, Eigen::Vector3f::UnitZ());
+    Eigen::AngleAxisf yawAngle(0, Eigen::Vector3f::UnitY());
+    Eigen::AngleAxisf pitchAngle(0, Eigen::Vector3f::UnitX());
+    Eigen::Quaternion<float> q = rollAngle * yawAngle * pitchAngle;
+    Eigen::Matrix3f rotationMatrix = q.matrix();
 
     m_rotation = Eigen::Matrix3f::Identity();
     m_translation = Eigen::Vector3f::Zero();
@@ -297,6 +297,8 @@ void ToolWindowICPMatcher::onActionMatch()
 
 void ToolWindowICPMatcher::onActionComputeGPU()
 {
+    initCompute();
+
     float error = 0;
     m_pose = m_icp->compute(m_cache, m_rotation, m_translation, error);
     m_iteration = Settings::ICPMatcher_MaxIterations.intValue();

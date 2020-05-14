@@ -153,14 +153,14 @@ namespace cuda
             int iy = ptSrc.y * parameters.fy / ptSrc.z + parameters.cy;
 
             float maxDistance = parameters.icpDistThreshold * parameters.icpDistThreshold;
-            float maxCos = 0;
+            float maxValue = 10000;
             float3 ptDst;
             int dstIndex = -1;
             bool found = false;
             if (isValid(ptSrc) && ix >= 0 && iy >= 0 && ix < parameters.depthWidth && iy < parameters.depthHeight)
             {
                 // 针对src点云中的每一个点，在dst中查找法线最佳匹配的近邻点。
-                for (int j = max(0, iy - parameters.icpKernalRadius); j < min(iy + parameters.icpKernalRadius + 1, parameters.depthHeight); j++) 
+                /*for (int j = max(0, iy - parameters.icpKernalRadius); j < min(iy + parameters.icpKernalRadius + 1, parameters.depthHeight); j++) 
                 {
                     for (int i = max(0, ix - parameters.icpKernalRadius); i < min(ix + parameters.icpKernalRadius + 1, parameters.depthWidth); i++) 
                     {
@@ -173,9 +173,31 @@ namespace cuda
                             if (cos < parameters.icpAnglesThreshold)
                                 continue;
 
-                            if (cos > maxCos)
+                            if (cos > maxValue)
                             {
-                                maxCos = cos;
+                                maxValue = cos;
+                                ptDst = dst[neighbourIndex];
+                                dstIndex = neighbourIndex;
+                                found = true;
+                            }
+                        }
+                    }
+                }*/
+
+                for (int j = max(0, iy - parameters.icpKernalRadius); j < min(iy + parameters.icpKernalRadius + 1, parameters.depthHeight); j++) 
+                {
+                    for (int i = max(0, ix - parameters.icpKernalRadius); i < min(ix + parameters.icpKernalRadius + 1, parameters.depthWidth); i++) 
+                    {
+                        int neighbourIndex = j * parameters.depthWidth + i;
+                        if (!isValid(dst[neighbourIndex]))
+                            continue;
+                        float3 diff3 = dst[neighbourIndex] - ptSrc;
+                        float sqrDist = dot(diff3, diff3);
+                        if (sqrDist < maxDistance) {
+
+                            if (sqrDist < maxValue)
+                            {
+                                maxValue = sqrDist;
                                 ptDst = dst[neighbourIndex];
                                 dstIndex = neighbourIndex;
                                 found = true;
@@ -209,7 +231,7 @@ namespace cuda
             }
             int blockIndex = blockIdx.x * blockDim.x;
             __syncthreads();
-            if (index == blockIndex)
+            if (threadIdx.x == 0)
             {
                 int blockMemIndex = blockIndex / parameters.blockSize;
                 int count = 0;
@@ -218,8 +240,8 @@ namespace cuda
                     if (!valid[threadIdx.x])
                         continue;
 
-                    srcSum[blockMemIndex] += blockSrcSum[threadIdx.x];
-                    dstSum[blockMemIndex] += blockDstSum[threadIdx.x];
+                    srcSum[blockMemIndex] += blockSrcSum[i];
+                    dstSum[blockMemIndex] += blockDstSum[i];
                     count++;
                 }
                 counts[blockMemIndex] = count;
@@ -257,7 +279,7 @@ namespace cuda
             __syncthreads();
 
             ////printf("ix: %d, iy: %d, src: [%f, %f, %f], dst: [%f, %f, %f]\n", ix, iy, ptSrc.x(), ptSrc.y(), ptSrc.z(), ptDst.x(), ptDst.y(), ptDst.z());
-            if (index == blockIndex)
+            if (threadIdx.x == 0)
             {
                 int count = 0;
                 for (int i = 0; i < parameters.blockSize; i++)
@@ -265,7 +287,7 @@ namespace cuda
                     int isValid = valid[threadIdx.x];
                     if (isValid && !isNan(blockCovM[threadIdx.x]))
                     {
-                        covMatrix[blockMemIndex] += blockCovM[threadIdx.x];
+                        covMatrix[blockMemIndex] += blockCovM[i];
                         count++;
                     }
                 }
@@ -285,23 +307,27 @@ namespace cuda
             int ix = ptSrc.x * parameters.fx / ptSrc.z + parameters.cx;
             int iy = ptSrc.y * parameters.fy / ptSrc.z + parameters.cy;
             int dstIndex = iy * parameters.depthWidth + ix;
-            float3 ptDst = dst[dstIndex];
-            float3 nmDst = dstNormals[dstIndex];
-
             float error = 0;
-            if (isValid(ptSrc) && isValid(ptDst) && isValidCoord(ix, iy))
+            if (dstIndex >= 0 && dstIndex < parameters.depthWidth * parameters.depthHeight)
             {
-                error = abs(dot((ptSrc - ptDst), nmDst));
+                float3 ptDst = dst[dstIndex];
+                float3 nmDst = dstNormals[dstIndex];
+
+                if (isValid(ptSrc) && isValid(ptDst) && isValidCoord(ix, iy))
+                {
+                    float3 dist = ptSrc - ptDst;
+                    error = sqrtf(dot(dist, dist));
+                }
             }
             errorSmem[threadIdx.x] = error;
 
             __syncthreads();
-            if (index == blockIndex)
+            if (threadIdx.x == 0)
             {
                 errors[blockMemIndex] = 0;
                 for (int i = 0; i < parameters.blockSize; i++)
                 {
-                    errors[blockMemIndex] += errorSmem[threadIdx.x];
+                    errors[blockMemIndex] += errorSmem[i];
                 }
             }
         }

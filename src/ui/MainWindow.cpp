@@ -211,16 +211,33 @@ void MainWindow::onFrameFetched(Frame &frame)
     }
 
     QString frameId = QString("cloud_%1").arg(frame.deviceFrameIndex());
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = m_controller->cloud();
+    std::cout << "#### frame index: " << frame.deviceFrameIndex() << std::endl;
+    
+    pcl::IndicesPtr indices(new std::vector<int>);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = frame.getCloud(*indices);
+    //pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = m_controller->cloud();
     if (cloud && !cloud->empty())
     {
+        //Eigen::Matrix4f pose = m_controller->pose().inverse();
         Eigen::Matrix4f pose = m_controller->pose();
-        pose = pose.inverse();
         std::cout << "pose:" << std::endl;
         std::cout << pose << std::endl;
+
+        Eigen::Matrix3f rot = pose.topLeftCorner(3, 3);
+        Eigen::Vector3f rpy = rot.eulerAngles(0, 1, 2);
+        const double r = ((double)rpy(0));
+        const double p = ((double)rpy(1));
+        const double y = ((double)rpy(2));
+        Eigen::Vector3f trans = pose.topRightCorner(3, 1);
+        //trans *= 10;
+        pose.topRightCorner(3, 1) = trans;
+        std::cout << "eulers: [" << r << ", " << p << ", " << y << "], [" << trans.x() << ", " << trans.y() << ", " << trans.z() << "]" << std::endl;
         
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmpCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+        //Eigen::Matrix4f tmp(Eigen::Matrix4f::Identity());
+        //tmp.topRightCorner(3, 1) += Eigen::Vector3f(0.1f * frame.deviceFrameIndex(), 0, 0);
         pcl::transformPointCloud(*cloud, *tmpCloud, pose);
+        //m_cloudViewer->removeAllClouds();
         m_cloudViewer->addCloud(frameId, tmpCloud);
     }
 

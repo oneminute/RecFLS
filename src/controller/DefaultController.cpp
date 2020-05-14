@@ -9,6 +9,7 @@
 
 #include "odometry/LineMatchOdometry.h"
 #include "odometry/LineMatchCudaOdometry.h"
+#include "odometry/ICPOdometry.h"
 #include "common/Parameters.h"
 
 DefaultController::DefaultController(Device *device, QObject *parent)
@@ -16,7 +17,8 @@ DefaultController::DefaultController(Device *device, QObject *parent)
 {
     connect(m_device, &Device::frameFetched, this, &DefaultController::onFrameFetched);
 
-    m_odometry.reset(new LineMatchCudaOdometry);
+    //m_odometry.reset(new LineMatchCudaOdometry);
+    m_odometry.reset(new ICPOdometry);
 }
 
 QString DefaultController::name() const

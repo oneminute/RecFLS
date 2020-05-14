@@ -421,7 +421,7 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
         line.start.getArray3fMap() = start;
         line.end.getArray3fMap() = end;
         line.center.getArray3fMap() = center;
-        if (line.length() > 0.2f)
+        if (line.length() > 0.1f)
             m_lines.insert(i, line);
     }
     

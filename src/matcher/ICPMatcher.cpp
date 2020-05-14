@@ -18,11 +18,14 @@ Eigen::Matrix4f ICPMatcher::compute(cuda::IcpCache& cache, const Eigen::Matrix3f
 {
     int maxIterations = Settings::ICPMatcher_MaxIterations.intValue();
     Eigen::Matrix4f pose(Eigen::Matrix4f::Identity());
+    pose.topLeftCorner(3, 3) = initRot;
+    pose.topRightCorner(3, 1) = initTrans;
     for (int i = 0; i < maxIterations; i++)
     {
-        Eigen::Matrix4f poseDelta = stepGPU(cache, initRot, initTrans, error);
+        Eigen::Matrix3f rot = pose.topLeftCorner(3, 3);
+        Eigen::Vector3f trans = pose.topRightCorner(3, 1);
+        Eigen::Matrix4f poseDelta = stepGPU(cache, rot, trans, error);
         pose = poseDelta * pose;
-
     }
     return pose;
 }
@@ -44,7 +47,7 @@ Eigen::Matrix4f ICPMatcher::stepGPU(
     avgDst = toVector3f(gpuAvgDst);
     covMatrix = toMatrix3f(gpuCovMatrix);
 
-    std::cout << "covMatrix:" << sizeof(Eigen::Matrix3f) << sizeof(covMatrix) << std::endl << covMatrix << std::endl;
+    std::cout << "covMatrix:" << std::endl << covMatrix << std::endl;
 
     Eigen::JacobiSVD<Eigen::MatrixXf> svd(covMatrix, Eigen::ComputeThinU | Eigen::ComputeThinV);
     Eigen::Matrix3f V = svd.matrixV();
@@ -58,7 +61,8 @@ Eigen::Matrix4f ICPMatcher::stepGPU(
         det = -1;
     S.col(2)[2] = det;
     Eigen::Matrix3f R = V * S * U.transpose();
-    qDebug() << "det =" << det;
+    //Eigen::Matrix3f R = V * U.transpose();
+    //qDebug() << "det =" << det;
     std::cout << "V:" << std::endl << V << std::endl;
     std::cout << "S:" << std::endl << S << std::endl;
     std::cout << "U:" << std::endl << U << std::endl;
@@ -67,6 +71,7 @@ Eigen::Matrix4f ICPMatcher::stepGPU(
     pose.topLeftCorner(3, 3) = R;
 
     Eigen::Vector3f T = avgDst - R * avgSrc;
+    //T = -T;
     pose.topRightCorner(3, 1) = T;
 
     std::cout << "pose:" << std::endl << pose << std::endl;

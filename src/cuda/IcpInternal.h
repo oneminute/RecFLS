@@ -32,6 +32,7 @@ namespace cuda
         pcl::gpu::DeviceArray2D<ushort> depthImage;
         pcl::gpu::DeviceArray<float3> pointCloud;
         pcl::gpu::DeviceArray<float3> pointCloudNormals;
+        cv::cuda::GpuMat depthMatGpu;
 
         IcpParameters parameters;
 
@@ -40,6 +41,7 @@ namespace cuda
             depthImage.create(parameters.depthHeight, parameters.depthWidth);
             pointCloud.create(parameters.depthWidth * parameters.depthHeight);
             pointCloudNormals.create(parameters.depthWidth * parameters.depthHeight);
+            depthMatGpu = cv::cuda::GpuMat(parameters.depthHeight, parameters.depthWidth, CV_16U, depthImage);
             return 1;
         }
 
@@ -76,6 +78,17 @@ namespace cuda
             counts.create(size / parameters.blockSize);
             errors.create(size / parameters.blockSize);
             return 1;
+        }
+
+        void swap()
+        {
+            pcl::gpu::DeviceArray<float3> tmp = srcCloud;
+            srcCloud = dstCloud;
+            dstCloud = tmp;
+
+            tmp = srcNormals;
+            srcNormals = dstNormals;
+            dstNormals = tmp;
         }
 
         void free()
