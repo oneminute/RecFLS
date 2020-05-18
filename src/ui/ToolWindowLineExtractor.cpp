@@ -10,7 +10,7 @@
 
 #include "common/Parameters.h"
 #include "util/Utils.h"
-#include "extractor/LineExtractor.h"
+#include "extractor/FusedLineExtractor.h"
 
 #include <pcl/io/ply_io.h>
 #include <pcl/io/obj_io.h>
@@ -73,11 +73,11 @@ void ToolWindowLineExtractor::showLines()
 
     for (int i = 0; i < m_lineCloud->size(); i++)
     {
-        Line msl = m_lineCloud->points[i];
+        /*LineSegment ls = m_lineCloud->points[i];
         pcl::PointXYZ start, end, middle;
-        start.getVector3fMap() = msl.getEndPoint(-3);
-        end.getVector3fMap() = msl.getEndPoint(3);
-        middle.getVector3fMap() = msl.point;
+        start.getVector3fMap() = ls.getEndPoint(-3);
+        end.getVector3fMap() = ls.getEndPoint(3);
+        middle.getVector3fMap() = ls.point;
         QString lineName = QString("msl_%1").arg(i);
         std::string textNo = "text_" + std::to_string(i);
 
@@ -88,13 +88,13 @@ void ToolWindowLineExtractor::showLines()
 
         m_cloudViewer1->visualizer()->addLine(start, end, color.red(), color.green(), color.blue(), lineName.toStdString());
         m_cloudViewer1->visualizer()->addText3D(std::to_string(i), middle, 0.05, 1, 1, 1, textNo);
-        m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, width, lineName.toStdString());
+        m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, width, lineName.toStdString());*/
     }
 }
 
 void ToolWindowLineExtractor::init()
 {
-    m_lineExtractor.reset(new LineExtractor);
+    /*m_lineExtractor.reset(new LineExtractor);
 
     m_lineExtractor->setBoundaryCloudA1dThreshold(Settings::LineExtractor_BoundaryCloudA1dThreshold.value());
     m_lineExtractor->setCornerCloudA1dThreshold(Settings::LineExtractor_CornerCloudA1dThreshold.value());
@@ -110,7 +110,7 @@ void ToolWindowLineExtractor::init()
     m_lineExtractor->setBoundaryMaxZDistance(Settings::LineExtractor_BoundaryMaxZDistance.value());
     m_lineExtractor->setCornerMaxZDistance(Settings::LineExtractor_CornerMaxZDistance.value());
     m_lineExtractor->setBoundaryGroupLinesSearchRadius(Settings::LineExtractor_BoundaryGroupLinesSearchRadius.value());
-    m_lineExtractor->setCornerGroupLinesSearchRadius(Settings::LineExtractor_CornerGroupLinesSearchRadius.value());
+    m_lineExtractor->setCornerGroupLinesSearchRadius(Settings::LineExtractor_CornerGroupLinesSearchRadius.value());*/
 
     m_boundaryExtractor.reset(new BoundaryExtractor);
     m_boundaryExtractor->setBorderLeft(Settings::BoundaryExtractor_BorderLeft.value());
@@ -191,11 +191,11 @@ void ToolWindowLineExtractor::compute()
         m_planes = m_boundaryExtractor->planes();
         pcl::PointCloud<pcl::PointXYZI>::Ptr cornerPoints = m_boundaryExtractor->cornerPoints();
 
-        m_lines = m_lineExtractor->compute(m_cloud, cornerPoints);
+        //m_lines = m_lineExtractor->compute(m_cloud, cornerPoints);
     }
 
-    m_lineCloud = m_lineExtractor->lineCloud();
-    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud = m_lineExtractor->cloud();
+    //m_lineCloud = m_lineExtractor->lineCloud();
+    //pcl::PointCloud<pcl::PointXYZI>::Ptr cloud = m_lineExtractor->cloud();
 
     m_cloudViewer1->visualizer()->removeAllPointClouds();
     m_cloudViewer1->visualizer()->removeAllShapes();
@@ -207,9 +207,9 @@ void ToolWindowLineExtractor::compute()
     pcl::PointCloud<pcl::PointXYZI>::Ptr densityCloud(new pcl::PointCloud<pcl::PointXYZI>);
     
     {
-        pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(cloud, "intensity");
-        m_cloudViewer1->visualizer()->addPointCloud(cloud, iColor, "points cloud");
-        m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "points cloud");
+        //pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> iColor(cloud, "intensity");
+        //m_cloudViewer1->visualizer()->addPointCloud(cloud, iColor, "points cloud");
+        //m_cloudViewer1->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "points cloud");
     }
 
     {

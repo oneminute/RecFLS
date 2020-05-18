@@ -111,10 +111,12 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
     cv::cvtColor(frame.colorMat(), grayImage, cv::COLOR_RGB2GRAY);
     EDLines lineHandler = EDLines(grayImage, SOBEL_OPERATOR);
     TOCK("edlines");
-    cv::Mat linesMat = lineHandler.getLineImage();
-    cv::Mat edlinesMat = lineHandler.drawOnImage();
-    cv::imshow("ed lines", edlinesMat);
-    cv::imshow("lines", linesMat);
+    m_linesMat = lineHandler.getLineImage();
+    //cv::Mat edlinesMat = lineHandler.drawOnImage();
+    m_colorLinesMat = cv::Mat(frame.getColorHeight(), frame.getColorWidth(), CV_8UC3, cv::Scalar(0, 0, 0));
+
+    //cv::imshow("ed lines", edlinesMat);
+    //cv::imshow("lines", linesMat);
     int linesCount = lineHandler.getLinesNo();
     std::vector<LS> lines = lineHandler.getLines();
 
@@ -181,7 +183,7 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
             int index = i * frame.getDepthWidth() + j;
             float3 value = points[index];
             uchar pointType = boundaries[index];
-            ushort lineNo = linesMat.ptr<ushort>(i)[j];
+            ushort lineNo = m_linesMat.ptr<ushort>(i)[j];
             pcl::PointXYZ pt;
             pcl::PointXYZI ptI;
             pcl::Normal normal;
@@ -262,7 +264,8 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
     m_allBoundary->height = 1;
     m_allBoundary->is_dense = true;
 
-    m_lines.clear();
+    //m_lines.clear();
+    m_linesCloud.reset(new pcl::PointCloud<LineSegment>);
 
     for (int i = 0; i < linesCount; i++)
     {
@@ -286,7 +289,7 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
         ece.setMaxClusterSize(m_groupPoints[i]->points.size());
         ece.extract(clusters);
 
-        std::cout << i << ": " << "count = " << m_groupPoints[i]->points.size() << std::endl;
+        //std::cout << i << ": " << "count = " << m_groupPoints[i]->points.size() << std::endl;
 
         int maxSize = 0;
         int maxIndex = 0;
@@ -309,8 +312,8 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
                     valid = false;
                 }
             }
-            std::cout << "  sub " << j << ", count = " << clusters[j].indices.size() << ", farer = " << (clusterCenter.z() > gCenter.z()) << ", z dist = " << (clusterCenter.z() - gCenter.z())
-                << ", valid = " << valid << std::endl;
+            //std::cout << "  sub " << j << ", count = " << clusters[j].indices.size() << ", farer = " << (clusterCenter.z() > gCenter.z()) << ", z dist = " << (clusterCenter.z() - gCenter.z())
+                //<< ", valid = " << valid << std::endl;
             if (valid && clusters[j].indices.size() > maxSize)
             {
                 maxSize = clusters[j].indices.size();
@@ -335,8 +338,8 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
         float a2 = (sqrt2 - sqrt3) / sqrt1;
         float a3 = sqrt3 / sqrt1;
 
-        std::cout << "  " << m_groupPoints[i]->size() << ", cluster: " << clusters.size() << ", a1 = " << a1 << ", a2 = " << a2 << ", a3 = " << a3 << std::endl;
-        std::cout << "  init inliers size: " << cloud->size() << std::endl;
+        //std::cout << "  " << m_groupPoints[i]->size() << ", cluster: " << clusters.size() << ", a1 = " << a1 << ", a2 = " << a2 << ", a3 = " << a3 << std::endl;
+        //std::cout << "  init inliers size: " << cloud->size() << std::endl;
 
         // 主方向
         Eigen::Vector3f dir = pca.getEigenVectors().col(0).normalized();
@@ -366,7 +369,7 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
             continue;
 
         // 最后再计算一遍内点集的主方向与中点。
-        std::cout << "    final: " << cloud->size() << ", max size: " << maxSize << ", max index: " << maxIndex << std::endl;
+        //std::cout << "    final: " << cloud->size() << ", max size: " << maxSize << ", max index: " << maxIndex << std::endl;
         //std::cout << "    final: " << cloud->size() << std::endl;
         pcl::PCA<pcl::PointXYZI> pcaFinal;
         pcaFinal.setInputCloud(cloud);
@@ -414,15 +417,23 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
                 }
             }
         }
-        //start = closedPointOnLine(start, dir, center);
-        //end = closedPointOnLine(end, dir, center);
 
-        LS3D line;
-        line.start.getArray3fMap() = start;
-        line.end.getArray3fMap() = end;
-        line.center.getArray3fMap() = center;
+        LS line2d = lines[i];
+        LineSegment line;
+        line.setStart(start);
+        line.setEnd(end);
+        line.setStart2d(line2d.start);
+        line.setEnd2d(line2d.end);
+        line.calculateColorAvg(frame.colorMat());
+        line.drawColorLine(m_colorLinesMat);
+        line.generateDescriptor();
+        //std::cout << line.shortDescriptorSize() << std::endl;
+        line.setIndex(m_linesCloud->points.size());
         if (line.length() > 0.1f)
-            m_lines.insert(i, line);
+        {
+            //m_lines.insert(i, line);
+            m_linesCloud->points.push_back(line);
+        }
     }
     
     qDebug() << "all boundary points:" << m_allBoundary->size();

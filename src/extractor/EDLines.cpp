@@ -1106,7 +1106,7 @@ void EDLines::SplitSegment2Lines(double * x, double * y, int noPixels, int segme
                 ComputeClosestPoint(x[index], y[index], lastA, lastB, lastInvert, ex, ey);
                 
                 // добавляем линию в список
-                lines.push_back(LineSegment(lastA, lastB, lastInvert, sx, sy, ex, ey, segmentNo, firstPixelIndex + noSkippedPixels, index - noSkippedPixels + 1));
+                lines.push_back(EDLineSegment(lastA, lastB, lastInvert, sx, sy, ex, ey, segmentNo, firstPixelIndex + noSkippedPixels, index - noSkippedPixels + 1));
                 linesNo++;
                 len = index + 1;
                 break;
@@ -1365,7 +1365,7 @@ void EDLines::LineFit(double * x, double * y, int count, double &a, double &b, d
 // 连接ls1更新，ls2保持不变
 // 如果线路统一，返回真值
 //
-bool EDLines::TryToJoinTwoLineSegments(LineSegment * ls1, LineSegment * ls2, int changeIndex)
+bool EDLines::TryToJoinTwoLineSegments(EDLineSegment * ls1, EDLineSegment * ls2, int changeIndex)
 {
     int which;
     double dist = ComputeMinDistanceBetweenTwoLines(ls1, ls2, &which);
@@ -1382,8 +1382,8 @@ bool EDLines::TryToJoinTwoLineSegments(LineSegment * ls1, LineSegment * ls2, int
     double nextLen = sqrt(dx*dx + dy*dy);
     
     // используем максимальную
-    LineSegment *shorter = ls1;
-    LineSegment *longer = ls2;
+    EDLineSegment *shorter = ls1;
+    EDLineSegment *longer = ls2;
     
     if (prevLen > nextLen) 
     { 
@@ -1482,7 +1482,7 @@ bool EDLines::TryToJoinTwoLineSegments(LineSegment * ls1, LineSegment * ls2, int
 //-------------------------------------------------------------------------------
 // 计算两段两端之间的最小距离
 //
-double EDLines::ComputeMinDistanceBetweenTwoLines(LineSegment * ls1, LineSegment * ls2, int * pwhich)
+double EDLines::ComputeMinDistanceBetweenTwoLines(EDLineSegment * ls1, EDLineSegment * ls2, int * pwhich)
 {
     double dx = ls1->sx - ls2->sx;
     double dy = ls1->sy - ls2->sy;
@@ -1523,7 +1523,7 @@ double EDLines::ComputeMinDistanceBetweenTwoLines(LineSegment * ls1, LineSegment
 }
 
 
-void EDLines::UpdateLineParameters(LineSegment * ls)
+void EDLines::UpdateLineParameters(EDLineSegment * ls)
 {
     double dx = ls->ex - ls->sx;
     double dy = ls->ey - ls->sy;

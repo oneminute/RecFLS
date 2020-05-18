@@ -9,7 +9,6 @@
 
 ICPMatcher::ICPMatcher(QObject* parent)
     : QObject(parent)
-    , PROPERTY_INIT(MaxIterations, 10)
 {
     
 }

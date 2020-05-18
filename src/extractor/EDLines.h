@@ -34,9 +34,6 @@ struct Chain {
 	cv::Point *pixels;         // указатель на начало массива пикселей
 };
 
-
-
-
 struct LS {
     cv::Point2d start;
     cv::Point2d end;
@@ -48,8 +45,7 @@ struct LS {
     }
 };
 
-
-struct LineSegment {
+struct EDLineSegment {
     double a, b;     
     int invert;
     
@@ -60,7 +56,7 @@ struct LineSegment {
     int firstPixelIndex;  // индекс первого пикселя в сегменте
     int len;              // длина в пикселях
     
-    LineSegment(double _a, double _b, int _invert, double _sx, double _sy, double _ex, double _ey, int _segmentNo, int _firstPixelIndex, int _len) {
+    EDLineSegment(double _a, double _b, int _invert, double _sx, double _sy, double _ex, double _ey, int _segmentNo, int _firstPixelIndex, int _len) {
         a = _a;
         b = _b;
         invert = _invert;
@@ -138,8 +134,8 @@ private:
 	int scanInterval;
 	bool sumFlag;
     
-    std::vector<LineSegment> lines;
-    std::vector<LineSegment> invalidLines;
+    std::vector<EDLineSegment> lines;
+    std::vector<EDLineSegment> invalidLines;
     std::vector<LS> linePoints;
     int linesNo;
     int min_line_len;
@@ -153,14 +149,14 @@ private:
     void SplitSegment2Lines(double *x, double *y, int noPixels, int segmentNo);
     void JoinCollinearLines();
     
-    bool TryToJoinTwoLineSegments(LineSegment *ls1, LineSegment *ls2, int changeIndex);
+    bool TryToJoinTwoLineSegments(EDLineSegment *ls1, EDLineSegment *ls2, int changeIndex);
     
     static double ComputeMinDistance(double x1, double y1, double a, double b, int invert);
     static void ComputeClosestPoint(double x1, double y1, double a, double b, int invert, double &xOut, double &yOut);
     static void LineFit(double *x, double *y, int count, double &a, double &b, int invert);
     static void LineFit(double *x, double *y, int count, double &a, double &b, double &e, int &invert);
-    static double ComputeMinDistanceBetweenTwoLines(LineSegment *ls1, LineSegment *ls2, int *pwhich);
-    static void UpdateLineParameters(LineSegment *ls);
+    static double ComputeMinDistanceBetweenTwoLines(EDLineSegment *ls1, EDLineSegment *ls2, int *pwhich);
+    static void UpdateLineParameters(EDLineSegment *ls);
     static void EnumerateRectPoints(double sx, double sy, double ex, double ey,int ptsx[], int ptsy[], int *pNoPoints);
 
 };

@@ -9,14 +9,26 @@ public:
         : start(_start)
         , end(_end)
         , segmentNo(_segmentNo)
+        , start2d(0, 0)
+        , end2d(0, 0)
+        , red(0)
+        , green(0)
+        , blue(0)
+        , index(-1)
     {}
 
     Eigen::Vector3f start;
     Eigen::Vector3f end;
+    cv::Point2d start2d;
+    cv::Point2d end2d;
+    double red;
+    double green;
+    double blue;
     int segmentNo;
+    int index;
 
-    Eigen::VectorXf shotDescriptor;
-    Eigen::VectorXf longDescriptor;
+    Eigen::Matrix<float, 1, 10> shortDescriptor;
+    //Eigen::VectorXf longDescriptor;
 };
 
 LineSegment::LineSegment(const Eigen::Vector3f &start, const Eigen::Vector3f &end, int segmentNo, QObject *parent)
@@ -68,6 +80,26 @@ Eigen::Vector3f LineSegment::middle() const
     return (start() + end()) / 2;
 }
 
+cv::Point2f LineSegment::start2d() const
+{
+    return data->start2d;
+}
+
+void LineSegment::setStart2d(const cv::Point2f& _value)
+{
+    data->start2d = _value;
+}
+
+cv::Point2f LineSegment::end2d() const
+{
+    return data->end2d;
+}
+
+void LineSegment::setEnd2d(const cv::Point2f& _value)
+{
+    data->end2d = _value;
+}
+
 float LineSegment::length() const
 {
     return (end() - start()).norm();
@@ -78,6 +110,16 @@ Eigen::Vector3f LineSegment::direction() const
     return end() - start();
 }
 
+int LineSegment::index() const
+{
+    return data->index;
+}
+
+void LineSegment::setIndex(int index)
+{
+    data->index = index;
+}
+
 void LineSegment::generateShotDescriptor(float minLength, float maxLength, Eigen::Vector3f minPoint, Eigen::Vector3f maxPoint)
 {
     Eigen::Vector3f s = start() - minPoint;
@@ -86,23 +128,92 @@ void LineSegment::generateShotDescriptor(float minLength, float maxLength, Eigen
 
     Eigen::Vector3f delta = maxPoint - minPoint;
 
-    data->shotDescriptor.resize(1, 13);
-    data->shotDescriptor[0] = s.x() / delta.x();
-    data->shotDescriptor[1] = s.y() / delta.y();
-    data->shotDescriptor[2] = s.z() / delta.z();
-    data->shotDescriptor[3] = m.x() / delta.x();
-    data->shotDescriptor[4] = m.y() / delta.y();
-    data->shotDescriptor[5] = m.z() / delta.z();
-    data->shotDescriptor[6] = e.x() / delta.x();
-    data->shotDescriptor[7] = e.y() / delta.y();
-    data->shotDescriptor[8] = e.z() / delta.z();
+    data->shortDescriptor.resize(1, 13);
+    data->shortDescriptor[0] = s.x() / delta.x();
+    data->shortDescriptor[1] = s.y() / delta.y();
+    data->shortDescriptor[2] = s.z() / delta.z();
+    data->shortDescriptor[3] = m.x() / delta.x();
+    data->shortDescriptor[4] = m.y() / delta.y();
+    data->shortDescriptor[5] = m.z() / delta.z();
+    data->shortDescriptor[6] = e.x() / delta.x();
+    data->shortDescriptor[7] = e.y() / delta.y();
+    data->shortDescriptor[8] = e.z() / delta.z();
 
     Eigen::Vector3f dir = direction().normalized();
-    data->shotDescriptor[9] = dir[0];
-    data->shotDescriptor[10] = dir[1];
-    data->shotDescriptor[11] = dir[2];
-    data->shotDescriptor[12] = (length() - minLength) / (maxLength - minLength);
-    data->shotDescriptor.normalize();
+    data->shortDescriptor[9] = dir[0];
+    data->shortDescriptor[10] = dir[1];
+    data->shortDescriptor[11] = dir[2];
+    data->shortDescriptor[12] = (length() - minLength) / (maxLength - minLength);
+    data->shortDescriptor.normalize();
+}
+
+void LineSegment::generateDescriptor(const Eigen::Matrix3f& rot, const Eigen::Vector3f& trans)
+{
+    Eigen::Vector3f dir = rot * direction().normalized();
+    float length = (start() - end()).norm();
+    Eigen::Vector3f point = rot * start() + trans;
+    Eigen::Vector3f projPt = point - dir * point.dot(dir);
+
+    data->shortDescriptor = Eigen::Matrix<float, 1, 10>();
+    //data->shortDescriptor.resize(1, 10);
+    data->shortDescriptor[0] = projPt.x();
+    data->shortDescriptor[1] = projPt.y();
+    data->shortDescriptor[2] = projPt.z();
+    data->shortDescriptor[3] = dir.x();
+    data->shortDescriptor[4] = dir.y();
+    data->shortDescriptor[5] = dir.z();
+    data->shortDescriptor[6] = data->red / 255;
+    data->shortDescriptor[7] = data->green / 255;
+    data->shortDescriptor[8] = data->blue / 255;
+    data->shortDescriptor[9] = length;
+    data->shortDescriptor.normalize();
+}
+
+int LineSegment::shortDescriptorSize() const
+{
+    return data->shortDescriptor.size();
+}
+
+void LineSegment::calculateColorAvg(const cv::Mat& mat)
+{
+    cv::Point2f dir = end2d() - start2d();
+    int length = roundf(cv::norm(dir));
+    dir /= length;
+
+    //std::cout << "    color mat: " << mat.cols << ", " << mat.rows << ", start: [" << start2d().x << ", " << start2d().y << "], end: [" << end2d().x << ", " << end2d().y << "], length: " << length << std::endl;
+    cv::Vec3f cvColor(0, 0, 0);
+    for (int i = 0; i < length; i++)
+    {
+        cv::Point2f pt = start2d() + dir * i;
+        if (pt.x < 0 || pt.x >= mat.cols || pt.y < 0 || pt.y >= mat.rows)
+            continue;
+
+        cvColor += mat.at<cv::Vec3b>(pt.y, pt.x);
+    }
+    cvColor /= length;
+    
+    data->red = cvColor[0];
+    data->green = cvColor[1];
+    data->blue = cvColor[2];
+
+    //std::cout << "    color: " << data->red << ", " << data->green << ", " << data->blue << std::endl;
+}
+
+void LineSegment::drawColorLine(cv::Mat& mat)
+{
+    cv::Point2f dir = end2d() - start2d();
+    int length = roundf(cv::norm(dir));
+    dir /= length;
+
+    cv::Vec3f cvColor(0, 0, 0);
+    for (int i = 0; i < length; i++)
+    {
+        cv::Point2f pt = start2d() + dir * i;
+        if (pt.x < 0 || pt.x >= mat.cols || pt.y < 0 || pt.y >= mat.rows)
+            continue;
+
+        mat.at<cv::Vec3b>(pt.y, pt.x) = cv::Vec3b(data->red, data->green, data->blue);
+    }
 }
 
 int LineSegment::segmentNo() const
@@ -164,15 +275,15 @@ float LineSegment::angleToAnotherLine(const LineSegment &other)
     return qAcos(direction().normalized().dot(other.direction().normalized()));
 }
 
-Eigen::VectorXf LineSegment::shortDescriptor() const
+Eigen::Matrix<float, 1, 10> LineSegment::shortDescriptor() const
 {
-    return data->shotDescriptor;
+    return data->shortDescriptor;
 }
 
-Eigen::VectorXf LineSegment::longDescriptor() const
-{
-    return data->longDescriptor;
-}
+//Eigen::VectorXf LineSegment::longDescriptor() const
+//{
+//    return data->longDescriptor;
+//}
 
 float LineSegment::averageDistance(const LineSegment &other)
 {
@@ -196,3 +307,19 @@ Eigen::Vector3f LineSegment::closedPointOnLine(const Eigen::Vector3f &point)
     Eigen::Vector3f closedPoint = middle() + dir * (ev.dot(dir));
     return closedPoint;
 }
+
+double LineSegment::red() const
+{
+    return data->red;
+}
+
+double LineSegment::green() const
+{
+    return data->green;
+}
+
+double LineSegment::blue() const
+{
+    return data->blue;
+}
+

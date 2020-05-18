@@ -11,9 +11,10 @@
 #include <cuda_runtime.h>
 
 #include "extractor/BoundaryExtractor.h"
-#include "extractor/LineExtractor.h"
+#include "extractor/FusedLineExtractor.h"
 #include "matcher/LineMatcher.h"
 #include "device/SensorReaderDevice.h"
+#include "extractor/LineSegment.h"
 
 class LineMatchCudaOdometry : public Odometry
 {
@@ -41,10 +42,10 @@ private:
     bool m_init;
 
     QScopedPointer<BoundaryExtractor> m_boundaryExtractor;
-    QScopedPointer<LineExtractor> m_lineExtractor;
+    QScopedPointer<FusedLineExtractor> m_lineExtractor;
     QScopedPointer<LineMatcher> m_lineMatcher;
 
-    QList<pcl::PointCloud<Line>::Ptr> m_lines;
+    QList<pcl::PointCloud<LineSegment>::Ptr> m_lines;
 };
 
 #endif // LINEMATCHCUDAODOMETRY_H

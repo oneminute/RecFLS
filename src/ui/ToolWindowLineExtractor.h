@@ -8,7 +8,8 @@
 #include "CloudViewer.h"
 
 #include "extractor/BoundaryExtractor.h"
-#include "extractor/LineExtractor.h"
+#include "extractor/FusedLineExtractor.h"
+#include "extractor/LineSegment.h"
 #include "device/SensorReaderDevice.h"
 #include "cuda/CudaInternal.h"
 
@@ -38,7 +39,7 @@ private slots:
 private:
     QScopedPointer<Ui::ToolWindowLineExtractor> m_ui;
     QScopedPointer<SensorReaderDevice> m_device;
-    QScopedPointer<LineExtractor> m_lineExtractor;
+    QScopedPointer<FusedLineExtractor> m_lineExtractor;
     QScopedPointer<BoundaryExtractor> m_boundaryExtractor;
 
     CloudViewer *m_cloudViewer1;
@@ -50,9 +51,8 @@ private:
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_colorCloud;
     pcl::PointCloud<pcl::PointXYZ>::Ptr m_filteredCloud;
     QList<Plane> m_planes;
-    QList<LineChain> m_chains;
     QList<LineSegment> m_lines;
-    pcl::PointCloud<Line>::Ptr m_lineCloud;
+    pcl::PointCloud<LineSegment>::Ptr m_lineCloud;
     cuda::GpuFrame m_frameGpu;
 
     bool m_fromDataSet;

@@ -5,10 +5,11 @@
 #include <QScopedPointer>
 
 #include "extractor/BoundaryExtractor.h"
-#include "extractor/LineExtractor.h"
+#include "extractor/FusedLineExtractor.h"
 #include "matcher/LineMatcher.h"
 #include "device/SensorReaderDevice.h"
 #include "ui/CloudViewer.h"
+#include "cuda/FusedLineInternal.h"
 #include "cuda/CudaInternal.h"
 
 namespace Ui {
@@ -28,7 +29,7 @@ public:
     void stepCompute();
 
 protected:
-    void showCloudAndLines(CloudViewer* viewer, QList<LineSegment>& lines, boost::shared_ptr<pcl::PointCloud<Line>>& lineCloud);
+    void showCloudAndLines(CloudViewer* viewer, pcl::PointCloud<LineSegment>::Ptr& lines);
     void showMatchedClouds();
 
     void onActionLoadDataSet();
@@ -36,8 +37,6 @@ protected:
     void onActionMatchGpu();
     void onActionBeginStep();
     void onActionStep();
-    void onActionStepRotationMatch();
-    void onActionStepTranslationMatch();
     void onActionReset();
 
     void onComboBox1CurrentIndexChanged(int index);
@@ -48,13 +47,13 @@ protected:
 
 private:
     QScopedPointer<Ui::ToolWindowLineMatcher> m_ui;
-    pcl::KdTreeFLANN<Line>::Ptr m_tree;
+    pcl::KdTreeFLANN<LineSegment>::Ptr m_tree;
     CloudViewer* m_cloudViewer1;
     CloudViewer* m_cloudViewer2;
     CloudViewer* m_cloudViewer3;
     QScopedPointer<SensorReaderDevice> m_device;
     QScopedPointer<BoundaryExtractor> m_boundaryExtractor;
-    QScopedPointer<LineExtractor> m_lineExtractor;
+    QScopedPointer<FusedLineExtractor> m_lineExtractor;
     QScopedPointer<LineMatcher> m_lineMatcher;
 
     bool m_isStepMode;
@@ -62,26 +61,31 @@ private:
     bool m_isLoaded;
     int m_iteration;
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_colorCloud1;
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_colorCloud2;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr m_cloud1;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr m_cloud2;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr m_filteredCloud1;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr m_filteredCloud2;
-    pcl::PointCloud<Line>::Ptr m_lineCloud1;
-    pcl::PointCloud<Line>::Ptr m_lineCloud2;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_colorCloudSrc;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_colorCloudDst;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr m_cloudSrc;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr m_cloudDst;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr m_filteredCloudSrc;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr m_filteredCloudDst;
+    pcl::PointCloud<LineSegment>::Ptr m_linesCloudSrc;
+    pcl::PointCloud<LineSegment>::Ptr m_linesCloudDst;
     QMap<int, int> m_pairs;
     QList<int> m_pairIndices;
-    cuda::GpuFrame m_frameGpu1;
-    cuda::GpuFrame m_frameGpu2;
+    //cuda::FusedLineFrame m_frameGpuSrc;
+    //cuda::FusedLineFrame m_frameGpuDst;
+    cuda::GpuFrame m_frameGpuBESrc;
+    cuda::GpuFrame m_frameGpuBEDst;
 
-    Eigen::Quaternionf m_rotationDelta;
-    Eigen::Vector3f m_translationDelta;
-    Eigen::Matrix3f m_rotation;
-    Eigen::Vector3f m_translation;
-    Eigen::Matrix4f m_m;
+    Eigen::Matrix4f m_pose;
     float m_rotationError;
     float m_translationError;
+
+    //QMap<int, LineSegment> m_linesSrc;
+    //QMap<int, LineSegment> m_linesDst;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr m_beCloudSrc;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr m_beCloudDst;
+    QMap<int, pcl::PointCloud<pcl::PointXYZI>::Ptr> m_groupPointsSrc;
+    QMap<int, pcl::PointCloud<pcl::PointXYZI>::Ptr> m_groupPointsDst;
 
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW

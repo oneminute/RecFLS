@@ -60,7 +60,7 @@ bool LineMatchCudaOdometry::beforeProcessing(Frame& frame)
 
         if (!m_lineExtractor)
         {
-            m_lineExtractor.reset(new LineExtractor);
+            m_lineExtractor.reset(new FusedLineExtractor);
         }
 
         if (!m_lineMatcher)
@@ -68,7 +68,7 @@ bool LineMatchCudaOdometry::beforeProcessing(Frame& frame)
             m_lineMatcher.reset(new LineMatcher);
         }
 
-        m_lineMatcher->setMaxIterations(Settings::LineMatcher_MaxIterations.intValue());
+        /*m_lineMatcher->setMaxIterations(Settings::LineMatcher_MaxIterations.intValue());
 
         m_lineExtractor->setBoundaryCloudA1dThreshold(Settings::LineExtractor_BoundaryCloudA1dThreshold.value());
         m_lineExtractor->setCornerCloudA1dThreshold(Settings::LineExtractor_CornerCloudA1dThreshold.value());
@@ -84,7 +84,7 @@ bool LineMatchCudaOdometry::beforeProcessing(Frame& frame)
         m_lineExtractor->setBoundaryMaxZDistance(Settings::LineExtractor_BoundaryMaxZDistance.value());
         m_lineExtractor->setCornerMaxZDistance(Settings::LineExtractor_CornerMaxZDistance.value());
         m_lineExtractor->setBoundaryGroupLinesSearchRadius(Settings::LineExtractor_BoundaryGroupLinesSearchRadius.value());
-        m_lineExtractor->setCornerGroupLinesSearchRadius(Settings::LineExtractor_CornerGroupLinesSearchRadius.value());
+        m_lineExtractor->setCornerGroupLinesSearchRadius(Settings::LineExtractor_CornerGroupLinesSearchRadius.value());*/
 
         m_boundaryExtractor.reset(new BoundaryExtractor);
         m_boundaryExtractor->setBorderLeft(Settings::BoundaryExtractor_BorderLeft.value());
@@ -163,10 +163,10 @@ void LineMatchCudaOdometry::doProcessing(Frame& frame)
     cornerPoints = m_boundaryExtractor->cornerPoints();
 
     QList<LineSegment> lineSegments;
-    lineSegments = m_lineExtractor->compute(boundaryPoints, cornerPoints);
-    pcl::PointCloud<Line>::Ptr lines = m_lineExtractor->lineCloud();
+    //lineSegments = m_lineExtractor->compute(boundaryPoints, cornerPoints);
+    //pcl::PointCloud<Line>::Ptr lines = m_lineExtractor->lineCloud();
 
-    float rotationError = 0;
+    /*float rotationError = 0;
     float transError = 0;
     Eigen::Matrix4f pose(Eigen::Matrix4f::Identity());
     if (m_frames.size() > 0)
@@ -182,7 +182,7 @@ void LineMatchCudaOdometry::doProcessing(Frame& frame)
     m_lines.append(lines);
     m_poses.append(m_pose);
     m_rotationErrors.append(rotationError);
-    m_transErrors.append(transError);
+    m_transErrors.append(transError);*/
 }
 
 void LineMatchCudaOdometry::afterProcessing(Frame& frame)

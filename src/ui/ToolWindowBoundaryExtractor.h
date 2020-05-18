@@ -7,7 +7,6 @@
 #include "ui/CloudViewer.h"
 #include "ui/ImageViewer.h"
 #include "extractor/BoundaryExtractor.h"
-#include "extractor/LineExtractor.h"
 #include "device/SensorReaderDevice.h"
 #include "cuda/CudaInternal.h"
 
@@ -43,7 +42,6 @@ private:
     ImageViewer* m_depthViewer2;
 
     QScopedPointer<BoundaryExtractor> m_boundaryExtractor;
-    QScopedPointer<LineExtractor> m_lineExtractor;
     QScopedPointer<SensorReaderDevice> m_device;
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_allBoundary;
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_boundaryPoints;

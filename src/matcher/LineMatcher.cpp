@@ -15,225 +15,393 @@
 
 LineMatcher::LineMatcher(QObject* parent)
     : QObject(parent)
-    , PROPERTY_INIT(MaxIterations, 30)
 {
 
 }
 
-Eigen::Matrix4f LineMatcher::compute(pcl::PointCloud<Line>::Ptr lines1, pcl::PointCloud<Line>::Ptr lines2, float& rotationError, float& translationError)
+Eigen::Matrix4f LineMatcher::compute(pcl::PointCloud<LineSegment>::Ptr srcLines, pcl::PointCloud<LineSegment>::Ptr dstLines
+    , const Eigen::Matrix3f& initRot
+    , const Eigen::Vector3f& initTrans
+    , float& rotationError, float& translationError)
 {
     Eigen::Matrix4f out = Eigen::Matrix4f::Identity();
-    pcl::KdTreeFLANN<Line>::Ptr tree(new pcl::KdTreeFLANN<Line>());
-    tree->setInputCloud(lines2);
+    pcl::KdTreeFLANN<LineSegment>::Ptr tree(new pcl::KdTreeFLANN<LineSegment>());
+    tree->setInputCloud(dstLines);
+
     QMap<int, int> pairs;
-    for (int i = 0; i < MaxIterations(); i++)
+    QMap<int, float> pairsDists;
+    for (int i = 0; i < srcLines->points.size(); i++)
     {
-        Eigen::Matrix4f stepM = step(lines1, lines2, tree, rotationError, translationError, pairs);
-        out = stepM * out;
-    }
-    std::cout << "out matrix:" << std::endl;
-    std::cout << out << std::endl;
-    return out;
-}
-
-Eigen::Matrix4f LineMatcher::step(pcl::PointCloud<Line>::Ptr lines1, pcl::PointCloud<Line>::Ptr lines2, pcl::KdTreeFLANN<Line>::Ptr tree, float& rotationError, float& translationError, QMap<int, int>& pairs)
-{
-    Eigen::Matrix4f M = Eigen::Matrix4f::Identity();
-    M.topLeftCorner(3, 3) = stepRotation(lines1, lines2, tree, pairs);
-    M.topRightCorner(3, 1) = stepTranslation(lines1, lines2, tree, pairs);
-
-    rotationError = 0;
-    translationError = 0;
-
-    for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
-    {
-        Line line1 = lines1->points[i.value()];
-        Line line2 = lines2->points[i.key()];
-
-        float transError = qAbs(distanceBetweenLines(line1.dir, line1.point, line2.dir, line2.point));
-        float rotError = qAbs(qAcos(line1.dir.dot(line2.dir)));
-
-        translationError += transError;
-        rotationError += rotError;
-    }
-    translationError /= pairs.size();
-    rotationError /= pairs.size();
-
-    return M;
-}
-
-Eigen::Matrix3f LineMatcher::stepRotation(
-    pcl::PointCloud<Line>::Ptr lines1,
-    pcl::PointCloud<Line>::Ptr lines2,
-    pcl::KdTreeFLANN<Line>::Ptr tree,
-    QMap<int, int>& pairs)
-{
-    // 在高帧速下，假设前后帧同一位置的直线位姿变化有限，所以可以通过映射后的直线点云，
-    // 直接用kdtree寻找最近的匹配，然后分别计算角度误差和位移误差。先角度后位移。
-    float distAvg = 0;
-    //qDebug() <<"- - - - rotation - - - -";
-    QMap<int, float> errors;
-    QMap<int, Eigen::Quaternionf> rots;
-    QMap<int, float> dists;
-    Eigen::Quaternionf rotAvg(Eigen::Quaternionf::Identity());
-    int count = 0;
-    pairs.clear();
-    for (int i = 0; i < lines1->size(); i++)
-    {
-        Line line1 = lines1->points[i];
-        line1.debugPrint();
+        LineSegment lineSrc = srcLines->points[i];
 
         std::vector<int> indices;
-        std::vector<float> distances;
-        tree->nearestKSearch(line1, 1, indices, distances);
-        Q_ASSERT(indices.size() == 1);
-
-        Line line2 = lines2->points[indices[0]];
-
-        Eigen::Quaternionf rot = Eigen::Quaternionf::FromTwoVectors(line1.dir, line2.dir);
-
-        if (distances[0] > 0.1f)
+        std::vector<float> dists;
+        if (!tree->nearestKSearch(lineSrc, 1, indices, dists))
             continue;
 
+        //LineSegment lineDst = dstLines->points[indices[0]];
         if (pairs.contains(indices[0]))
         {
-            if (distances[0] > errors[indices[0]])
+            if (dists[0] > pairsDists[indices[0]])
             {
                 continue;
             }
         }
-
         pairs[indices[0]] = i;
-        errors[indices[0]] = distances[0];
-
-        count++;
+        pairsDists[indices[0]] = dists[0];
     }
 
-    count = 0;
-
-    // 使用SVD求解，H是前后帧两个直线方向向量样本集合的协方差矩阵
-    Eigen::Matrix3f H(Eigen::Matrix3f::Zero());
-    Eigen::Vector3f dirAvg1(Eigen::Vector3f::Zero());
-    Eigen::Vector3f dirAvg2(Eigen::Vector3f::Zero());
-    Eigen::VectorXf weights;
-    weights.resize(pairs.size());
-    count = 0;
-    for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++, count++)
+    /*for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
     {
-        int index2 = i.key();
-        int index1 = i.value();
-        //qDebug().noquote() << index1 << "-->" << index2 << errors[index1];
-
-        dirAvg1 += lines1->points[index1].dir;
-        dirAvg2 += lines2->points[index2].dir;
-
-        //weights[count]  = 1.f / pairs.size();
-        weights[count]  = 1.f;
-    }
-    dirAvg1 /= (pairs.size());
-    dirAvg2 /= (pairs.size());
-    //std::cout << "dirAvg1:" << dirAvg1.transpose() << std::endl;
-    //std::cout << "dirAvg2:" << dirAvg2.transpose() << std::endl;
-
-    weights /= weights.sum();
-    // W是各样本的权值主对角矩阵，它的迹应为1
-    Eigen::MatrixXf W(weights.asDiagonal());
-    //std::cout << "W:" << std::endl << W << std::endl;
-
-    Eigen::MatrixXf X;
-    Eigen::MatrixXf Y;
-    X.resize(3, pairs.size());
-    Y.resize(3, pairs.size());
-    count = 0;
-    for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++, count++)
+        qDebug().noquote() << i.value() << "-->" << i.key();
+    }*/
+    Eigen::Matrix3f rot = initRot;
+    Eigen::Vector3f trans = initTrans;
+    for (int i = 0; i < 20; i++)
     {
-        int index2 = i.key();
-        int index1 = i.value();
-
-        Eigen::Vector3f dir1 = lines1->points[index1].dir - dirAvg1;
-        Eigen::Vector3f dir2 = lines2->points[index2].dir - dirAvg2;
-
-        X.col(count) = dir1;
-        Y.col(count) = dir2;
+        out = step(srcLines, dstLines, tree, rot, trans, rotationError, translationError, pairs);
+        rot = out.topLeftCorner(3, 3);
+        trans = out.topRightCorner(3, 1);
     }
-    //std::cout << "X:" << std::endl << X << std::endl;
-    //std::cout << "Y:" << std::endl << Y << std::endl;
-    H = X * W * Y.transpose();
-    //std::cout << "H:" << std::endl << H << std::endl;
 
-    Eigen::JacobiSVD<Eigen::MatrixXf> svd(H, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    return out;
+}
+
+void LineMatcher::match(
+    pcl::PointCloud<LineSegment>::Ptr srcLines, 
+    pcl::PointCloud<LineSegment>::Ptr dstLines, 
+    pcl::KdTreeFLANN<LineSegment>::Ptr tree, 
+    const Eigen::Matrix3f& initRot,
+    const Eigen::Vector3f& initTrans,
+    QMap<int, int>& pairs)
+{
+    pairs.clear();
+    QMap<int, float> pairsDists;
+    // 通过Kdtree进行匹配直线对的初选。
+    for (int i = 0; i < srcLines->points.size(); i++)
+    {
+        LineSegment lineSrc = srcLines->points[i];
+        lineSrc.generateDescriptor(initRot, initTrans);
+        //lineSrc.generateDescriptor();
+
+        std::vector<int> indices;
+        std::vector<float> dists;
+        // 注意下一句，只用Kdtree选取当前直线的一条目标直线。有且只有一条。
+        // 在这种情况下，选出的直线可能与源直线误差极大，需要进行筛选。
+        if (!tree->nearestKSearch(lineSrc, 1, indices, dists))
+            continue;
+
+        // 若源直线集合中的多条直线对应到了同一条目标集合的直线上，
+        // 则选取超维向量距离最小的。
+        if (pairs.contains(indices[0]))
+        {
+            if (dists[0] > pairsDists[indices[0]])
+            {
+                continue;
+            }
+        }
+        pairs[indices[0]] = i;
+        pairsDists[indices[0]] = dists[0];
+    }
+    
+    float avgRadians = 0;   // 直线间角度值平均值
+    float sqrRadians = 0;   // 直线间角度值平方和
+    float avgDist = 0;      // 直线间距离值平均值
+    float sqrDist = 0;      // 直线间距离值平方和
+
+    // 进行加和
+    for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
+    {
+        LineSegment dstLine = dstLines->points[i.key()];
+        LineSegment srcLine = srcLines->points[i.value()];
+
+        Eigen::Vector3f dstDir = dstLine.direction().normalized();
+        Eigen::Vector3f srcDir = initRot * srcLine.direction().normalized();
+
+        Eigen::Vector3f dstPoint = dstLine.middle();
+        Eigen::Vector3f srcPoint = initRot * srcLine.middle() + initTrans;
+
+        float radians = acos(abs(srcDir.dot(dstDir)));
+        avgRadians += radians;
+        sqrRadians += radians * radians;
+
+        float dist = (dstPoint - srcPoint).cross(dstDir).norm();
+        avgDist += dist;
+        sqrDist += dist * dist;
+
+        //qDebug().noquote() << i.value() << "-->" << i.key();
+    }
+    // 求均值
+    avgRadians /= pairs.size();
+    avgDist /= pairs.size();
+    int n = pairs.size();
+
+    // 求角度值与距离值的标准差
+    float sdRadians = sqrtf(sqrRadians / n - avgRadians * avgRadians);
+    float sdDist = sqrtf(sqrDist / n - avgDist * avgDist);
+
+    // 角度值或距离值小于一个标准差的均剔除掉
+    QList<int> removedIds;
+    for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
+    {
+        LineSegment dstLine = dstLines->points[i.key()];
+        LineSegment srcLine = srcLines->points[i.value()];
+
+        Eigen::Vector3f dstDir = dstLine.direction().normalized();
+        Eigen::Vector3f srcDir = initRot * srcLine.direction().normalized();
+
+        Eigen::Vector3f dstPoint = dstLine.middle();
+        Eigen::Vector3f srcPoint = initRot * srcLine.middle() + initTrans;
+
+        float radians = acos(abs(srcDir.dot(dstDir)));
+        float dist = (dstPoint - srcPoint).cross(dstDir).norm();
+
+        if (radians > sdRadians)
+        {
+            std::cout << "removed(r): " << i.value() << " --> " << i.key() << std::endl;
+            removedIds.append(i.key());
+            continue;
+        }
+        if (dist > sdDist)
+        {
+            std::cout << "removed(l): " << i.value() << " --> " << i.key() << std::endl;
+            removedIds.append(i.key());
+            continue;
+        }
+
+        qDebug().noquote() << i.value() << "-->" << i.key();
+    }
+
+    for (QList<int>::iterator i = removedIds.begin(); i != removedIds.end(); i++)
+    {
+        pairs.remove(*i);
+    }
+}
+
+Eigen::Matrix4f LineMatcher::step(
+    pcl::PointCloud<LineSegment>::Ptr srcLines
+    , pcl::PointCloud<LineSegment>::Ptr dstLines
+    , pcl::KdTreeFLANN<LineSegment>::Ptr tree
+    , const Eigen::Matrix3f& initRot
+    , const Eigen::Vector3f& initTrans
+    , float& rotationError
+    , float& translationError
+    , QMap<int, int>& pairs)
+{
+    Eigen::Matrix4f out = Eigen::Matrix4f::Identity();
+
+    match(srcLines, dstLines, tree, initRot, initTrans, pairs);
+
+    Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
+    Eigen::Matrix3f rot = stepRotation(srcLines, dstLines, tree, pairs, initRot);
+
+    Eigen::Vector3f trans = stepTranslation(srcLines, dstLines, tree, pairs, initRot, initTrans, rot);
+
+    pose.topLeftCorner(3, 3) = rot;
+    pose.topRightCorner(3, 1) = trans;
+
+    /*for (int i = 0; i < srcLines->points.size(); i++)
+    {
+        srcLines->points[i].generateDescriptor(0, 3, rot, trans);
+    }*/
+
+    return pose;
+}
+
+Eigen::Matrix3f LineMatcher::stepRotation(
+    pcl::PointCloud<LineSegment>::Ptr srcLines,
+    pcl::PointCloud<LineSegment>::Ptr dstLines,
+    pcl::KdTreeFLANN<LineSegment>::Ptr tree,
+    QMap<int, int>& pairs,
+    const Eigen::Matrix3f& initRot)
+{
+    Eigen::Vector3f srcAvgDir(Eigen::Vector3f::Zero());
+    Eigen::Vector3f dstAvgDir(Eigen::Vector3f::Zero());
+    for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
+    {
+        LineSegment dstLine = dstLines->points[i.key()];
+        LineSegment srcLine = srcLines->points[i.value()];
+        dstAvgDir += dstLine.direction().normalized();
+        srcAvgDir += initRot * srcLine.direction().normalized();
+    }
+
+    Eigen::Matrix3f cov(Eigen::Matrix3f::Zero());
+    for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
+    {
+        LineSegment dstLine = dstLines->points[i.key()];
+        LineSegment srcLine = srcLines->points[i.value()];
+
+        Eigen::Vector3f dstDiff = dstLine.direction().normalized() - dstAvgDir;
+        Eigen::Vector3f srcDiff = initRot * srcLine.direction().normalized() - srcAvgDir;
+        cov += srcDiff * dstDiff.transpose();
+    }
+
+    Eigen::JacobiSVD<Eigen::MatrixXf> svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
     Eigen::Matrix3f V = svd.matrixV();
     Eigen::Matrix3f U = svd.matrixU();
     Eigen::Vector3f sigma = svd.singularValues();
     Eigen::Matrix3f S = Eigen::Matrix3f::Identity();
     Eigen::Matrix3f tmp = V * U.transpose();
-    //std::cout << "sigma: " << sigma.transpose() << std::endl;
+    std::cout << "sigma: " << sigma.transpose() << std::endl;
     float det = tmp.determinant();
     if (det < 0)
         det = -1;
     S.col(2)[2] = det;
-    //qDebug() << "det =" << det;
-    //std::cout << "V:" << std::endl << V << std::endl;
-    //std::cout << "S:" << std::endl << S << std::endl;
-    //std::cout << "U:" << std::endl << U << std::endl;
     Eigen::Matrix3f R = V * S * U.transpose();
+    //Eigen::Matrix3f R = V * U.transpose();
+    //qDebug() << "det =" << det;
+    std::cout << "V:" << std::endl << V << std::endl;
+    std::cout << "S:" << std::endl << S << std::endl;
+    std::cout << "U:" << std::endl << U << std::endl;
+    std::cout << "R:" << std::endl << R << std::endl;
 
-    //std::cout << "R:" << std::endl;
-    //std::cout << R << std::endl;
-
-    // 更新数据
-    for (int i = 0; i < lines1->size(); i++)
-    {
-        Line& line1 = lines1->points[i];
-
-        line1.dir = R * line1.dir;
-        line1.point = R * line1.point;
-        //Eigen::Vector3f point = R * line1.point;
-        //line1.point = closedPointOnLine(point, line1.dir, line1.point);
-
-        line1.generateDescriptor();
-    }
-    
     return R;
 }
 
 Eigen::Vector3f LineMatcher::stepTranslation(
-    pcl::PointCloud<Line>::Ptr lines1,
-    pcl::PointCloud<Line>::Ptr lines2,
-    pcl::KdTreeFLANN<Line>::Ptr tree,
-    QMap<int, int>& pairs)
+    pcl::PointCloud<LineSegment>::Ptr srcLines,
+    pcl::PointCloud<LineSegment>::Ptr dstLines,
+    pcl::KdTreeFLANN<LineSegment>::Ptr tree,
+    QMap<int, int>& pairs,
+    const Eigen::Matrix3f& initRot,
+    const Eigen::Vector3f& initTrans,
+    const Eigen::Matrix3f& rot
+    )
 {
-    //qDebug() <<"- - - - translation - - - -";
-    QMap<int, float> errors;
-    float distAvg = 0;
     Eigen::Vector3f trans(Eigen::Vector3f::Zero());
-    QList<int> keys;
+
+    Eigen::Matrix3f A(Eigen::Matrix3f::Zero());
+    Eigen::Vector3f b(Eigen::Vector3f::Zero());
     for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
     {
-        Line line1 = lines1->points[i.value()];
-        Line line2 = lines2->points[i.key()];
+        LineSegment dstLine = dstLines->points[i.key()];
+        LineSegment srcLine = srcLines->points[i.value()];
+        Eigen::Vector3f dstLineDir = dstLine.direction().normalized();
+        Eigen::Vector3f srcLineDir = rot * initRot * srcLine.direction().normalized();
 
-        float dist = 0;
-        Eigen::Vector3f t = transBetweenLines(line1.dir, line1.point, line2.dir, line2.point, dist);
+        //Eigen::Vector3f lineDir = (dstLineDir + initRot * srcLineDir) / 2;
+        Eigen::Vector3f lineDir = dstLineDir;
 
-        //std::cout << i.key() << " --> " << i.value() << t.transpose() << std::endl;
+        float a2 = lineDir.x() * lineDir.x();
+        float b2 = lineDir.y() * lineDir.y();
+        float c2 = lineDir.z() * lineDir.z();
+        float ab = lineDir.x() * lineDir.y();
+        float ac = lineDir.x() * lineDir.z();
+        float bc = lineDir.y() * lineDir.z();
+        Eigen::Vector3f v = dstLine.middle() - rot * (initRot * srcLine.middle() + initTrans);
+        float xv = v.x();
+        float yv = v.y();
+        float zv = v.z();
 
-        trans += t;
+        A.row(0)[0] += b2 + c2; A.row(0)[1] +=     -ab; A.row(0)[2] +=     -ac;
+        A.row(1)[0] +=     -ab; A.row(1)[1] += a2 + c2; A.row(1)[2] +=     -bc;
+        A.row(2)[0] +=     -ac; A.row(2)[1] +=     -bc; A.row(2)[2] += a2 + b2;
+
+        b.x() += (b2 + c2) * xv         -ab * yv         -ac * zv;
+        b.y() +=       -ab * xv + (a2 + c2) * yv         -bc * zv;
+        b.z() +=       -ac * xv         -bc * yv + (a2 + b2) * zv;
     }
+    //trans = A.colPivHouseholderQr().solve(b);
+    trans = A.inverse() * b;
+    std::cout << "trans: " << trans.transpose() << std::endl;
 
-    trans /= pairs.size();
-
-    // 更新数据
-    for (int i = 0; i < lines1->size(); i++)
+    float error = 0;
+    for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
     {
-        Line& line1 = lines1->points[i];
+        LineSegment dstLine = dstLines->points[i.key()];
+        LineSegment srcLine = srcLines->points[i.value()];
+        Eigen::Vector3f dstLineDir = dstLine.direction().normalized();
+        Eigen::Vector3f srcLineDir = rot * initRot * srcLine.direction().normalized();
 
-        line1.point = line1.point + trans;
-        line1.generateDescriptor();
+        Eigen::Vector3f vertLine = srcLineDir.cross(dstLineDir).normalized();
+        float distance = (dstLine.middle() - rot * (initRot * srcLine.middle() + initTrans) - trans).dot(vertLine);
+        error += distance;
     }
+    error /= pairs.size();
 
-    //std::cout << trans.transpose() << std::endl;
+    std::cout << "error: " << error << std::endl;
 
     return trans;
+}
+
+Eigen::Vector3f LineMatcher::stepTranslation2(pcl::PointCloud<LineSegment>::Ptr srcLines, pcl::PointCloud<LineSegment>::Ptr dstLines, pcl::KdTreeFLANN<LineSegment>::Ptr tree, QMap<int, int>& pairs, const Eigen::Matrix3f& initRot, const Eigen::Vector3f& initTrans, const Eigen::Matrix3f& rot)
+{
+    Eigen::Vector3f trans(Eigen::Vector3f::Zero());
+    QMap<int, int> chains;
+    extractLineChains(srcLines, dstLines, pairs, chains);
+    for (QMap<int, int>::iterator i = chains.begin(); i != chains.end(); i++)
+    {
+        LineSegment dstLine1 = dstLines->points[i.key()];
+        LineSegment dstLine2 = dstLines->points[i.value()];
+        LineSegment srcLine1 = srcLines->points[pairs[i.key()]];
+        LineSegment srcLine2 = srcLines->points[pairs[i.value()]];
+
+        Eigen::Vector3f dstLineDir1 = dstLine1.direction().normalized();
+        Eigen::Vector3f dstLineDir2 = dstLine2.direction().normalized();
+        Eigen::Vector3f srcLineDir1 = srcLine1.direction().normalized();
+        Eigen::Vector3f srcLineDir2 = srcLine2.direction().normalized();
+
+        Eigen::Vector3f srcPoint1 = rot * (initRot * srcLine1.middle() + initTrans);
+        Eigen::Vector3f dstPoint1 = dstLine1.middle();
+        Eigen::Vector3f v1 = srcLineDir1.cross((dstPoint1 - srcPoint1).cross(srcLineDir1)).normalized();
+        v1 = v1 * (dstPoint1 - srcPoint1).dot(v1);
+
+        Eigen::Vector3f srcPoint2 = rot * (initRot * srcLine2.middle() + initTrans) + v1;
+        Eigen::Vector3f dstPoint2 = dstLine2.middle();
+        Eigen::Vector3f v2_ = srcLineDir1.cross((dstPoint2 - srcPoint2).cross(srcLineDir2)).normalized();
+        float cosValue = v2_.dot(dstLineDir2);
+        float v2_length = (dstPoint2 - srcPoint2).dot(v2_);
+        v2_ = v2_ * v2_length;
+        float v2Length = v2_length / cosValue;
+        Eigen::Vector3f v2 = dstLineDir2 * v2Length;
+        
+        trans += v1 + v2;
+    }
+    trans /= chains.size();
+
+    std::cout << "trans: " << trans.transpose() << std::endl;
+
+    float error = 0;
+    for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
+    {
+        LineSegment dstLine = dstLines->points[i.key()];
+        LineSegment srcLine = srcLines->points[i.value()];
+        Eigen::Vector3f dstLineDir = dstLine.direction().normalized();
+        Eigen::Vector3f srcLineDir = initRot * srcLine.direction().normalized();
+
+        Eigen::Vector3f vertLine = srcLineDir.cross(dstLineDir).normalized();
+        float distance = (dstLine.middle() - (initRot * srcLine.middle() + initTrans + trans)).dot(vertLine);
+        std::cout << i.value() << " --> " << i.key() << ": " << distance << std::endl;
+        error += distance;
+    }
+    error /= pairs.size();
+
+    std::cout << "error: " << error << std::endl;
+    return trans;
+}
+
+void LineMatcher::extractLineChains(pcl::PointCloud<LineSegment>::Ptr srcLines, pcl::PointCloud<LineSegment>::Ptr dstLines, QMap<int, int>& pairs, QMap<int, int>& chains)
+{
+    chains.clear();
+    for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
+    {
+        LineSegment dstLine1 = dstLines->points[i.key()];
+        for (QMap<int, int>::iterator j = i; j != pairs.end(); j++)
+        {
+            if (j == i)
+            {
+                continue;
+            }
+
+            LineSegment dstLine2 = dstLines->points[j.key()];
+
+            float radians = acosf(abs(dstLine1.direction().normalized().dot(dstLine2.direction().normalized())));
+            if (radians >= M_PI_4)
+            {
+                chains.insert(dstLine1.index(), dstLine2.index());
+                //std::cout << "[" << dstLine1.index() << ", " << dstLine2.index() << "]: " << qRadiansToDegrees(radians) << std::endl;
+            }
+        }
+    }
 }
 

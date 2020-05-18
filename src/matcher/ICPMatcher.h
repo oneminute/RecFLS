@@ -10,7 +10,6 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#include <extractor/LineExtractor.h>
 #include <cuda/IcpInternal.h>
 #include <common/Frame.h>
 
@@ -50,7 +49,6 @@ protected:
 private:
     
 
-    PROPERTY(int, MaxIterations)
 };
 
 #endif // ICPMATCHER_H
