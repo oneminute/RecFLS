@@ -63,6 +63,11 @@ public:
         return m_odometry->pose();
     }
 
+    QMap<qint64, Eigen::Matrix4f> poses() const
+    {
+        return m_odometry->poses();
+    }
+
 signals:
     void frameFetched(Frame& frame);
 

@@ -11,6 +11,7 @@
 #include <pcl/common/pca.h>
 
 #include "device/SensorReaderDevice.h"
+#include "device/IclNuimDevice.h"
 #include "extractor/FusedLineExtractor.h"
 #include "common/Parameters.h"
 #include "util/Utils.h"
@@ -43,8 +44,6 @@ ToolWindowFusedLineExtractor::~ToolWindowFusedLineExtractor()
 {
     if (m_isInit)
     {
-        m_frameGpu.free();
-        m_frameBEGpu.free();
     }
 }
 
@@ -57,46 +56,6 @@ void ToolWindowFusedLineExtractor::initCompute()
 
     m_ui->widgetImage->setImage(cvMat2QImage(m_frame.colorMat()));
 
-    if (!m_isInit)
-    {
-        cuda::FusedLineParameters parameters;
-        parameters.cx = m_device->cx();
-        parameters.cy = m_device->cy();
-        parameters.fx = m_device->fx();
-        parameters.fy = m_device->fy();
-        parameters.minDepth = Settings::BoundaryExtractor_MinDepth.value();
-        parameters.maxDepth = Settings::BoundaryExtractor_MaxDepth.value();
-        parameters.depthShift = m_device->depthShift();
-        parameters.rgbWidth = m_frame.getColorWidth();
-        parameters.rgbHeight = m_frame.getColorHeight();
-        parameters.normalKernalRadius = Settings::ICPMatcher_CudaNormalKernalRadius.intValue();
-        parameters.normalKnnRadius = Settings::ICPMatcher_CudaNormalKnnRadius.value();
-        parameters.depthWidth = m_frame.getDepthWidth();
-        parameters.depthHeight = m_frame.getDepthHeight();
-        parameters.blockSize = Settings::ICPMatcher_CudaBlockSize.intValue();
-        parameters.gradientThreshold = 20;
-        parameters.searchRadius = 4;
-
-        m_frameGpu.parameters = parameters;
-        m_frameGpu.allocate();
-
-        m_frameBEGpu.parameters.colorWidth = m_frame.getColorWidth();
-        m_frameBEGpu.parameters.colorHeight = m_frame.getColorHeight();
-        m_frameBEGpu.parameters.depthWidth = m_frame.getDepthWidth();
-        m_frameBEGpu.parameters.depthHeight = m_frame.getDepthHeight();
-        m_frameBEGpu.allocate();
-
-        m_isInit = true;
-    }
-
-    m_frameGpu.rgbMatGpu.upload(m_frame.colorMat());
-    m_frameGpu.depthMatGpu.upload(m_frame.depthMat());
-
-    cv::cuda::GpuMat colorMatGpu(m_frame.getColorHeight(), m_frame.getColorWidth(), CV_8UC3, m_frameBEGpu.colorImage);
-    cv::cuda::GpuMat depthMatGpu(m_frame.getDepthHeight(), m_frame.getDepthWidth(), CV_16U, m_frameBEGpu.depthImage);
-    colorMatGpu.upload(m_frame.colorMat());
-    depthMatGpu.upload(m_frame.depthMat());
-
     m_isInit = true;
 }
 
@@ -108,7 +67,7 @@ void ToolWindowFusedLineExtractor::compute()
     m_cloudViewer->visualizer()->removeAllShapes();
 
     //m_extractor->computeGPU(m_frameGpu);
-    m_extractor->compute(m_frame, m_frameBEGpu);
+    m_flFrame = m_extractor->compute(m_frame);
     pcl::PointCloud<pcl::PointXYZI>::Ptr beCloud = m_extractor->allBoundary();
     pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> beh(beCloud, "intensity");
     m_cloudViewer->visualizer()->addPointCloud(beCloud, beh, "cloud_src");
@@ -159,7 +118,8 @@ void ToolWindowFusedLineExtractor::compute()
 
 void ToolWindowFusedLineExtractor::onActionLoadDataSet()
 {
-    m_device.reset(new SensorReaderDevice);
+    //m_device.reset(new SensorReaderDevice);
+    m_device.reset(Device::createDevice());
     if (!m_device->open())
     {
         qDebug() << "Open device failed.";
@@ -205,7 +165,7 @@ void ToolWindowFusedLineExtractor::onActionShowPoints()
 
     m_cloudViewer->visualizer()->removeAllShapes();
     //QMap<int, LineSegment> lines = m_extractor->lines();
-    pcl::PointCloud<LineSegment>::Ptr linesCloud = m_extractor->linesCloud();
+    pcl::PointCloud<LineSegment>::Ptr linesCloud = m_flFrame.lines();
     //for (QMap<int, LineSegment>::iterator i = lines.begin(); i != lines.end(); i++)
     for (int i = 0; i < linesCloud->points.size(); i++)
     {

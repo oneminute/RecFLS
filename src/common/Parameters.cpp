@@ -56,6 +56,14 @@ IMPLEMENT_RANGE_SETTING(MaxIterations, 20, 20, 1, 1000, 1, ICPMatcher, "Max iter
 IMPLEMENT_STRING_SETTING(SamplePath, "samples/office3.sens", "samples/office3.sens", SensorReader, "Sample dataset's file path.");
 IMPLEMENT_RANGE_SETTING(SkipFrames, 0, 0, 0, 65535, 10, SensorReader, "Frames Skipped.");
 
+IMPLEMENT_STRING_SETTING(SamplePath, "samples/living_room_traj0_frei_png", "samples/living_room_traj0_frei_png", IclNuim, "Sample dataset's file path.");
+IMPLEMENT_STRING_SETTING(ListFile, "associations.txt", "associations.txt", IclNuim, "");
+IMPLEMENT_STRING_SETTING(DepthFolderName, "depth", "depth", IclNuim, "");
+IMPLEMENT_STRING_SETTING(RGBFolderName, "rgb", "rgb", IclNuim, "");
+IMPLEMENT_STRING_SETTING(PosesFile, "livingRoom0.gt.freiburg", "livingRoom0.gt.freiburg", IclNuim, "");
+
+IMPLEMENT_STRING_SETTING(DeviceName, "IclNuim", "IclNuim", Device, "");
+
 void Settings::save()
 {
     QSettings settings("config2.ini", QSettings::IniFormat);

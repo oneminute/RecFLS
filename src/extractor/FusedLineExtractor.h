@@ -17,23 +17,13 @@
 
 #include "common/Common.h"
 #include "common/Frame.h"
+#include "common/FLFrame.h"
 #include "cuda/CudaInternal.h"
 #include "cuda/FusedLineInternal.h"
 #include "cuda/CudaInternal.h"
 #include "extractor/LineSegment.h"
 
-//struct LS3D
-//{
-//    pcl::PointXYZ start;
-//    pcl::PointXYZ end;
-//    pcl::PointXYZ center;
-//
-//    float length() {
-//        Eigen::Vector3f s = start.getArray3fMap();
-//        Eigen::Vector3f e = end.getArray3fMap();
-//        return (s - e).norm();
-//    }
-//};
+class BoundaryExtractor;
 
 class FusedLineExtractor : public QObject
 {
@@ -42,20 +32,19 @@ public:
     explicit FusedLineExtractor(QObject* parent = nullptr);
     ~FusedLineExtractor();
 
+    void init(Frame& frame);
+
     void computeGPU(cuda::FusedLineFrame& frame);
-    void compute(Frame& frame, cuda::GpuFrame& frameGpu);
+    FLFrame compute(Frame& frame);
 
-    void init();
-
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud() { return m_cloud; }
+    //pcl::PointCloud<pcl::PointXYZ>::Ptr cloud() { return m_cloud; }
     pcl::PointCloud<pcl::PointXYZI>::Ptr allBoundary() { return m_allBoundary; }
-    pcl::PointCloud<pcl::Normal>::Ptr normals() { return m_normals; }
-    //QMap<int, LineSegment> lines() { return m_lines; }
+    //pcl::PointCloud<pcl::Normal>::Ptr normals() { return m_normals; }
     QMap<int, pcl::PointCloud<pcl::PointXYZI>::Ptr>& groupPoints() { return m_groupPoints; }
 
     cv::Mat colorLinesMat() const { return m_colorLinesMat; }
     cv::Mat linesMat() const { return m_linesMat; }
-    pcl::PointCloud<LineSegment>::Ptr linesCloud() { return m_linesCloud; }
+    //pcl::PointCloud<LineSegment>::Ptr linesCloud() { return m_linesCloud; }
 
 private:
     bool m_init;
@@ -63,12 +52,12 @@ private:
     cv::Mat m_pointsMat;
     cv::Mat m_colorLinesMat;
     cv::Mat m_linesMat;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr m_cloud;
+    //pcl::PointCloud<pcl::PointXYZ>::Ptr m_cloud;
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_allBoundary;
-    pcl::PointCloud<pcl::Normal>::Ptr m_normals;
-    //QMap<int, LineSegment> m_lines;
+    //pcl::PointCloud<pcl::Normal>::Ptr m_normals;
     QMap<int, pcl::PointCloud<pcl::PointXYZI>::Ptr> m_groupPoints;
-    pcl::PointCloud<LineSegment>::Ptr m_linesCloud;
+    //pcl::PointCloud<LineSegment>::Ptr m_linesCloud;
+    cuda::GpuFrame m_frameGpu;
 };
 
 #endif // FUSEDLINEEXTRACTOR_H

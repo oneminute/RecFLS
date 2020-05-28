@@ -19,7 +19,7 @@ namespace cuda
         pcl::gpu::PtrSz<float3> pointCloudCache;
         pcl::gpu::PtrSz<float3> pointCloudNormals;
         pcl::gpu::PtrStepSz<int> indicesImage;
-        pcl::gpu::PtrStepSz<uchar3> colorImage;
+        //pcl::gpu::PtrStepSz<uchar3> colorImage;
         pcl::gpu::PtrStepSz<ushort> depthImage;
         pcl::gpu::PtrSz<uchar> boundaries;
         pcl::gpu::PtrStepSz<uchar> boundaryImage;
@@ -58,10 +58,10 @@ namespace cuda
             float qnan = std::numeric_limits<float>::quiet_NaN();
             pointCloud[index].x = qnan;
 
-            //if (index % 1024 == 0)
-            //{
-                //printf("index: %d, ix: %d, iy: %d, x: %f, y: %f, z: %f, depth: %d\n", index, ix, iy, x, y, z, depthImage[index]);
-            //}
+            /*if (index % 1024 == 0)
+            {
+                printf("ix: %d, iy: %d, x: %f, y: %f, z: %f, depth: %d\n", ix, iy, x, y, z, depthImage[index]);
+            }*/
             pointCloud[index].x = x;
             pointCloud[index].y = y;
             pointCloud[index].z = z;
@@ -120,11 +120,13 @@ namespace cuda
             normal.y = Q[1][0];
             normal.z = Q[2][0];
 
+            pointCloudNormals[index] = normalize(normal);
+
             //printf("index: %d, ix: %d, iy: %d, x: %f, y: %f, z: %f, depth: %d\n", index, ix, iy, normal.x, normal.y, normal.z, count);
 
-            pointCloudNormals[index].x = normal.x;
-            pointCloudNormals[index].y = normal.y;
-            pointCloudNormals[index].z = normal.z;
+            //.x = normal.x;
+            //pointCloudNormals[index].y = normal.y;
+            //pointCloudNormals[index].z = normal.z;
         }
 
         __device__ __forceinline__ void extractBoundaries()
@@ -613,7 +615,7 @@ namespace cuda
         epc.pointCloudCache = frame.pointCloudCache;
         epc.pointCloudNormals = frame.pointCloudNormals;
         epc.indicesImage = frame.indicesImage;
-        epc.colorImage = frame.colorImage;
+        //epc.colorImage = frame.colorImage;
         epc.depthImage = frame.depthImage;
         epc.boundaries = frame.boundaries;
         epc.boundaryImage = frame.boundaryImage;

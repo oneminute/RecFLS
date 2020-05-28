@@ -30,6 +30,8 @@ public:
 
     virtual void fetchNext() = 0;
 
+    virtual quint64 totalFrames() = 0;
+
     void initRectifyMap();
 
     cv::Mat undistortImage(const cv::Mat &in);
@@ -45,6 +47,8 @@ public:
     float cy() const;
 
     float depthShift() const;
+
+    static Device* createDevice();
 
 signals:
     void frameFetched(Frame& frame);

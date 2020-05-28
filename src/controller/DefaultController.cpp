@@ -17,8 +17,8 @@ DefaultController::DefaultController(Device *device, QObject *parent)
 {
     connect(m_device, &Device::frameFetched, this, &DefaultController::onFrameFetched);
 
-    //m_odometry.reset(new LineMatchCudaOdometry);
-    m_odometry.reset(new ICPOdometry);
+    m_odometry.reset(new LineMatchCudaOdometry);
+    //m_odometry.reset(new ICPOdometry);
 }
 
 QString DefaultController::name() const
@@ -71,7 +71,10 @@ void DefaultController::onFrameFetched(Frame &frame)
 
     // 里程计处理单帧数据
     m_odometry->process(frame);
-
-    // emit signal
     emit frameFetched(frame);
+    //if ()
+    //{
+    //    // emit signal
+    //    emit frameFetched(frame);
+    //}
 }

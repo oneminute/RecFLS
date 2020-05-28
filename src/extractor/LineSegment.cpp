@@ -15,7 +15,12 @@ public:
         , green(0)
         , blue(0)
         , index(-1)
-    {}
+    {
+        for (int i = 0; i < shortDescriptor.size(); i++)
+        {
+            shortDescriptor[0] = 0;
+        }
+    }
 
     Eigen::Vector3f start;
     Eigen::Vector3f end;
@@ -27,7 +32,7 @@ public:
     int segmentNo;
     int index;
 
-    Eigen::Matrix<float, 1, 10> shortDescriptor;
+    Eigen::Matrix<float, 1, 13> shortDescriptor;
     //Eigen::VectorXf longDescriptor;
 };
 
@@ -110,6 +115,11 @@ Eigen::Vector3f LineSegment::direction() const
     return end() - start();
 }
 
+Eigen::Vector3f LineSegment::normalizedDir() const
+{
+    return direction().normalized();
+}
+
 int LineSegment::index() const
 {
     return data->index;
@@ -120,52 +130,57 @@ void LineSegment::setIndex(int index)
     data->index = index;
 }
 
-void LineSegment::generateShotDescriptor(float minLength, float maxLength, Eigen::Vector3f minPoint, Eigen::Vector3f maxPoint)
+//void LineSegment::reproject(float minLength, float maxLength, Eigen::Vector3f minPoint, Eigen::Vector3f maxPoint)
+//{
+//    Eigen::Vector3f s = start() - minPoint;
+//    Eigen::Vector3f m = middle() - minPoint;
+//    Eigen::Vector3f e = end() - minPoint;
+//
+//    Eigen::Vector3f delta = maxPoint - minPoint;
+//
+//    data->shortDescriptor.resize(1, 13);
+//    data->shortDescriptor[0] = s.x() / delta.x();
+//    data->shortDescriptor[1] = s.y() / delta.y();
+//    data->shortDescriptor[2] = s.z() / delta.z();
+//    data->shortDescriptor[3] = m.x() / delta.x();
+//    data->shortDescriptor[4] = m.y() / delta.y();
+//    data->shortDescriptor[5] = m.z() / delta.z();
+//    data->shortDescriptor[6] = e.x() / delta.x();
+//    data->shortDescriptor[7] = e.y() / delta.y();
+//    data->shortDescriptor[8] = e.z() / delta.z();
+//
+//    Eigen::Vector3f dir = direction().normalized();
+//    data->shortDescriptor[9] = dir[0];
+//    data->shortDescriptor[10] = dir[1];
+//    data->shortDescriptor[11] = dir[2];
+//    data->shortDescriptor[12] = (length() - minLength) / (maxLength - minLength);
+//    data->shortDescriptor.normalize();
+//}
+
+void LineSegment::reproject(const Eigen::Matrix3f& rot, const Eigen::Vector3f& trans)
 {
-    Eigen::Vector3f s = start() - minPoint;
-    Eigen::Vector3f m = middle() - minPoint;
-    Eigen::Vector3f e = end() - minPoint;
-
-    Eigen::Vector3f delta = maxPoint - minPoint;
-
-    data->shortDescriptor.resize(1, 13);
-    data->shortDescriptor[0] = s.x() / delta.x();
-    data->shortDescriptor[1] = s.y() / delta.y();
-    data->shortDescriptor[2] = s.z() / delta.z();
-    data->shortDescriptor[3] = m.x() / delta.x();
-    data->shortDescriptor[4] = m.y() / delta.y();
-    data->shortDescriptor[5] = m.z() / delta.z();
-    data->shortDescriptor[6] = e.x() / delta.x();
-    data->shortDescriptor[7] = e.y() / delta.y();
-    data->shortDescriptor[8] = e.z() / delta.z();
+    Eigen::Vector3f start = rot * data->start + trans;
+    Eigen::Vector3f end = rot * data->end + trans;
+    Eigen::Vector3f middle = rot * this->middle() + trans;
 
     Eigen::Vector3f dir = direction().normalized();
-    data->shortDescriptor[9] = dir[0];
-    data->shortDescriptor[10] = dir[1];
-    data->shortDescriptor[11] = dir[2];
-    data->shortDescriptor[12] = (length() - minLength) / (maxLength - minLength);
-    data->shortDescriptor.normalize();
-}
+    float length = (start - end).norm();
+    Eigen::Vector3f projPt = start - dir * start.dot(dir);
 
-void LineSegment::generateDescriptor(const Eigen::Matrix3f& rot, const Eigen::Vector3f& trans)
-{
-    Eigen::Vector3f dir = rot * direction().normalized();
-    float length = (start() - end()).norm();
-    Eigen::Vector3f point = rot * start() + trans;
-    Eigen::Vector3f projPt = point - dir * point.dot(dir);
-
-    data->shortDescriptor = Eigen::Matrix<float, 1, 10>();
-    //data->shortDescriptor.resize(1, 10);
+    data->shortDescriptor = Eigen::Matrix<float, 1, 13>();
     data->shortDescriptor[0] = projPt.x();
     data->shortDescriptor[1] = projPt.y();
     data->shortDescriptor[2] = projPt.z();
     data->shortDescriptor[3] = dir.x();
     data->shortDescriptor[4] = dir.y();
     data->shortDescriptor[5] = dir.z();
-    data->shortDescriptor[6] = data->red / 255;
-    data->shortDescriptor[7] = data->green / 255;
-    data->shortDescriptor[8] = data->blue / 255;
-    data->shortDescriptor[9] = length;
+    data->shortDescriptor[6] = middle.x();
+    data->shortDescriptor[7] = middle.y();
+    data->shortDescriptor[8] = middle.z();
+    data->shortDescriptor[9] = data->red / 255;
+    data->shortDescriptor[10] = data->green / 255;
+    data->shortDescriptor[11] = data->blue / 255;
+    data->shortDescriptor[12] = length;
     data->shortDescriptor.normalize();
 }
 
@@ -275,7 +290,7 @@ float LineSegment::angleToAnotherLine(const LineSegment &other)
     return qAcos(direction().normalized().dot(other.direction().normalized()));
 }
 
-Eigen::Matrix<float, 1, 10> LineSegment::shortDescriptor() const
+Eigen::Matrix<float, 1, 13> LineSegment::shortDescriptor() const
 {
     return data->shortDescriptor;
 }

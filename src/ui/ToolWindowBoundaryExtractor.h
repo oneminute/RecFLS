@@ -42,7 +42,7 @@ private:
     ImageViewer* m_depthViewer2;
 
     QScopedPointer<BoundaryExtractor> m_boundaryExtractor;
-    QScopedPointer<SensorReaderDevice> m_device;
+    QScopedPointer<Device> m_device;
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_allBoundary;
     pcl::PointCloud<pcl::PointXYZI>::Ptr m_boundaryPoints;
 

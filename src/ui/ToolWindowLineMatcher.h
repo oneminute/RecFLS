@@ -51,7 +51,7 @@ private:
     CloudViewer* m_cloudViewer1;
     CloudViewer* m_cloudViewer2;
     CloudViewer* m_cloudViewer3;
-    QScopedPointer<SensorReaderDevice> m_device;
+    QScopedPointer<Device> m_device;
     QScopedPointer<BoundaryExtractor> m_boundaryExtractor;
     QScopedPointer<FusedLineExtractor> m_lineExtractor;
     QScopedPointer<LineMatcher> m_lineMatcher;
@@ -67,18 +67,20 @@ private:
     pcl::PointCloud<pcl::PointXYZ>::Ptr m_cloudDst;
     pcl::PointCloud<pcl::PointXYZ>::Ptr m_filteredCloudSrc;
     pcl::PointCloud<pcl::PointXYZ>::Ptr m_filteredCloudDst;
-    pcl::PointCloud<LineSegment>::Ptr m_linesCloudSrc;
-    pcl::PointCloud<LineSegment>::Ptr m_linesCloudDst;
+    //pcl::PointCloud<LineSegment>::Ptr m_linesCloudSrc;
+    //pcl::PointCloud<LineSegment>::Ptr m_linesCloudDst;
     QMap<int, int> m_pairs;
-    QList<int> m_pairIndices;
+    QMap<int, float> m_weights;
+    //QList<int> m_pairIndices;
     //cuda::FusedLineFrame m_frameGpuSrc;
     //cuda::FusedLineFrame m_frameGpuDst;
     cuda::GpuFrame m_frameGpuBESrc;
     cuda::GpuFrame m_frameGpuBEDst;
+    FLFrame m_flFrameSrc;
+    FLFrame m_flFrameDst;
 
     Eigen::Matrix4f m_pose;
-    float m_rotationError;
-    float m_translationError;
+    float m_error;
 
     //QMap<int, LineSegment> m_linesSrc;
     //QMap<int, LineSegment> m_linesDst;

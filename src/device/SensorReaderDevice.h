@@ -20,8 +20,7 @@ public:
     virtual void skip(int skipCount);
     virtual Frame getFrame(int frameIndex);
     virtual void fetchNext();
-
-    quint64 totalFrames() const { return m_frameCount; }
+    virtual quint64 totalFrames() { return m_frameCount; }
 
 private:
     quint64 m_frameCount;

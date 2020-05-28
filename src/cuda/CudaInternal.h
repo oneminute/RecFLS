@@ -41,7 +41,7 @@ namespace cuda
 
     struct GpuFrame
     {
-        pcl::gpu::DeviceArray2D<uchar3> colorImage;
+        //pcl::gpu::DeviceArray2D<uchar3> colorImage;
         pcl::gpu::DeviceArray2D<ushort> depthImage;
         pcl::gpu::DeviceArray2D<int> indicesImage;
         pcl::gpu::DeviceArray<float3> pointCloud;
@@ -50,12 +50,16 @@ namespace cuda
         pcl::gpu::DeviceArray<uchar> boundaries;
         pcl::gpu::DeviceArray2D<uchar> boundaryImage;
         pcl::gpu::DeviceArray<uint> neighbours;
+        //cv::cuda::GpuMat colorMat;
+        cv::cuda::GpuMat depthMat;
+        cv::cuda::GpuMat boundaryMat;
+        cv::cuda::GpuMat pointsMat;
 
         Parameters parameters;
 
         bool allocate()
         {
-            colorImage.create(parameters.colorHeight, parameters.colorWidth);
+            //colorImage.create(parameters.colorHeight, parameters.colorWidth);
             depthImage.create(parameters.depthHeight, parameters.depthWidth);
             indicesImage.create(parameters.depthHeight, parameters.depthWidth);
             pointCloud.create(parameters.depthWidth * parameters.depthHeight);
@@ -63,12 +67,21 @@ namespace cuda
             pointCloudNormals.create(parameters.depthWidth * parameters.depthHeight);
             boundaries.create(parameters.depthWidth * parameters.depthHeight);
             boundaryImage.create(parameters.depthHeight, parameters.depthWidth);
+            //colorMat = cv::cuda::GpuMat(parameters.colorHeight, parameters.colorWidth, CV_8UC3, colorImage);
+            depthMat = cv::cuda::GpuMat(parameters.depthHeight, parameters.depthWidth, CV_16U, depthImage);
+            boundaryMat = cv::cuda::GpuMat(parameters.depthHeight, parameters.depthWidth, CV_8U, boundaryImage);
+            pointsMat = cv::cuda::GpuMat(parameters.depthHeight, parameters.depthWidth, CV_32S, indicesImage);
             return 1;
+        }
+
+        void upload(const cv::Mat& data)
+        {
+            depthMat.upload(data);
         }
 
         void free()
         {
-            colorImage.release();
+            //colorImage.release();
             depthImage.release();
             indicesImage.release();
             pointCloud.release();

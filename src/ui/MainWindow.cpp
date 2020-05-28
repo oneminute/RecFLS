@@ -210,7 +210,7 @@ void MainWindow::onFrameFetched(Frame &frame)
         }
     }
 
-    QString frameId = QString("cloud_%1").arg(frame.deviceFrameIndex());
+    QString frameId = QString("cloud_%1").arg(frame.frameIndex());
     std::cout << "#### frame index: " << frame.deviceFrameIndex() << std::endl;
     
     pcl::IndicesPtr indices(new std::vector<int>);
@@ -230,15 +230,23 @@ void MainWindow::onFrameFetched(Frame &frame)
         const double y = ((double)rpy(2));
         Eigen::Vector3f trans = pose.topRightCorner(3, 1);
         //trans *= 10;
-        pose.topRightCorner(3, 1) = trans;
         std::cout << "eulers: [" << r << ", " << p << ", " << y << "], [" << trans.x() << ", " << trans.y() << ", " << trans.z() << "]" << std::endl;
         
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmpCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-        //Eigen::Matrix4f tmp(Eigen::Matrix4f::Identity());
-        //tmp.topRightCorner(3, 1) += Eigen::Vector3f(0.1f * frame.deviceFrameIndex(), 0, 0);
-        pcl::transformPointCloud(*cloud, *tmpCloud, pose);
-        //m_cloudViewer->removeAllClouds();
-        m_cloudViewer->addCloud(frameId, tmpCloud);
+        //if (frame.deviceFrameIndex() % 10 == 0)
+        {
+            pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmpCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+            pcl::transformPointCloud(*cloud, *tmpCloud, pose);
+            m_cloudViewer->addCloud(frameId, tmpCloud);
+        }
+    }
+
+    QMap<qint64, Eigen::Matrix4f> poses = m_controller->poses();
+    for (QMap<qint64, Eigen::Matrix4f>::iterator i = poses.begin(); i != poses.end(); i++)
+    {
+        qint64 index = i.key();
+        Eigen::Matrix4f pose = i.value();
+        frameId = QString("cloud_%1").arg(index);
+        m_cloudViewer->updateCloudPose(frameId, pose);
     }
 
     m_cloudViewer->update();

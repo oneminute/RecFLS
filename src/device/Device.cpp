@@ -1,5 +1,8 @@
 #include "Device.h"
 #include "util/Utils.h"
+#include "common/Parameters.h"
+#include "device/IclNuimDevice.h"
+#include "device/SensorReaderDevice.h"
 
 #include <pcl/point_types.h>
 #include <Eigen/Core>
@@ -93,72 +96,16 @@ float Device::depthShift() const
     return m_depthShift;
 }
 
-//void alignFrame(const rs2_intrinsics& from_intrin,
-//                                   const rs2_intrinsics& other_intrin,
-//                                   rs2::frame from_image,
-//                                   uint32_t output_image_bytes_per_pixel,
-//                                   const rs2_extrinsics& from_to_other,
-//								   cv::Mat & registeredDepth,
-//								   float depth_scale_meters)
-//{
-//    static const auto meter_to_mm = 0.001f;
-//    uint8_t* p_out_frame = registeredDepth.data;
-//    auto from_vid_frame = from_image.as<rs2::video_frame>();
-//    auto from_bytes_per_pixel = from_vid_frame.get_bytes_per_pixel();
-
-//    static const auto blank_color = 0x00;
-//    UASSERT(registeredDepth.total()*registeredDepth.channels()*registeredDepth.depth() == other_intrin.height * other_intrin.width * output_image_bytes_per_pixel);
-//    memset(p_out_frame, blank_color, other_intrin.height * other_intrin.width * output_image_bytes_per_pixel);
-
-//    auto p_from_frame = reinterpret_cast<const uint8_t*>(from_image.get_data());
-//    auto from_stream_type = from_image.get_profile().stream_type();
-//    float depth_units = ((from_stream_type == RS2_STREAM_DEPTH)? depth_scale_meters:1.f);
-//    UASSERT(from_stream_type == RS2_STREAM_DEPTH);
-//    UASSERT_MSG(depth_units > 0.0f, uFormat("depth_scale_meters=%f", depth_scale_meters).c_str());
-//#pragma omp parallel for schedule(dynamic)
-//    for (int from_y = 0; from_y < from_intrin.height; ++from_y)
-//    {
-//        int from_pixel_index = from_y * from_intrin.width;
-//        for (int from_x = 0; from_x < from_intrin.width; ++from_x, ++from_pixel_index)
-//        {
-//            // Skip over depth pixels with the value of zero
-//            float depth = (from_stream_type == RS2_STREAM_DEPTH)?(depth_units * ((const uint16_t*)p_from_frame)[from_pixel_index]): 1.f;
-//            if (depth)
-//            {
-//                // Map the top-left corner of the depth pixel onto the other image
-//                float from_pixel[2] = { from_x - 0.5f, from_y - 0.5f }, from_point[3], other_point[3], other_pixel[2];
-//                rs2_deproject_pixel_to_point(from_point, &from_intrin, from_pixel, depth);
-//                rs2_transform_point_to_point(other_point, &from_to_other, from_point);
-//                rs2_project_point_to_pixel(other_pixel, &other_intrin, other_point);
-//                const int other_x0 = static_cast<int>(other_pixel[0] + 0.5f);
-//                const int other_y0 = static_cast<int>(other_pixel[1] + 0.5f);
-
-//                // Map the bottom-right corner of the depth pixel onto the other image
-//                from_pixel[0] = from_x + 0.5f; from_pixel[1] = from_y + 0.5f;
-//                rs2_deproject_pixel_to_point(from_point, &from_intrin, from_pixel, depth);
-//                rs2_transform_point_to_point(other_point, &from_to_other, from_point);
-//                rs2_project_point_to_pixel(other_pixel, &other_intrin, other_point);
-//                const int other_x1 = static_cast<int>(other_pixel[0] + 0.5f);
-//                const int other_y1 = static_cast<int>(other_pixel[1] + 0.5f);
-
-//                if (other_x0 < 0 || other_y0 < 0 || other_x1 >= other_intrin.width || other_y1 >= other_intrin.height)
-//                    continue;
-
-//                for (int y = other_y0; y <= other_y1; ++y)
-//                {
-//                    for (int x = other_x0; x <= other_x1; ++x)
-//                    {
-//                        int out_pixel_index = y * other_intrin.width + x;
-//                        //Tranfer n-bit pixel to n-bit pixel
-//                        for (int i = 0; i < from_bytes_per_pixel; i++)
-//                        {
-//                            const auto out_offset = out_pixel_index * output_image_bytes_per_pixel + i;
-//                            const auto from_offset = from_pixel_index * output_image_bytes_per_pixel + i;
-//                            p_out_frame[out_offset] = p_from_frame[from_offset] * (depth_units / meter_to_mm);
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
-//}
+Device* Device::createDevice()
+{
+    Device* device = nullptr;
+    if (Settings::Device_DeviceName.value() == "SensorReader")
+    {
+        device = new SensorReaderDevice;
+    }
+    else if (Settings::Device_DeviceName.value() == "IclNuim")
+    {
+        device = new IclNuimDevice;
+    }
+    return device;
+}

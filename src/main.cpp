@@ -6,6 +6,7 @@
 #include "controller/DefaultController.h"
 #include "device/Device.h"
 #include "device/SensorReaderDevice.h"
+#include "device/IclNuimDevice.h"
 #include "util/Utils.h"
 #include "util/StopWatch.h"
 
@@ -45,8 +46,9 @@ int main(int argc, char *argv[])
     Settings::load();
     Settings::save();
 
-    Device *device = new SensorReaderDevice;
-    Controller *controller = new  DefaultController(device);
+    //Device *device = new SensorReaderDevice;
+    Device *device = Device::createDevice();
+    Controller *controller = new DefaultController(device);
 
     MainWindow* w = new MainWindow;
     w->setController(controller);

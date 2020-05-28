@@ -48,13 +48,15 @@ public:
 
     Eigen::Vector3f direction() const;
 
+    Eigen::Vector3f normalizedDir() const;
+
     int index() const;
 
     void setIndex(int index);
 
-    void generateShotDescriptor(float minLength, float maxLength, Eigen::Vector3f minPoint, Eigen::Vector3f maxPoint);
+    //void reproject(float minLength, float maxLength, Eigen::Vector3f minPoint, Eigen::Vector3f maxPoint);
 
-    void generateDescriptor(const Eigen::Matrix3f& rot = Eigen::Matrix3f::Identity(), const Eigen::Vector3f& trans = Eigen::Vector3f::Zero());
+    void reproject(const Eigen::Matrix3f& rot = Eigen::Matrix3f::Identity(), const Eigen::Vector3f& trans = Eigen::Vector3f::Zero());
 
     int shortDescriptorSize() const;
 
@@ -78,7 +80,7 @@ public:
 
     float angleToAnotherLine(const LineSegment &other);
 
-    Eigen::Matrix<float, 1, 10> shortDescriptor() const;
+    Eigen::Matrix<float, 1, 13> shortDescriptor() const;
 
     //Eigen::VectorXf longDescriptor() const;
 
@@ -107,7 +109,7 @@ struct pcl::DefaultPointRepresentation<LineSegment>: public pcl::PointRepresenta
 public:
     DefaultPointRepresentation()
     {
-        nr_dimensions_ = 10;
+        nr_dimensions_ = 13;
     }
 
     void copyToFloatArray(const LineSegment& l, float* out) const override

@@ -289,6 +289,14 @@ public:
     DECLARE_SETTING(StringSetting, SamplePath, SensorReader);
     DECLARE_SETTING(RangeSetting, SkipFrames, SensorReader);
 
+    DECLARE_SETTING(StringSetting, SamplePath, IclNuim);
+    DECLARE_SETTING(StringSetting, ListFile, IclNuim);
+    DECLARE_SETTING(StringSetting, DepthFolderName, IclNuim);
+    DECLARE_SETTING(StringSetting, RGBFolderName, IclNuim);
+    DECLARE_SETTING(StringSetting, PosesFile, IclNuim);
+
+    DECLARE_SETTING(StringSetting, DeviceName, Device);
+
 private:
     SettingMap m_settings;
     SettingMap m_defaultSettings;

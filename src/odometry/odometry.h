@@ -4,6 +4,8 @@
 #include <QObject>
 
 #include "common/Frame.h"
+#include "common/FLFrame.h"
+#include "common/RelInformation.h"
 #include "ui/CloudViewer.h"
 
 class Odometry : public QObject
@@ -39,6 +41,19 @@ public:
         return m_pose;
     }
 
+    Eigen::Matrix4f pose(qint64 index)
+    {
+        if (m_poses.contains(index))
+            return m_poses[index];
+        else
+            return Eigen::Matrix4f::Identity();
+    }
+
+    QMap<qint64, Eigen::Matrix4f> poses() const
+    {
+        return m_poses;
+    }
+
 signals:
 
 protected:
@@ -53,9 +68,9 @@ protected:
     pcl::IndicesPtr m_cloudIndices;
     QList<QPair<QString, cv::Mat>> m_filteredMats;
     QList<Frame> m_frames;
-    QList<Eigen::Matrix4f> m_poses;
-    QList<float> m_rotationErrors;
-    QList<float> m_transErrors;
+    QMap<qint64, Eigen::Matrix4f> m_poses;
+    //QList<Eigen::Matrix4f> m_relPoses;
+    QMap<RelInformation::KeyPair, RelInformation> m_relInfors;
 
     Eigen::Matrix4f m_pose;
 };

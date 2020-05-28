@@ -17,6 +17,7 @@ add_definitions(-DSTB_IMAGE_IMPLEMENTATION)
 #add_definitions(-DEIGEN_DONT_ALIGN)
 add_definitions(-DPCL_ONLY_CORE_POINT_TYPES)
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
 include(FindCUDA)
 
@@ -27,11 +28,15 @@ find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Qt5 COMPONENTS Widgets Charts CONFIG REQUIRED)
 find_package(OpenCV REQUIRED QUIET)
-find_package(PCL REQUIRED QUIET COMPONENTS common features io kdtree search surface filters registration sample_consensus segmentation visualization gpu_features)
+find_package(PCL REQUIRED QUIET)
 find_package(OpenMP REQUIRED QUIET)
 find_package(FLANN REQUIRED QUIET)
 find_package(VTK REQUIRED QUIET)
+find_package(G2O REQUIRED)
 find_package(CUDA)
+
+message(STATUS G2O_INCLUDE_DIR=${G2O_INCLUDE_DIR})
+message(STATUS G2O_FOUND=${G2O_FOUND})
 
 set(__cuda_arch_bin "5.0 5.2 5.3 6.0 6.1")
 IF(MSVC)
@@ -48,6 +53,7 @@ set(INCLUDE_DIRS
     ${PCL_INCLUDE_DIRS}
     ${FLANN_INCLUDE_DIRS}
     ${VTK_INCLUDE_DIRS}
+    ${G2O_INCLUDE_DIR}
     ./third/stb_image
     ./third/uplinksimple
 )
@@ -154,8 +160,33 @@ include_directories(${INCLUDE_DIRS})
 # Tell CMake to create the helloworld executable
 cuda_add_executable(${PROJECT_NAME} ${SRC_FILES})
 
+#SET(G2O_LIBS_ITEM ${G2O_STUFF_LIBRARY} ${G2O_CORE_LIBRARY} ${G2O_CLI_LIBRARY} ${G2O_SOLVER_CSPARSE} ${G2O_SOLVER_CSPARSE_EXTENSION}
+             #${G2O_SOLVER_DENSE} ${G2O_SOLVER_PCG} ${G2O_SOLVER_SLAM2D_LINEAR} ${G2O_SOLVER_STRUCTURE_ONLY} ${G2O_SOLVER_EIGEN} 
+             #${G2O_TYPES_DATA} ${G2O_TYPES_ICP} ${G2O_TYPES_SBA} ${G2O_TYPES_SCLAM2D} ${G2O_TYPES_SIM3} ${G2O_TYPES_SLAM2D}
+             #${G2O_TYPES_SLAM3D})
+
+SET(G2O_LIBS_ITEM G2O_STUFF_LIBRARY G2O_CORE_LIBRARY G2O_CLI_LIBRARY G2O_SOLVER_CSPARSE G2O_SOLVER_CSPARSE_EXTENSION
+             G2O_SOLVER_DENSE G2O_SOLVER_PCG G2O_SOLVER_SLAM2D_LINEAR G2O_SOLVER_STRUCTURE_ONLY G2O_SOLVER_EIGEN 
+             G2O_TYPES_DATA G2O_TYPES_ICP G2O_TYPES_SBA G2O_TYPES_SCLAM2D G2O_TYPES_SIM3 G2O_TYPES_SLAM2D
+             G2O_TYPES_SLAM3D)
+
+SET(G2O_LIBS "")
+FOREACH(_item ${G2O_LIBS_ITEM})
+    LIST(APPEND G2O_LIBS debug ${${_item}_DEBUG} optimized ${${_item}})
+ENDFOREACH()
+
 # Use the Widgets module from Qt 5.
-target_link_libraries(${PROJECT_NAME} Qt5::Widgets Qt5::Charts ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${FLANN_LIBRARIES} ${VTK_LIBRARIES} ${CUDA_blas_LIBRARY} ${CUDA_CUDART_LIBRARY} ${CUDA_curand_LIBRARY})
+target_link_libraries(${PROJECT_NAME} Qt5::Widgets Qt5::Charts ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${FLANN_LIBRARIES} 
+                                      ${VTK_LIBRARIES} ${CUDA_blas_LIBRARY} ${CUDA_CUDART_LIBRARY} ${CUDA_curand_LIBRARY}
+                                      ${G2O_LIBS})
+
+
+# Install the executable
+install(TARGETS ${PROJECT_NAME} DESTINATION bin)
+# Use the Widgets module from Qt 5.
+target_link_libraries(${PROJECT_NAME} Qt5::Widgets Qt5::Charts ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${FLANN_LIBRARIES} 
+                                      ${VTK_LIBRARIES} ${CUDA_blas_LIBRARY} ${CUDA_CUDART_LIBRARY} ${CUDA_curand_LIBRARY}
+                                      ${G2O_LIBS})
 
 
 # Install the executable

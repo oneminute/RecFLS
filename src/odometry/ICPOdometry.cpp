@@ -36,7 +36,7 @@ void ICPOdometry::doProcessing(Frame& frame)
     }
 
     m_frames.append(frame);
-    m_poses.append(m_pose);
+    m_poses.insert(frame.frameIndex(), m_pose);
     m_frameCount++;
 }
 

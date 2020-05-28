@@ -13,6 +13,7 @@
 #include "EDLines.h"
 #include "device/SensorReaderDevice.h"
 #include "common/Parameters.h"
+#include "extractor/BoundaryExtractor.h"
 
 FusedLineExtractor::FusedLineExtractor(QObject* parent)
     : QObject(parent),
@@ -23,6 +24,48 @@ FusedLineExtractor::FusedLineExtractor(QObject* parent)
 
 FusedLineExtractor::~FusedLineExtractor()
 {
+}
+
+void FusedLineExtractor::init(Frame& frame)
+{
+    if (!m_init)
+    {
+        cuda::Parameters params;
+        params.colorWidth = frame.getColorWidth();
+        params.colorHeight = frame.getColorHeight();
+        params.depthWidth = frame.getDepthWidth();
+        params.depthHeight = frame.getDepthHeight();
+
+        params.cx = frame.getDevice()->cx();
+        params.cy = frame.getDevice()->cy();
+        params.fx = frame.getDevice()->fx();
+        params.fy = frame.getDevice()->fy();
+        params.minDepth = Settings::BoundaryExtractor_MinDepth.value();
+        params.maxDepth = Settings::BoundaryExtractor_MaxDepth.value();
+        params.borderLeft = Settings::BoundaryExtractor_BorderLeft.intValue();
+        params.borderRight = Settings::BoundaryExtractor_BorderRight.intValue();
+        params.borderTop = Settings::BoundaryExtractor_BorderTop.intValue();
+        params.borderBottom = Settings::BoundaryExtractor_BorderBottom.intValue();
+        params.depthShift = 1000;
+        params.normalKernalRadius = Settings::BoundaryExtractor_CudaNormalKernalRadius.intValue();
+        params.normalKnnRadius = Settings::BoundaryExtractor_CudaNormalKnnRadius.value();
+        params.boundaryEstimationRadius = Settings::BoundaryExtractor_CudaBEKernalRadius.intValue();
+        params.boundaryGaussianSigma = Settings::BoundaryExtractor_CudaGaussianSigma.value();
+        params.boundaryGaussianRadius = Settings::BoundaryExtractor_CudaGaussianKernalRadius.intValue();
+        params.boundaryEstimationDistance = Settings::BoundaryExtractor_CudaBEDistance.value();
+        params.boundaryAngleThreshold = Settings::BoundaryExtractor_CudaBEAngleThreshold.value();
+        params.classifyRadius = Settings::BoundaryExtractor_CudaClassifyKernalRadius.intValue();
+        params.classifyDistance = Settings::BoundaryExtractor_CudaClassifyDistance.value();
+        params.peakClusterTolerance = Settings::BoundaryExtractor_CudaPeakClusterTolerance.intValue();
+        params.minClusterPeaks = Settings::BoundaryExtractor_CudaMinClusterPeaks.intValue();
+        params.maxClusterPeaks = Settings::BoundaryExtractor_CudaMaxClusterPeaks.intValue();
+        params.cornerHistSigma = Settings::BoundaryExtractor_CudaCornerHistSigma.value();
+
+        m_frameGpu.parameters = params;
+        m_frameGpu.allocate();
+
+        m_init = true;
+    }
 }
 
 void FusedLineExtractor::computeGPU(cuda::FusedLineFrame& frame)
@@ -103,8 +146,15 @@ void FusedLineExtractor::computeGPU(cuda::FusedLineFrame& frame)
     //cv::imshow("showImage", showImg);
 }
 
-void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
+FLFrame FusedLineExtractor::compute(Frame& frame)
 {
+    init(frame);
+
+    FLFrame flFrame;
+    flFrame.setIndex(frame.deviceFrameIndex());
+    flFrame.setTimestamp(frame.timeStampColor());
+
+
     // 抽取edline直线
     TICK("edlines");
     cv::Mat grayImage;
@@ -127,53 +177,27 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
         m_groupPoints.insert(i, pcl::PointCloud<pcl::PointXYZI>::Ptr(new pcl::PointCloud<pcl::PointXYZI>));
     }
 
+    m_frameGpu.upload(frame.depthMat());
+
     // 用cuda抽取be点和折线点
-    frameGpu.parameters.cx = frame.getDevice()->cx();
-    frameGpu.parameters.cy = frame.getDevice()->cy();
-    frameGpu.parameters.fx = frame.getDevice()->fx();
-    frameGpu.parameters.fy = frame.getDevice()->fy();
-    frameGpu.parameters.minDepth = Settings::BoundaryExtractor_MinDepth.value();
-    frameGpu.parameters.maxDepth = Settings::BoundaryExtractor_MaxDepth.value();
-    frameGpu.parameters.borderLeft = Settings::BoundaryExtractor_BorderLeft.intValue();
-    frameGpu.parameters.borderRight = Settings::BoundaryExtractor_BorderRight.intValue();
-    frameGpu.parameters.borderTop = Settings::BoundaryExtractor_BorderTop.intValue();
-    frameGpu.parameters.borderBottom = Settings::BoundaryExtractor_BorderBottom.intValue();
-    frameGpu.parameters.depthShift = 1000;
-    frameGpu.parameters.normalKernalRadius = Settings::BoundaryExtractor_CudaNormalKernalRadius.intValue();
-    frameGpu.parameters.normalKnnRadius = Settings::BoundaryExtractor_CudaNormalKnnRadius.value();
-    frameGpu.parameters.boundaryEstimationRadius = Settings::BoundaryExtractor_CudaBEKernalRadius.intValue();
-    frameGpu.parameters.boundaryGaussianSigma = Settings::BoundaryExtractor_CudaGaussianSigma.value();
-    frameGpu.parameters.boundaryGaussianRadius = Settings::BoundaryExtractor_CudaGaussianKernalRadius.intValue();
-    frameGpu.parameters.boundaryEstimationDistance = Settings::BoundaryExtractor_CudaBEDistance.value();
-    frameGpu.parameters.boundaryAngleThreshold = Settings::BoundaryExtractor_CudaBEAngleThreshold.value();
-    frameGpu.parameters.classifyRadius = Settings::BoundaryExtractor_CudaClassifyKernalRadius.intValue();
-    frameGpu.parameters.classifyDistance = Settings::BoundaryExtractor_CudaClassifyDistance.value();
-    frameGpu.parameters.peakClusterTolerance = Settings::BoundaryExtractor_CudaPeakClusterTolerance.intValue();
-    frameGpu.parameters.minClusterPeaks = Settings::BoundaryExtractor_CudaMinClusterPeaks.intValue();
-    frameGpu.parameters.maxClusterPeaks = Settings::BoundaryExtractor_CudaMaxClusterPeaks.intValue();
-    frameGpu.parameters.cornerHistSigma = Settings::BoundaryExtractor_CudaCornerHistSigma.value();
-
-    cv::cuda::GpuMat boundaryMatGpu(frame.getDepthHeight(), frame.getDepthWidth(), CV_8U, frameGpu.boundaryImage);
-    cv::cuda::GpuMat pointsMatGpu(frame.getDepthHeight(), frame.getDepthWidth(), CV_32S, frameGpu.indicesImage);
-
     TICK("extracting_boundaries");
-    cuda::generatePointCloud(frameGpu);
+    cuda::generatePointCloud(m_frameGpu);
     TOCK("extracting_boundaries");
 
     TICK("boundaries_downloading");
-    boundaryMatGpu.download(m_boundaryMat);
-    pointsMatGpu.download(m_pointsMat);
+    m_frameGpu.boundaryMat.download(m_boundaryMat);
+    m_frameGpu.pointsMat.download(m_pointsMat);
     std::vector<float3> points;
-    frameGpu.pointCloud.download(points);
-    std::vector<float3> normals;
-    frameGpu.pointCloudNormals.download(normals);
+    m_frameGpu.pointCloud.download(points);
+    //std::vector<float3> normals;
+    //m_frameGpu.pointCloudNormals.download(normals);
     std::vector<uchar> boundaries;
-    frameGpu.boundaries.download(boundaries);
+    m_frameGpu.boundaries.download(boundaries);
 
     // 开始2d和3d的比对。
-    m_cloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
+    //m_cloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
     m_allBoundary.reset(new pcl::PointCloud<pcl::PointXYZI>);
-    m_normals.reset(new pcl::PointCloud<pcl::Normal>);
+    //m_normals.reset(new pcl::PointCloud<pcl::Normal>);
     int negativeNum = 0;
     for(int i = 0; i < frame.getDepthHeight(); i++) 
     {
@@ -184,21 +208,21 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
             float3 value = points[index];
             uchar pointType = boundaries[index];
             ushort lineNo = m_linesMat.ptr<ushort>(i)[j];
-            pcl::PointXYZ pt;
+            //pcl::PointXYZ pt;
             pcl::PointXYZI ptI;
             pcl::Normal normal;
 
-            pt.x = value.x;
-            pt.y = value.y;
-            pt.z = value.z;
+            //pt.x = value.x;
+            //pt.y = value.y;
+            //pt.z = value.z;
             ptI.x = value.x;
             ptI.y = value.y;
             ptI.z = value.z;
             ptI.intensity = lineNo;
 
-            normal.normal_x = normals[index].x;
-            normal.normal_y = normals[index].y;
-            normal.normal_z = normals[index].z;
+            //normal.normal_x = normals[index].x;
+            //normal.normal_y = normals[index].y;
+            //normal.normal_z = normals[index].z;
 
             int ptIndex = m_pointsMat.at<int>(coord);
             if (ptIndex < 0)
@@ -207,8 +231,8 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
             }
             else
             {
-                m_cloud->push_back(pt);
-                m_normals->push_back(normal);
+                //m_cloud->push_back(pt);
+                //m_normals->push_back(normal);
                 ptIndex -= negativeNum;
                 m_pointsMat.at<int>(coord) = ptIndex;
             }
@@ -254,18 +278,17 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
             }
         }
     }
-    m_cloud->width = m_cloud->points.size();
+    /*m_cloud->width = m_cloud->points.size();
     m_cloud->height = 1;
     m_cloud->is_dense = true;
     m_normals->width = m_normals->points.size();
     m_normals->height = 1;
-    m_normals->is_dense = true;
+    m_normals->is_dense = true;*/
     m_allBoundary->width = m_allBoundary->points.size();
     m_allBoundary->height = 1;
     m_allBoundary->is_dense = true;
 
-    //m_lines.clear();
-    m_linesCloud.reset(new pcl::PointCloud<LineSegment>);
+    //m_linesCloud.reset(new pcl::PointCloud<LineSegment>);
 
     for (int i = 0; i < linesCount; i++)
     {
@@ -426,16 +449,21 @@ void FusedLineExtractor::compute(Frame& frame, cuda::GpuFrame& frameGpu)
         line.setEnd2d(line2d.end);
         line.calculateColorAvg(frame.colorMat());
         line.drawColorLine(m_colorLinesMat);
-        line.generateDescriptor();
+        //line.reproject();
         //std::cout << line.shortDescriptorSize() << std::endl;
-        line.setIndex(m_linesCloud->points.size());
+        line.setIndex(flFrame.lines()->points.size());
         if (line.length() > 0.1f)
         {
             //m_lines.insert(i, line);
-            m_linesCloud->points.push_back(line);
+            flFrame.lines()->points.push_back(line);
         }
+        flFrame.lines()->width = flFrame.lines()->points.size();
+        flFrame.lines()->height = 1;
+        flFrame.lines()->is_dense = true;
     }
     
     qDebug() << "all boundary points:" << m_allBoundary->size();
     TOCK("boundaries_downloading");
+
+    return flFrame;
 }

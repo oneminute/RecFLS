@@ -102,9 +102,9 @@ void ToolWindowBoundaryExtractor::onActionComputeGPU()
         m_init = true;
     }
 
-    cv::cuda::GpuMat colorMatGpu(frame.getColorHeight(), frame.getColorWidth(), CV_8UC3, m_frameGpu.colorImage);
+    //cv::cuda::GpuMat colorMatGpu(frame.getColorHeight(), frame.getColorWidth(), CV_8UC3, m_frameGpu.colorImage);
     cv::cuda::GpuMat depthMatGpu(frame.getDepthHeight(), frame.getDepthWidth(), CV_16U, m_frameGpu.depthImage);
-    colorMatGpu.upload(frame.colorMat());
+    //colorMatGpu.upload(frame.colorMat());
     depthMatGpu.upload(frame.depthMat());
 
     m_frameGpu.parameters.debugX = m_ui->comboBoxDebugX->currentIndex();
@@ -265,7 +265,7 @@ void ToolWindowBoundaryExtractor::initDebugPixels(Frame& frame)
 
 void ToolWindowBoundaryExtractor::onActionLoadDataSet()
 {
-    m_device.reset(new SensorReaderDevice);
+    m_device.reset(Device::createDevice());
     if (!m_device->open())
     {
         qDebug() << "Open device failed.";

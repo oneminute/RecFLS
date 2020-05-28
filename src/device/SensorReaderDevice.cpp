@@ -161,6 +161,8 @@ Frame SensorReaderDevice::getFrame(int frameIndex)
     if (frameIndex >= 0 && frameIndex < m_frameCount)
     {
         frame = m_frames[frameIndex];
+        cv::Mat depthMat = frame.depthMat();
+        qDebug() << depthMat.type() << depthMat.at<ushort>(100, 100);
     }
     return frame;
 }
@@ -169,7 +171,7 @@ void SensorReaderDevice::fetchNext()
 {
     if (m_currentIndex < m_frameCount)
     {
-        emit frameFetched(m_frames[m_currentIndex++]);
+        emit frameFetched(getFrame(m_currentIndex++));
     }
     else
     {
