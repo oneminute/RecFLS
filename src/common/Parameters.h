@@ -194,6 +194,11 @@ public:
         QSpinBox* widget = new QSpinBox;
         
         widget->setValue(m_value);
+        QObject::connect(widget, QOverload<int>::of(&QSpinBox::valueChanged), [this](double value) -> void
+            {
+                this->setValue(value);
+            }
+        );
         return widget;
     }
 };
@@ -214,6 +219,11 @@ public:
     {
         QLineEdit* widget = new QLineEdit();
         widget->setText(m_value);
+        QObject::connect(widget, &QLineEdit::textChanged, [this](const QString& value) -> void
+            {
+                this->setValue(value);
+            }
+        );
         return widget;
     }
 };

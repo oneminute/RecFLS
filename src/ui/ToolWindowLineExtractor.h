@@ -38,7 +38,7 @@ private slots:
 
 private:
     QScopedPointer<Ui::ToolWindowLineExtractor> m_ui;
-    QScopedPointer<SensorReaderDevice> m_device;
+    QScopedPointer<Device> m_device;
     QScopedPointer<FusedLineExtractor> m_lineExtractor;
     QScopedPointer<BoundaryExtractor> m_boundaryExtractor;
 

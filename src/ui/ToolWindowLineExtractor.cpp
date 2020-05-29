@@ -241,7 +241,7 @@ void ToolWindowLineExtractor::onActionShowLineChain(bool checked)
 
 void ToolWindowLineExtractor::onActionLoadDataSet()
 {
-    m_device.reset(new SensorReaderDevice);
+    m_device.reset(Device::createDevice());
     if (!m_device->open())
     {
         qDebug() << "Open device failed.";

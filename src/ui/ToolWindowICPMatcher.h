@@ -12,7 +12,7 @@ namespace Ui {
 class ToolWindowICPMatcher;
 }
 
-class SensorReaderDevice;
+class Device;
 class ICPMatcher;
 
 class ToolWindowICPMatcher : public QMainWindow
@@ -47,7 +47,7 @@ private:
     QScopedPointer<Ui::ToolWindowICPMatcher> m_ui;
     pcl::search::KdTree<pcl::PointXYZI>::Ptr m_tree;
     CloudViewer* m_cloudViewer;
-    QScopedPointer<SensorReaderDevice> m_device;
+    QScopedPointer<Device> m_device;
     QScopedPointer<ICPMatcher> m_icp;
 
     bool m_isStepMode;
