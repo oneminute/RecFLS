@@ -19,6 +19,7 @@ Device::Device(QObject *parent)
     , m_colorSize(0, 0)
     , m_depthSize(0, 0)
     , m_depthShift(0)
+    , m_depthFactor(1.0f)
 {
 
 }
@@ -94,6 +95,11 @@ float Device::cy() const
 float Device::depthShift() const
 {
     return m_depthShift;
+}
+
+float Device::depthFactor() const
+{
+    return m_depthFactor;
 }
 
 Device* Device::createDevice()

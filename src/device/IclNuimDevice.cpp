@@ -77,6 +77,7 @@ bool IclNuimDevice::open()
     m_depthSize.setHeight(480);
     m_frameCount = m_frameIndices.size();
     m_depthShift = 1000;
+    m_depthFactor = 5.0f;
 
     qDebug() << "[SensorReaderDevice::open()]" << "color size = " << m_colorSize;
     qDebug() << "[SensorReaderDevice::open()]" << "depth size = " << m_depthSize;

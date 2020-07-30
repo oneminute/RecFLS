@@ -183,11 +183,4 @@ target_link_libraries(${PROJECT_NAME} Qt5::Widgets Qt5::Charts ${PCL_LIBRARIES} 
 
 # Install the executable
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
-# Use the Widgets module from Qt 5.
-target_link_libraries(${PROJECT_NAME} Qt5::Widgets Qt5::Charts ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${FLANN_LIBRARIES} 
-                                      ${VTK_LIBRARIES} ${CUDA_blas_LIBRARY} ${CUDA_CUDART_LIBRARY} ${CUDA_curand_LIBRARY}
-                                      ${G2O_LIBS})
 
-
-# Install the executable
-install(TARGETS ${PROJECT_NAME} DESTINATION bin)

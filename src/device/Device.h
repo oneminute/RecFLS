@@ -48,6 +48,8 @@ public:
 
     float depthShift() const;
 
+    float depthFactor() const;
+
     static Device* createDevice();
 
 signals:
@@ -68,6 +70,7 @@ protected:
     QSize m_colorSize;
     QSize m_depthSize;
     float m_depthShift;
+    float m_depthFactor;
 
     cv::Mat m_rectifyMap1;
     cv::Mat m_rectifyMap2;

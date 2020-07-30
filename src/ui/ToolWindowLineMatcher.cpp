@@ -9,6 +9,7 @@
 #include <pcl/visualization//impl/point_cloud_geometry_handlers.hpp>
 #include <pcl/kdtree/impl/kdtree_flann.hpp>
 #include <pcl/common/pca.h>
+#include <pcl/visualization/impl/point_cloud_geometry_handlers.hpp>
 
 #include "common/Parameters.h"
 #include "util/Utils.h"
@@ -194,7 +195,7 @@ void ToolWindowLineMatcher::initCompute()
         qDebug().noquote() << i.value() << "-->" << i.key() << ":" << m_weights[i.key()];
     }
 
-    // ÏÔÊ¾µãÔÆ
+    // ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½
    {
         pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZINormal> behSrc(m_beCloudSrc, "intensity");
         m_cloudViewer2->visualizer()->addPointCloud(m_beCloudSrc, behSrc, "cloud_src");

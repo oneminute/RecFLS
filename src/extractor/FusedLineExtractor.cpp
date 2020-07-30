@@ -116,7 +116,7 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 	flFrame.setIndex(frame.deviceFrameIndex());
 	flFrame.setTimestamp(frame.timeStampColor());
 
-	// ³éÈ¡edlineÖ±Ïß
+	// ï¿½ï¿½È¡edlineÖ±ï¿½ï¿½
 	cv::Mat grayImage;
 	cv::cvtColor(frame.colorMat(), grayImage, cv::COLOR_RGB2GRAY);
 	EDLines lineHandler = EDLines(grayImage, SOBEL_OPERATOR);
@@ -129,7 +129,7 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 	int linesCount = lineHandler.getLinesNo();
 	std::vector<LS> lines = lineHandler.getLines();
 	
-	// ³éÈ¡³öµÄÖ±Ïß¼¯ºÏ·ÅÔÚÕâ¶ù
+	// ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½Ö±ï¿½ß¼ï¿½ï¿½Ï·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	m_groupPoints.clear();
 	for (int i = 0; i < linesCount; i++)
 	{
@@ -138,7 +138,7 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 
 	m_frameGpu.upload(frame.depthMat());
 
-	// ÓÃcuda³éÈ¡beµãºÍÕÛÏßµã
+	// ï¿½ï¿½cudaï¿½ï¿½È¡beï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ßµï¿½
 	cuda::generatePointCloud(m_frameGpu);
 
 	m_frameGpu.boundaryMat.download(m_boundaryMat);
@@ -154,7 +154,7 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 	m_frameGpu.indicesImage.download(indicesImage, cols);
 	std::cout << "indices image cols: " << cols << std::endl;
 
-	// ¿ªÊ¼2dºÍ3dµÄ±È¶Ô¡£
+	// ï¿½ï¿½Ê¼2dï¿½ï¿½3dï¿½Ä±È¶Ô¡ï¿½
 	m_cloud.reset(new pcl::PointCloud<pcl::PointXYZINormal>);
 	m_allBoundary.reset(new pcl::PointCloud<pcl::PointXYZINormal>);
 	//m_normals.reset(new pcl::PointCloud<pcl::Normal>);
@@ -234,7 +234,7 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 		}
 		gCenter /= m_groupPoints[i]->points.size();
 
-		// ÒòÎªÍ¬Ò»Ö±Ïß±àºÅµÄµã¼¯ÖÐ¿ÉÄÜ¼ÈÓÐÕæµãÒ²ÓÐveilµã£¬ËùÒÔÏÈ×öÇøÓò·Ö¸î¡£
+		// ï¿½ï¿½ÎªÍ¬Ò»Ö±ï¿½ß±ï¿½ÅµÄµã¼¯ï¿½Ð¿ï¿½ï¿½Ü¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò²ï¿½ï¿½veilï¿½ã£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¸î¡£
 		pcl::IndicesClusters clusters;
 		pcl::EuclideanClusterExtraction<pcl::PointXYZINormal> ece;
 		ece.setClusterTolerance(0.05f);
@@ -247,7 +247,7 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 
 		int maxSize = 0;
 		int maxIndex = 0;
-		// ·Ö¸îºó£¬ÕÒ³öµãÊý×î¶àµÄ×ÓÇøÓò×÷Îª³õÊ¼ÄÚµã¼¯ºÏ¡£¼´cloud¡£
+		// ï¿½Ö¸ï¿½ï¿½ï¿½Ò³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½Ê¼ï¿½Úµã¼¯ï¿½Ï¡ï¿½ï¿½ï¿½cloudï¿½ï¿½
 		for (int j = 0; j < clusters.size(); j++)
 		{
 			Eigen::Vector3f clusterCenter(Eigen::Vector3f::Zero());
@@ -281,7 +281,7 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 		pcl::copyPointCloud(*m_groupPoints[i], clusters[maxIndex].indices, *cloud);
 		//pcl::copyPointCloud(*m_groupPoints[i], *cloud);
 
-		// ¼ÆËãÕâ¸ö³õÊ¼ÄÚµã¼¯ºÏµÄÖ÷·½ÏòºÍÖÐµã¡£
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¼ï¿½Úµã¼¯ï¿½Ïµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ðµã¡£
 		pcl::PCA<pcl::PointXYZINormal> pca;
 		pca.setInputCloud(cloud);
 		Eigen::Vector3f eigenValues = pca.getEigenValues();
@@ -295,12 +295,12 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 		//std::cout << "  " << m_groupPoints[i]->size() << ", cluster: " << clusters.size() << ", a1 = " << a1 << ", a2 = " << a2 << ", a3 = " << a3 << std::endl;
 		//std::cout << "  init inliers size: " << cloud->size() << std::endl;
 
-		// Ö÷·½Ïò
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		Eigen::Vector3f dir = pca.getEigenVectors().col(0).normalized();
-		// ÖÐµã
+		// ï¿½Ðµï¿½
 		Eigen::Vector3f center = pca.getMean().head(3);
 
-		// È»ºó£¬±éÀúÊ£ÓàµÄ×ÓÇøÓòµã¼¯£¬²é¿´Ã¿Ò»¸öµãµ½ÕâÌõÖ±ÏßµÄ¾àÀëÊÇ·ñÔÚãÐÖµÒÔÄÚ£¬ÔÚ¾Í¼Óµ½ÄÚµã¼¯ÖÐ£¬²»ÔÚ¾ÍÅ×Æú¡£
+		// È»ï¿½ó£¬±ï¿½ï¿½ï¿½Ê£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ã¼¯ï¿½ï¿½ï¿½é¿´Ã¿Ò»ï¿½ï¿½ï¿½ãµ½ï¿½ï¿½ï¿½ï¿½Ö±ï¿½ßµÄ¾ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½Öµï¿½ï¿½ï¿½Ú£ï¿½ï¿½Ú¾Í¼Óµï¿½ï¿½Úµã¼¯ï¿½Ð£ï¿½ï¿½ï¿½ï¿½Ú¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		for (int j = 0; j < clusters.size(); j++)
 		{
 			if (j == maxIndex)
@@ -312,7 +312,7 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 				pcl::PointXYZINormal pclPt = m_groupPoints[i]->points[nIndex];
 				Eigen::Vector3f pt = pclPt.getArray3fMap();
 				float dist = (pt - center).cross(dir).norm();
-				// ÔÝÊ±Ó²±àÂëµÄãÐÖµ¡£
+				// ï¿½ï¿½Ê±Ó²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµï¿½ï¿½
 				if (dist <= 0.05f)
 				{
 					cloud->points.push_back(pclPt);
@@ -322,7 +322,7 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 		if (cloud->size() < 10)
 			continue;
 
-		// ×îºóÔÙ¼ÆËãÒ»±éÄÚµã¼¯µÄÖ÷·½ÏòÓëÖÐµã¡£
+		// ï¿½ï¿½ï¿½ï¿½Ù¼ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Úµã¼¯ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ðµã¡£
 		//std::cout << "    final: " << cloud->size() << ", max size: " << maxSize << ", max index: " << maxIndex << std::endl;
 		//std::cout << "    final: " << cloud->size() << std::endl;
 		pcl::PCA<pcl::PointXYZINormal> pcaFinal;
@@ -334,7 +334,7 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 		//Eigen::Vector3f dir = pcaFinal.getEigenVectors().col(0).normalized();
 		//Eigen::Vector3f center = pcaFinal.getMean().head(3);
 
-		// È·¶¨¶Ëµã¡£
+		// È·ï¿½ï¿½ï¿½Ëµã¡£
 		Eigen::Vector3f start(0, 0, 0);
 		Eigen::Vector3f end(0, 0, 0);
 		Eigen::Vector3f avgNormal(0, 0, 0);
@@ -347,12 +347,12 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 
 			if (start.isZero())
 			{
-				// Èç¹ûµÚÒ»´ÎÑ­»·£¬ÈÃµ±Ç°µã×÷ÎªÆðµã
+				// ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½Ñ­ï¿½ï¿½ï¿½ï¿½ï¿½Ãµï¿½Ç°ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½
 				start = projPoint;
 			}
 			else
 			{
-				// ½«µ±Ç°µãÓëµ±Ç°¼ÆËã³öµÄÁÙÊ±ÆðµãÁ¬ÔÚÒ»Æð£¬²é¿´ÆäÓëµ±Ç°¾Û¼¯Ö÷·½ÏòµÄÒ»ÖÂÐÔ£¬ÈôÒ»ÖÂÔòµ±Ç°µãÎªÐÂµÄÆðµã¡£
+				// ï¿½ï¿½ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ëµ±Ç°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ð£¬²é¿´ï¿½ï¿½ï¿½ëµ±Ç°ï¿½Û¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ô£ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½Ç°ï¿½ï¿½Îªï¿½Âµï¿½ï¿½ï¿½ã¡£
 				if ((start - projPoint).dot(dir) > 0)
 				{
 					start = projPoint;
@@ -361,12 +361,12 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 
 			if (end.isZero())
 			{
-				// Èç¹ûµÚÒ»´ÎÑ­»·£¬ÈÃµ±Ç°µã×÷ÎªÖÕµã
+				// ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½Ñ­ï¿½ï¿½ï¿½ï¿½ï¿½Ãµï¿½Ç°ï¿½ï¿½ï¿½ï¿½Îªï¿½Õµï¿½
 				end = projPoint;
 			}
 			else
 			{
-				// ½«µ±Ç°µãÓëµ±Ç°¼ÆËã³öµÄÁÙÊ±ÖÕµãÁ¬ÔÚÒ»Æð£¬²é¿´ÆäÓëµ±Ç°¾Û¼¯Ö÷·½ÏòµÄÒ»ÖÂÐÔ£¬ÈôÒ»ÖÂÔòµ±Ç°µãÎªÐÂµÄÖÕµã¡£
+				// ï¿½ï¿½ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ëµ±Ç°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½Õµï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ð£¬²é¿´ï¿½ï¿½ï¿½ëµ±Ç°ï¿½Û¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ô£ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½Ç°ï¿½ï¿½Îªï¿½Âµï¿½ï¿½Õµã¡£
 				if ((projPoint - end).dot(dir) > 0)
 				{
 					end = projPoint;
@@ -554,7 +554,7 @@ void FusedLineExtractor::generateVoxelsDescriptors(Frame& frame, pcl::PointCloud
 
 	pcl::octree::OctreePointCloud<pcl::PointXYZ>::LeafNodeIterator it(&octree);
 
-	// ÔÚÔ­µã´¦Éú³ÉÒ»¸öÔ²£¬°ë¾¶Îªradius¡£
+	// ï¿½ï¿½Ô­ï¿½ã´¦ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½Ô²ï¿½ï¿½ï¿½ë¾¶Îªradiusï¿½ï¿½
 	int voxelRadius = qFloor(radius / m_resolution);
 	std::vector<std::vector<Eigen::Vector3f>> baseCircles(radiusSegments);
 	for (int i = 0; i < radiusSegments; i++)
