@@ -19,7 +19,7 @@
 #include "cuda/cuda.hpp"
 
 
-ToolWindowFusedLineExtractor::ToolWindowFusedLineExtractor(QWidget *parent) 
+ToolWindowFusedLineExtractor::ToolWindowFusedLineExtractor(QWidget *parent)
     : QMainWindow(parent)
     , m_ui(new Ui::ToolWindowFusedLineExtractor)
     , m_isInit(false)
@@ -29,9 +29,13 @@ ToolWindowFusedLineExtractor::ToolWindowFusedLineExtractor(QWidget *parent)
 
     m_cloudViewer = new CloudViewer;
 
+	m_cloudViewer->visualizer()->setBackgroundColor(255, 255, 255);
     m_cloudViewer->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, -1, 0);
 
     m_ui->horizontalLayoutCenter->addWidget(m_cloudViewer);
+
+	m_ui->widgetImageAnchor->setBackgroundColor(QColor(255, 255, 255));
+	
 
     connect(m_ui->actionLoad_Data_Set, &QAction::triggered, this, &ToolWindowFusedLineExtractor::onActionLoadDataSet);
     connect(m_ui->actionCompute, &QAction::triggered, this, &ToolWindowFusedLineExtractor::onActionCompute);
@@ -68,24 +72,24 @@ void ToolWindowFusedLineExtractor::compute()
 
     //m_extractor->computeGPU(m_frameGpu);
     m_flFrame = m_extractor->compute(m_frame);
-    pcl::PointCloud<pcl::PointXYZI>::Ptr beCloud = m_extractor->allBoundary();
-    pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> beh(beCloud, "intensity");
+    pcl::PointCloud<pcl::PointXYZINormal>::Ptr beCloud = m_extractor->allBoundary();
+    pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZINormal> beh(beCloud, "intensity");
     m_cloudViewer->visualizer()->addPointCloud(beCloud, beh, "cloud_src");
 
-    QMap<int, pcl::PointCloud<pcl::PointXYZI>::Ptr>& groupPoints = m_extractor->groupPoints();
+    QMap<int, pcl::PointCloud<pcl::PointXYZINormal>::Ptr>& groupPoints = m_extractor->groupPoints();
     m_ui->comboBoxGroupPoints->clear();
-    for (QMap<int, pcl::PointCloud<pcl::PointXYZI>::Ptr>::iterator i = groupPoints.begin(); i != groupPoints.end(); i++)
+    for (QMap<int, pcl::PointCloud<pcl::PointXYZINormal>::Ptr>::iterator i = groupPoints.begin(); i != groupPoints.end(); i++)
     {
         int index = i.key();
-        pcl::PointCloud<pcl::PointXYZI>::Ptr cloud = i.value();
+        pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud = i.value();
 
         if (cloud->size() < 10)
             continue;
 
         m_ui->comboBoxGroupPoints->addItem(QString("%1 %2").arg(index).arg(cloud->size()), index);
     }
-    m_ui->widgetImageAnchor->setImage(cvMat2QImage(m_extractor->colorLinesMat()));
-    m_ui->widgetImageAngle->setImage(cvMat2QImage(m_extractor->linesMat()));
+	m_ui->widgetImageAnchor->setImage(cvMat2QImage(m_extractor->colorLinesMat()));
+	m_ui->widgetImageAngle->setImage(cvMat2QImage(m_extractor->linesMat()));
     
     /*cv::Mat grayImage;
     m_frameGpu.grayMatGpu.download(grayImage);
@@ -146,7 +150,7 @@ void ToolWindowFusedLineExtractor::onActionCompute()
 void ToolWindowFusedLineExtractor::onActionShowPoints()
 {
     int cloudIndex = m_ui->comboBoxGroupPoints->currentData().toInt();
-    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud = m_extractor->groupPoints()[cloudIndex];
+    pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud = m_extractor->groupPoints()[cloudIndex];
 
     QString cloudName = QString("cloud_%1").arg(cloudIndex);
     m_cloudViewer->visualizer()->removeAllPointClouds();
@@ -154,11 +158,11 @@ void ToolWindowFusedLineExtractor::onActionShowPoints()
 
     if (m_ui->checkBoxShowPoints->isChecked())
     {
-        pcl::PointCloud<pcl::PointXYZI>::Ptr beCloud = m_extractor->allBoundary();
-        pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> h1(beCloud, "intensity");
+        pcl::PointCloud<pcl::PointXYZINormal>::Ptr beCloud = m_extractor->allBoundary();
+        pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZINormal> h1(beCloud, "intensity");
         m_cloudViewer->visualizer()->addPointCloud(beCloud, h1, "cloud_src");
 
-        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> h2(cloud, 255, 0, 0);
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZINormal> h2(cloud, 255, 0, 0);
         m_cloudViewer->visualizer()->addPointCloud(cloud, h2, cloudName.toStdString());
         m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, cloudName.toStdString());
     }
@@ -176,8 +180,9 @@ void ToolWindowFusedLineExtractor::onActionShowPoints()
         start.getVector3fMap() = line.start();
         end.getVector3fMap() = line.end();
         middle.getVector3fMap() = line.middle();
-        m_cloudViewer->visualizer()->addLine(start, end, i, 255, 255, lineNo.toStdString());
+        m_cloudViewer->visualizer()->addLine(start, end, 0, 0, 0, lineNo.toStdString());
         m_cloudViewer->visualizer()->addText3D(textNo.toStdString(), middle, 0.01, 1.0, 0.0, 0.0, textNo.toStdString());
+		m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo.toStdString());
     }
 }
 

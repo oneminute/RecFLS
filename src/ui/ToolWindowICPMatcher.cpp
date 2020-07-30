@@ -83,14 +83,14 @@ void ToolWindowICPMatcher::initCompute()
         parameters.minDepth = Settings::BoundaryExtractor_MinDepth.value();
         parameters.maxDepth = Settings::BoundaryExtractor_MaxDepth.value();
         parameters.depthShift = m_device->depthShift();
-        parameters.normalKernalRadius = Settings::ICPMatcher_CudaNormalKernalRadius.intValue();
-        parameters.normalKnnRadius = Settings::ICPMatcher_CudaNormalKnnRadius.value();
+        //parameters.normalKernalRadius = Settings::ICPMatcher_CudaNormalKernalRadius.intValue();
+        //parameters.normalKnnRadius = Settings::ICPMatcher_CudaNormalKnnRadius.value();
         parameters.depthWidth = frameSrc.getDepthWidth();
         parameters.depthHeight = frameSrc.getDepthHeight();
-        parameters.icpAnglesThreshold = Settings::ICPMatcher_AnglesThreshold.value();
-        parameters.icpDistThreshold = Settings::ICPMatcher_DistanceThreshold.value();
-        parameters.icpKernalRadius = Settings::ICPMatcher_IcpKernelRadius.intValue();
-        parameters.blockSize = Settings::ICPMatcher_CudaBlockSize.intValue();
+        //parameters.icpAnglesThreshold = Settings::ICPMatcher_AnglesThreshold.value();
+        //parameters.icpDistThreshold = Settings::ICPMatcher_DistanceThreshold.value();
+        //parameters.icpKernalRadius = Settings::ICPMatcher_IcpKernelRadius.intValue();
+        //parameters.blockSize = Settings::ICPMatcher_CudaBlockSize.intValue();
 
         m_frameSrc.parameters = parameters;
         m_frameDst.parameters = parameters;
@@ -301,7 +301,7 @@ void ToolWindowICPMatcher::onActionComputeGPU()
 
     float error = 0;
     m_pose = m_icp->compute(m_cache, m_rotation, m_translation, error);
-    m_iteration = Settings::ICPMatcher_MaxIterations.intValue();
+    //m_iteration = Settings::ICPMatcher_MaxIterations.intValue();
 
     showMatchedClouds();
     updateWidgets();

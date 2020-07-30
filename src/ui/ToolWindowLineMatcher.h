@@ -52,7 +52,7 @@ private:
     CloudViewer* m_cloudViewer2;
     CloudViewer* m_cloudViewer3;
     QScopedPointer<Device> m_device;
-    QScopedPointer<BoundaryExtractor> m_boundaryExtractor;
+    //QScopedPointer<BoundaryExtractor> m_boundaryExtractor;
     QScopedPointer<FusedLineExtractor> m_lineExtractor;
     QScopedPointer<LineMatcher> m_lineMatcher;
 
@@ -84,10 +84,10 @@ private:
 
     //QMap<int, LineSegment> m_linesSrc;
     //QMap<int, LineSegment> m_linesDst;
-    pcl::PointCloud<pcl::PointXYZI>::Ptr m_beCloudSrc;
-    pcl::PointCloud<pcl::PointXYZI>::Ptr m_beCloudDst;
-    QMap<int, pcl::PointCloud<pcl::PointXYZI>::Ptr> m_groupPointsSrc;
-    QMap<int, pcl::PointCloud<pcl::PointXYZI>::Ptr> m_groupPointsDst;
+    pcl::PointCloud<pcl::PointXYZINormal>::Ptr m_beCloudSrc;
+	pcl::PointCloud<pcl::PointXYZINormal>::Ptr m_beCloudDst;
+    QMap<int, pcl::PointCloud<pcl::PointXYZINormal>::Ptr> m_groupPointsSrc;
+    QMap<int, pcl::PointCloud<pcl::PointXYZINormal>::Ptr> m_groupPointsDst;
 
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW

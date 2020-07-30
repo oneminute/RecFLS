@@ -607,6 +607,7 @@ namespace cuda
         cudaMemset(frame.indicesImage.ptr(), -1, size * sizeof(int));
         cudaMemset(frame.boundaries.ptr(), 0, size * sizeof(uchar));
         cudaMemset(frame.boundaryImage.ptr(), 0, size * sizeof(uchar));
+		cudaMemset(frame.pointsMat.ptr(), 0, size * sizeof(int));
         safeCall(cudaDeviceSynchronize());
 
         ExtractPointCloud epc;
@@ -620,6 +621,7 @@ namespace cuda
         epc.boundaries = frame.boundaries;
         epc.boundaryImage = frame.boundaryImage;
         epc.neighbours = frame.neighbours;
+		
 
         TICK("cuda_extractPointCloud");
         extractPointCloud<<<grid, block>>>(epc);

@@ -15,9 +15,9 @@ ICPMatcher::ICPMatcher(QObject* parent)
 
 Eigen::Matrix4f ICPMatcher::compute(cuda::IcpCache& cache, const Eigen::Matrix3f& initRot, const Eigen::Vector3f& initTrans, float& error)
 {
-    int maxIterations = Settings::ICPMatcher_MaxIterations.intValue();
+    //int maxIterations = Settings::ICPMatcher_MaxIterations.intValue();
     Eigen::Matrix4f pose(Eigen::Matrix4f::Identity());
-    pose.topLeftCorner(3, 3) = initRot;
+    /*pose.topLeftCorner(3, 3) = initRot;
     pose.topRightCorner(3, 1) = initTrans;
     for (int i = 0; i < maxIterations; i++)
     {
@@ -25,7 +25,7 @@ Eigen::Matrix4f ICPMatcher::compute(cuda::IcpCache& cache, const Eigen::Matrix3f
         Eigen::Vector3f trans = pose.topRightCorner(3, 1);
         Eigen::Matrix4f poseDelta = stepGPU(cache, rot, trans, error);
         pose = poseDelta * pose;
-    }
+    }*/
     return pose;
 }
 

@@ -10,7 +10,7 @@
 class ToolWindowBoundaryExtractor;
 class ToolWindowLineExtractor;
 class ToolWindowLineMatcher;
-class ToolWindowICPMatcher;
+
 class ToolWindowFusedLineExtractor;
 class PreferencesWindow;
 
@@ -40,7 +40,7 @@ private:
     void onActionToolWindowLineExtractor();
     void onActionToolWindowLineMatcher();
     void onActionToolWindowBoundaryExtractor();
-    void onActionToolWindowICPMatcher();
+    
     void onActionToolWindowFusedLineExtractor();
     void onActionSaveCurrentFrame();
     void onActionPreferences();
@@ -52,7 +52,7 @@ private:
     QScopedPointer<ToolWindowLineExtractor> m_toolWindowLineExtractor;
     QScopedPointer<ToolWindowLineMatcher> m_toolWindowLineMatcher;
     QScopedPointer<ToolWindowBoundaryExtractor> m_toolWindowBoundaryExtractor;
-    QScopedPointer<ToolWindowICPMatcher> m_toolWindowICPMatcher;
+    
     QScopedPointer<ToolWindowFusedLineExtractor> m_fusedLineExtractor;
     QScopedPointer<PreferencesWindow> m_preferencesWindow;
 

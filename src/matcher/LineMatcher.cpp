@@ -118,7 +118,7 @@ void LineMatcher::match(
         avgDist += dist;
         sqrDist += dist * dist;
 
-        //qDebug().noquote() << i.value() << "-->" << i.key() << ":" << radians << dist;
+        qDebug().noquote() << i.value() << "-->" << i.key() << ":" << radians << dist;
     }
     // Çó¾ùÖµ
     avgRadians /= pairs.size();
@@ -241,17 +241,29 @@ Eigen::Matrix3f LineMatcher::stepRotation(
     , QMap<int, float>& weights
 )
 {
-    Eigen::Vector3f srcAvgDir(Eigen::Vector3f::Zero());
-    Eigen::Vector3f dstAvgDir(Eigen::Vector3f::Zero());
+    Eigen::Vector3f srcAvgDir1(Eigen::Vector3f::Zero());
+    Eigen::Vector3f dstAvgDir1(Eigen::Vector3f::Zero());
+	Eigen::Vector3f srcAvgDir(Eigen::Vector3f::Zero());
+	Eigen::Vector3f dstAvgDir(Eigen::Vector3f::Zero());
     for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
     {
         LineSegment dstLine = dstLines->points[i.key()];
         LineSegment srcLine = srcLines->points[i.value()];
-        dstAvgDir += dstLine.normalizedDir() * weights[i.key()];
-        srcAvgDir += initRot * srcLine.normalizedDir() * weights[i.key()];
+        dstAvgDir += dstLine.normalizedDir();
+		dstAvgDir /= pairs.size();
+		/*dstAvgDir1 = dstLine.normalizedDir()*weights[i.key()];
+		dstAvgDir += dstAvgDir1;*/
+		
+
+        srcAvgDir += initRot * srcLine.normalizedDir()  ;
+		srcAvgDir /= pairs.size();
+		/*srcAvgDir1 = initRot * srcLine.normalizedDir()*weights[i.key()];
+		srcAvgDir += srcAvgDir1;
+		*/
     }
 
-    Eigen::Matrix3f cov(Eigen::Matrix3f::Zero());
+  
+	Eigen::Matrix3f cov(Eigen::Matrix3f::Zero());
     for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
     {
         LineSegment dstLine = dstLines->points[i.key()];
@@ -259,7 +271,13 @@ Eigen::Matrix3f LineMatcher::stepRotation(
 
         Eigen::Vector3f dstDiff = dstLine.normalizedDir() - dstAvgDir;
         Eigen::Vector3f srcDiff = initRot * srcLine.normalizedDir() - srcAvgDir;
-        cov += srcDiff * dstDiff.transpose() * weights[i.key()];
+        cov += srcDiff * dstDiff.transpose();
+		cov /= pairs.size();
+		
+		
+		
+		
+
     }
 
     Eigen::JacobiSVD<Eigen::MatrixXf> svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
@@ -297,18 +315,23 @@ Eigen::Vector3f LineMatcher::stepTranslation(
 {
     Eigen::Vector3f trans(Eigen::Vector3f::Zero());
 
-    Eigen::Matrix3f A(Eigen::Matrix3f::Zero());
-    Eigen::Vector3f b(Eigen::Vector3f::Zero());
+	Eigen::Matrix3f A1(Eigen::Matrix3f::Zero());
+	Eigen::Matrix3f A(Eigen::Matrix3f::Zero());
+    Eigen::Vector3f b1(Eigen::Vector3f::Zero());
+	Eigen::Vector3f b(Eigen::Vector3f::Zero());
     Eigen::Vector3f avgV(Eigen::Vector3f::Zero());
     for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
     {
         LineSegment dstLine = dstLines->points[i.key()];
         LineSegment srcLine = srcLines->points[i.value()];
         Eigen::Vector3f dstLineDir = dstLine.normalizedDir();
-        Eigen::Vector3f srcLineDir = rot * initRot * srcLine.normalizedDir();
+		Eigen::Vector3f srcLineDir = rot * initRot * srcLine.normalizedDir();
+		
 
-        //Eigen::Vector3f lineDir = (dstLineDir + initRot * srcLineDir) / 2;
-        Eigen::Vector3f lineDir = dstLineDir;
+		//Eigen::Vector3f lineDir = (dstLineDir + initRot * srcLineDir) / 2;
+		
+		Eigen::Vector3f lineDir = srcLineDir;
+		
 
         float a2 = lineDir.x() * lineDir.x();
         float b2 = lineDir.y() * lineDir.y();
@@ -316,29 +339,47 @@ Eigen::Vector3f LineMatcher::stepTranslation(
         float ab = lineDir.x() * lineDir.y();
         float ac = lineDir.x() * lineDir.z();
         float bc = lineDir.y() * lineDir.z();
+	   /* float a1 = lineDir.x();
+		float a2 = lineDir.y();
+		float a3 = lineDir.z();*/
         Eigen::Vector3f v = dstLine.middle() - rot * (initRot * srcLine.middle() + initTrans);
-        avgV += v * weights[i.key()];
+		//avgV += v * weights[i.key()];
         //float xv = v.x();
         //float yv = v.y();
         //float zv = v.z();
-
+		
         Eigen::Matrix3f deltaA;
         deltaA << b2 + c2,     -ab,     -ac,
                       -ab, a2 + c2,     -bc,
                       -ac,     -bc, a2 + b2;
+		/*deltaA << 0, -a3, a2,
+			      a3, 0, -a1,
+			     -a2, a1, 0;*/
 
         //A.row(0)[0] += b2 + c2; A.row(0)[1] +=     -ab; A.row(0)[2] +=     -ac;
         //A.row(1)[0] +=     -ab; A.row(1)[1] += a2 + c2; A.row(1)[2] +=     -bc;
         //A.row(2)[0] +=     -ac; A.row(2)[1] +=     -bc; A.row(2)[2] += a2 + b2;
-        A += deltaA * weights[i.key()];
-
+      
+		b += deltaA * v;
+	    b /= pairs.size();
+		A = deltaA ;
+		A /= pairs.size();
+		
+        
         //b.x() += (b2 + c2) * xv         -ab * yv         -ac * zv;
         //b.y() +=       -ab * xv + (a2 + c2) * yv         -bc * zv;
         //b.z() +=       -ac * xv         -bc * yv + (a2 + b2) * zv;
-        b += deltaA * v * weights[i.key()];
+        /*b1 = deltaA1 * v* weights[i.key()];
+		b += b1;
+		A1= deltaA1* weights[i.key()] ;
+		A += A1;*/
+		
+		
     }
-    trans = A.colPivHouseholderQr().solve(b);
-    //trans = A.inverse() * b;
+	trans = A.colPivHouseholderQr().solve(b);
+	
+
+	
     //avgV /= pairs.size();
     //std::cout << " avgV: " << avgV.transpose() << std::endl;
     //std::cout << "trans: " << trans.transpose() << std::endl;
@@ -375,84 +416,5 @@ float LineMatcher::computeError(
     return error;
 }
 
-Eigen::Vector3f LineMatcher::stepTranslation2(pcl::PointCloud<LineSegment>::Ptr srcLines, pcl::PointCloud<LineSegment>::Ptr dstLines, pcl::KdTreeFLANN<LineSegment>::Ptr tree, QMap<int, int>& pairs, const Eigen::Matrix3f& initRot, const Eigen::Vector3f& initTrans, const Eigen::Matrix3f& rot)
-{
-    Eigen::Vector3f trans(Eigen::Vector3f::Zero());
-    QMap<int, int> chains;
-    extractLineChains(srcLines, dstLines, pairs, chains);
-    for (QMap<int, int>::iterator i = chains.begin(); i != chains.end(); i++)
-    {
-        LineSegment dstLine1 = dstLines->points[i.key()];
-        LineSegment dstLine2 = dstLines->points[i.value()];
-        LineSegment srcLine1 = srcLines->points[pairs[i.key()]];
-        LineSegment srcLine2 = srcLines->points[pairs[i.value()]];
 
-        Eigen::Vector3f dstLineDir1 = dstLine1.direction().normalized();
-        Eigen::Vector3f dstLineDir2 = dstLine2.direction().normalized();
-        Eigen::Vector3f srcLineDir1 = srcLine1.direction().normalized();
-        Eigen::Vector3f srcLineDir2 = srcLine2.direction().normalized();
-
-        Eigen::Vector3f srcPoint1 = rot * (initRot * srcLine1.middle() + initTrans);
-        Eigen::Vector3f dstPoint1 = dstLine1.middle();
-        Eigen::Vector3f v1 = srcLineDir1.cross((dstPoint1 - srcPoint1).cross(srcLineDir1)).normalized();
-        v1 = v1 * (dstPoint1 - srcPoint1).dot(v1);
-
-        Eigen::Vector3f srcPoint2 = rot * (initRot * srcLine2.middle() + initTrans) + v1;
-        Eigen::Vector3f dstPoint2 = dstLine2.middle();
-        Eigen::Vector3f v2_ = srcLineDir1.cross((dstPoint2 - srcPoint2).cross(srcLineDir2)).normalized();
-        float cosValue = v2_.dot(dstLineDir2);
-        float v2_length = (dstPoint2 - srcPoint2).dot(v2_);
-        v2_ = v2_ * v2_length;
-        float v2Length = v2_length / cosValue;
-        Eigen::Vector3f v2 = dstLineDir2 * v2Length;
-        
-        trans += v1 + v2;
-    }
-    trans /= chains.size();
-
-    //std::cout << "trans: " << trans.transpose() << std::endl;
-
-    float error = 0;
-    for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
-    {
-        LineSegment dstLine = dstLines->points[i.key()];
-        LineSegment srcLine = srcLines->points[i.value()];
-        Eigen::Vector3f dstLineDir = dstLine.direction().normalized();
-        Eigen::Vector3f srcLineDir = initRot * srcLine.direction().normalized();
-
-        Eigen::Vector3f vertLine = srcLineDir.cross(dstLineDir).normalized();
-        float distance = (dstLine.middle() - (initRot * srcLine.middle() + initTrans + trans)).dot(vertLine);
-        //std::cout << i.value() << " --> " << i.key() << ": " << distance << std::endl;
-        error += distance;
-    }
-    error /= pairs.size();
-
-    //std::cout << "error: " << error << std::endl;
-    return trans;
-}
-
-void LineMatcher::extractLineChains(pcl::PointCloud<LineSegment>::Ptr srcLines, pcl::PointCloud<LineSegment>::Ptr dstLines, QMap<int, int>& pairs, QMap<int, int>& chains)
-{
-    chains.clear();
-    for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
-    {
-        LineSegment dstLine1 = dstLines->points[i.key()];
-        for (QMap<int, int>::iterator j = i; j != pairs.end(); j++)
-        {
-            if (j == i)
-            {
-                continue;
-            }
-
-            LineSegment dstLine2 = dstLines->points[j.key()];
-
-            float radians = acosf(abs(dstLine1.direction().normalized().dot(dstLine2.direction().normalized())));
-            if (radians >= M_PI_4)
-            {
-                chains.insert(dstLine1.index(), dstLine2.index());
-                //std::cout << "[" << dstLine1.index() << ", " << dstLine2.index() << "]: " << qRadiansToDegrees(radians) << std::endl;
-            }
-        }
-    }
-}
 

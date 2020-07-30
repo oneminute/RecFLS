@@ -17,108 +17,118 @@ class LineSegmentData;
 
 class LineSegment : public QObject
 {
-    Q_OBJECT
+	Q_OBJECT
 public:
-    explicit LineSegment(const Eigen::Vector3f &start = Eigen::Vector3f(0, 0, 0),
-                         const Eigen::Vector3f &end = Eigen::Vector3f(0, 0, 0),
-                         int segmentNo = -1, QObject *parent = nullptr);
-    LineSegment(const LineSegment &);
-    LineSegment &operator=(const LineSegment &);
-    ~LineSegment();
+	explicit LineSegment(const Eigen::Vector3f &start = Eigen::Vector3f(0, 0, 0),
+		const Eigen::Vector3f &end = Eigen::Vector3f(0, 0, 0),
+		int segmentNo = -1, QObject *parent = nullptr);
+	LineSegment(const LineSegment &);
+	LineSegment &operator=(const LineSegment &);
+	~LineSegment();
 
-    Eigen::Vector3f start() const;
+	Eigen::Vector3f start() const;
 
-    void setStart(const Eigen::Vector3f &pt);
+	void setStart(const Eigen::Vector3f &pt);
 
-    Eigen::Vector3f end() const;
+	Eigen::Vector3f end() const;
 
-    void setEnd(const Eigen::Vector3f &pt);
+	void setEnd(const Eigen::Vector3f &pt);
 
-    Eigen::Vector3f middle() const;
+	Eigen::Vector3f middle() const;
 
-    cv::Point2f start2d() const;
+	cv::Point2f start2d() const;
 
-    void setStart2d(const cv::Point2f& _value);
+	Eigen::Vector3f secondaryDir() const;
 
-    cv::Point2f end2d() const;
+	void setSecondaryDir(const Eigen::Vector3f& dir);
 
-    void setEnd2d(const cv::Point2f& _value);
+	void setStart2d(const cv::Point2f& _value);
 
-    float length() const;
+	cv::Point2f end2d() const;
 
-    Eigen::Vector3f direction() const;
+	void setEnd2d(const cv::Point2f& _value);
 
-    Eigen::Vector3f normalizedDir() const;
+	float length() const;
 
-    int index() const;
+	Eigen::Vector3f direction() const;
 
-    void setIndex(int index);
+	Eigen::Vector3f normalizedDir() const;
 
-    //void reproject(float minLength, float maxLength, Eigen::Vector3f minPoint, Eigen::Vector3f maxPoint);
+	int index() const;
 
-    void reproject(const Eigen::Matrix3f& rot = Eigen::Matrix3f::Identity(), const Eigen::Vector3f& trans = Eigen::Vector3f::Zero());
+	void setIndex(int index);
 
-    int shortDescriptorSize() const;
+	//void reproject(float minLength, float maxLength, Eigen::Vector3f minPoint, Eigen::Vector3f maxPoint);
 
-    void calculateColorAvg(const cv::Mat& mat);
+	void reproject(const Eigen::Matrix3f& rot = Eigen::Matrix3f::Identity(), const Eigen::Vector3f& trans = Eigen::Vector3f::Zero());
 
-    void drawColorLine(cv::Mat& mat);
+	int shortDescriptorSize() const;
 
-    int segmentNo() const;
+	static int longDescriptorSize();
 
-    void setSegmentNo(int segmentNo);
+	const std::vector<float>& longDescriptor() const;
 
-    bool available() const;
+	void setLongDescriptor(const std::vector<float>& desc);
 
-    void reverse();
+	
+	void calculateColorAvg(const cv::Mat& mat);
 
-    bool similarDirection(const LineSegment &other, float &angle, float threshold);
+	void drawColorLine(cv::Mat& mat);
 
-    bool similarDirection(const LineSegment &other, float threshold);
+	int segmentNo() const;
 
-    void applyAnotherLineDirection(const LineSegment& other);
+	void setSegmentNo(int segmentNo);
 
-    float angleToAnotherLine(const LineSegment &other);
+	bool available() const;
 
-    Eigen::Matrix<float, 1, 13> shortDescriptor() const;
+	void reverse();
 
-    //Eigen::VectorXf longDescriptor() const;
+	bool similarDirection(const LineSegment &other, float &angle, float threshold);
 
-    float averageDistance(const LineSegment &other);
+	bool similarDirection(const LineSegment &other, float threshold);
 
-    float pointDistance(const Eigen::Vector3f &point);
+	void applyAnotherLineDirection(const LineSegment& other);
 
-    Eigen::Vector3f closedPointOnLine(const Eigen::Vector3f &point);
+	float angleToAnotherLine(const LineSegment &other);
 
-    double red() const;
+	Eigen::Matrix<float, 1, 13> shortDescriptor() const;
 
-    double green() const;
+	//Eigen::VectorXf longDescriptor() const;
 
-    double blue() const;
+	float averageDistance(const LineSegment &other);
 
-signals:
+	float pointDistance(const Eigen::Vector3f &point);
 
+	Eigen::Vector3f closedPointOnLine(const Eigen::Vector3f &point);
+
+	double red() const;
+
+	double green() const;
+
+	double blue() const;
+
+	Eigen::Matrix3f localRotaion() const;
 
 private:
-    QSharedDataPointer<LineSegmentData> data;
+	QSharedDataPointer<LineSegmentData> data;
 };
 
 template<>
-struct pcl::DefaultPointRepresentation<LineSegment>: public pcl::PointRepresentation<LineSegment>
+struct pcl::DefaultPointRepresentation<LineSegment> : public pcl::PointRepresentation<LineSegment>
 {
 public:
-    DefaultPointRepresentation()
-    {
-        nr_dimensions_ = 13;
-    }
+	DefaultPointRepresentation()
+	{
+		nr_dimensions_ = LineSegment::longDescriptorSize();
+	}
 
-    void copyToFloatArray(const LineSegment& l, float* out) const override
-    {
-        for (int i = 0; i < nr_dimensions_; i++)
-        {
-            out[i] = l.shortDescriptor()[i];
-        }
-    }
+	void copyToFloatArray(const LineSegment& l, float* out) const override
+	{
+		for (int i = 0; i < nr_dimensions_; i++)
+		{
+			out[i] = l.longDescriptor()[i];
+		}
+	}
 
 };
 

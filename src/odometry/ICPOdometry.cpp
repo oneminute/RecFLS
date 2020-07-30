@@ -58,14 +58,14 @@ bool ICPOdometry::beforeProcessing(Frame& frame)
         parameters.minDepth = Settings::BoundaryExtractor_MinDepth.value();
         parameters.maxDepth = Settings::BoundaryExtractor_MaxDepth.value();
         parameters.depthShift = frame.getDevice()->depthShift();
-        parameters.normalKernalRadius = Settings::ICPMatcher_CudaNormalKernalRadius.intValue();
-        parameters.normalKnnRadius = Settings::ICPMatcher_CudaNormalKnnRadius.value();
+        //parameters.normalKernalRadius = Settings::ICPMatcher_CudaNormalKernalRadius.intValue();
+        //parameters.normalKnnRadius = Settings::ICPMatcher_CudaNormalKnnRadius.value();
         parameters.depthWidth = frame.getDepthWidth();
         parameters.depthHeight = frame.getDepthHeight();
-        parameters.icpAnglesThreshold = Settings::ICPMatcher_AnglesThreshold.value();
-        parameters.icpDistThreshold = Settings::ICPMatcher_DistanceThreshold.value();
-        parameters.icpKernalRadius = Settings::ICPMatcher_IcpKernelRadius.intValue();
-        parameters.blockSize = Settings::ICPMatcher_CudaBlockSize.intValue();
+        //parameters.icpAnglesThreshold = Settings::ICPMatcher_AnglesThreshold.value();
+        //parameters.icpDistThreshold = Settings::ICPMatcher_DistanceThreshold.value();
+        //parameters.icpKernalRadius = Settings::ICPMatcher_IcpKernelRadius.intValue();
+        //parameters.blockSize = Settings::ICPMatcher_CudaBlockSize.intValue();
 
         m_frameSrc.parameters = parameters;
         m_frameDst.parameters = parameters;

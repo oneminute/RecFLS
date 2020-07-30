@@ -6,11 +6,13 @@
 #include <QPushButton>
 
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/visualization//impl/point_cloud_geometry_handlers.hpp>
 #include <pcl/kdtree/impl/kdtree_flann.hpp>
 #include <pcl/common/pca.h>
 
 #include "common/Parameters.h"
 #include "util/Utils.h"
+
 
 ToolWindowLineMatcher::ToolWindowLineMatcher(QWidget *parent) 
     : QMainWindow(parent)
@@ -28,6 +30,9 @@ ToolWindowLineMatcher::ToolWindowLineMatcher(QWidget *parent)
     m_cloudViewer1 = new CloudViewer;
     m_cloudViewer2 = new CloudViewer;
     m_cloudViewer3 = new CloudViewer;
+	m_cloudViewer1->visualizer()->setBackgroundColor(255, 255, 255);
+	m_cloudViewer2->visualizer()->setBackgroundColor(255, 255, 255);
+	m_cloudViewer3->visualizer()->setBackgroundColor(255, 255, 255);
 
     m_cloudViewer1->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, -1, 0);
     m_cloudViewer2->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, -1, 0);
@@ -36,6 +41,7 @@ ToolWindowLineMatcher::ToolWindowLineMatcher(QWidget *parent)
     m_ui->verticalLayoutCloud1->addWidget(m_cloudViewer1);
     m_ui->verticalLayoutCloud2->addWidget(m_cloudViewer2);
     m_ui->verticalLayoutCloud3->addWidget(m_cloudViewer3);
+	
 
     connect(m_ui->actionLoad_Data_Set, &QAction::triggered, this, &ToolWindowLineMatcher::onActionLoadDataSet);
     connect(m_ui->actionMatch, &QAction::triggered, this, &ToolWindowLineMatcher::onActionMatch);
@@ -63,10 +69,10 @@ ToolWindowLineMatcher::~ToolWindowLineMatcher()
 
 void ToolWindowLineMatcher::initCompute()
 {
-    if (!m_boundaryExtractor)
+    /*if (!m_boundaryExtractor)
     {
         m_boundaryExtractor.reset(new BoundaryExtractor);
-    }
+    }*/
 
     if (!m_lineExtractor)
     {
@@ -78,7 +84,7 @@ void ToolWindowLineMatcher::initCompute()
         m_lineMatcher.reset(new LineMatcher);
     }
 
-    m_boundaryExtractor.reset(new BoundaryExtractor);
+    /*m_boundaryExtractor.reset(new BoundaryExtractor);
     m_boundaryExtractor->setBorderLeft(Settings::BoundaryExtractor_BorderLeft.value());
     m_boundaryExtractor->setBorderRight(Settings::BoundaryExtractor_BorderRight.value());
     m_boundaryExtractor->setBorderTop(Settings::BoundaryExtractor_BorderTop.value());
@@ -97,7 +103,7 @@ void ToolWindowLineMatcher::initCompute()
     m_boundaryExtractor->setCudaPeakClusterTolerance(Settings::BoundaryExtractor_CudaPeakClusterTolerance.intValue());
     m_boundaryExtractor->setCudaMinClusterPeaks(Settings::BoundaryExtractor_CudaMinClusterPeaks.intValue());
     m_boundaryExtractor->setCudaMaxClusterPeaks(Settings::BoundaryExtractor_CudaMaxClusterPeaks.intValue());
-    m_boundaryExtractor->setCudaCornerHistSigma(Settings::BoundaryExtractor_CudaCornerHistSigma.value());
+    m_boundaryExtractor->setCudaCornerHistSigma(Settings::BoundaryExtractor_CudaCornerHistSigma.value());*/
 
     int frameIndexDst = m_ui->comboBoxDstFrame->currentIndex();
     Frame frameDst = m_device->getFrame(frameIndexDst);
@@ -141,14 +147,18 @@ void ToolWindowLineMatcher::initCompute()
     depthMatGpuDst.upload(frameDst.depthMat());
     
     m_flFrameSrc = m_lineExtractor->compute(frameSrc);
-    //m_flFrameSrc.transform(Eigen::Matrix4f::Identity());
+    m_flFrameSrc.setPose(Eigen::Matrix4f::Identity());
     m_beCloudSrc = m_lineExtractor->allBoundary();
-    m_groupPointsSrc = m_lineExtractor->groupPoints();
+	//m_groupPointsSrc = m_lineExtractor->groupPoints();
+	m_lineExtractor->generateVoxelsDescriptors(frameSrc, m_flFrameSrc.lines(), 0.05f, 5, 4, 8, frameSrc.getColorWidth(), frameSrc.getColorHeight(), frameSrc.getDevice()->cx(), frameSrc.getDevice()->cy(), frameSrc.getDevice()->fx(), frameSrc.getDevice()->fy());
+    
 
     m_flFrameDst = m_lineExtractor->compute(frameDst);
     m_flFrameDst.setPose(Eigen::Matrix4f::Identity());
     m_beCloudDst = m_lineExtractor->allBoundary();
-    m_groupPointsDst = m_lineExtractor->groupPoints();
+	//m_groupPointsDst = m_lineExtractor->groupPoints();
+	m_lineExtractor->generateVoxelsDescriptors(frameDst, m_flFrameDst.lines(), 0.05f, 5, 4, 8, frameDst.getColorWidth(), frameDst.getColorHeight(), frameDst.getDevice()->cx(), frameDst.getDevice()->cy(), frameDst.getDevice()->fx(), frameDst.getDevice()->fy());
+    
 
     m_cloudViewer1->visualizer()->removeAllPointClouds();
     m_cloudViewer1->visualizer()->removeAllShapes();
@@ -185,11 +195,13 @@ void ToolWindowLineMatcher::initCompute()
     }
 
     // œ‘ æµ„‘∆
-    {
-        pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> behSrc(m_beCloudSrc, "intensity");
+   {
+        pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZINormal> behSrc(m_beCloudSrc, "intensity");
         m_cloudViewer2->visualizer()->addPointCloud(m_beCloudSrc, behSrc, "cloud_src");
-        pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> behDst(m_beCloudDst, "intensity");
+	
+        pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZINormal> behDst(m_beCloudDst, "intensity");
         m_cloudViewer3->visualizer()->addPointCloud(m_beCloudDst, behDst, "cloud_dst");
+		
     }
 
     showCloudAndLines(m_cloudViewer2, m_flFrameSrc.lines());
@@ -229,9 +241,13 @@ void ToolWindowLineMatcher::showCloudAndLines(CloudViewer* viewer, pcl::PointClo
         Eigen::Vector3f dir = line.direction();
         //m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
         //std::cout << line.red() << ", " << line.green() << ", " << line.blue() << std::endl;
-        viewer->visualizer()->addLine(start, end, line.red() / 255, line.green() / 255, line.blue() / 255, lineNo);
-        viewer->visualizer()->addText3D(std::to_string(i), middle, 0.025, 1, 1, 1, textNo);
+        //viewer->visualizer()->addLine(start, end, line.red() / 255, line.green() / 255, line.blue() / 255, lineNo);
+		viewer->visualizer()->setBackgroundColor(255, 255, 255);
+		viewer->visualizer()->addLine(start, end, 0, 0, 0, lineNo);
+        viewer->visualizer()->addText3D(std::to_string(i), middle, 0.025, 0, 0, 0, textNo);
         viewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo);
+		viewer->visualizer()->removeAllPointClouds();
+		
     }
 }
 
@@ -269,8 +285,8 @@ void ToolWindowLineMatcher::showMatchedClouds()
         ptStart.getArray3fMap() = start;
         ptEnd.getArray3fMap() = end;
         ptMiddle.getArray3fMap() = middle;
-        m_cloudViewer1->visualizer()->addLine(ptStart, ptEnd, 0, 255, 0, lineNo.toStdString());
-        m_cloudViewer1->visualizer()->addText3D(std::to_string(dstLine.index()), ptMiddle, 0.25, 0, 255, 0, textNo.toStdString());
+        m_cloudViewer1->visualizer()->addLine(ptStart, ptEnd, 0, 0, 255, lineNo.toStdString());
+        m_cloudViewer1->visualizer()->addText3D(std::to_string(dstLine.index()), ptMiddle, 0.25, 0, 0, 255, textNo.toStdString());
 
         start = rot * srcLine.start() + trans;
         end = rot * srcLine.end() + trans;
@@ -280,8 +296,8 @@ void ToolWindowLineMatcher::showMatchedClouds()
         ptStart.getArray3fMap() = start;
         ptEnd.getArray3fMap() = end;
         ptMiddle.getArray3fMap() = middle;
-        m_cloudViewer1->visualizer()->addLine(ptStart, ptEnd, 255, 255, 255, lineNo.toStdString());
-        m_cloudViewer1->visualizer()->addText3D(std::to_string(srcLine.index()), ptMiddle, 0.25, 1, 1, 1, textNo.toStdString());
+        m_cloudViewer1->visualizer()->addLine(ptStart, ptEnd, 255, 0, 0, lineNo.toStdString());
+        m_cloudViewer1->visualizer()->addText3D(std::to_string(srcLine.index()), ptMiddle, 0.25, 255, 0, 0, textNo.toStdString());
     }
 }
 

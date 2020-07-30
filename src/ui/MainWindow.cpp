@@ -10,7 +10,7 @@
 #include "ToolWindowLineExtractor.h"
 #include "ToolWindowLineMatcher.h"
 #include "ToolWindowBoundaryExtractor.h"
-#include "ToolWindowICPMatcher.h"
+
 #include "ToolWindowFusedLineExtractor.h"
 #include "PreferencesWindow.h"
 
@@ -62,7 +62,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_ui->actionLine_Extractor, &QAction::triggered, this, &MainWindow::onActionToolWindowLineExtractor);
     connect(m_ui->actionLine_Matcher, &QAction::triggered, this, &MainWindow::onActionToolWindowLineMatcher);
     connect(m_ui->actionBoundary_Extractor, &QAction::triggered, this, &MainWindow::onActionToolWindowBoundaryExtractor);
-    connect(m_ui->actionICP_Matcher, &QAction::triggered, this, &MainWindow::onActionToolWindowICPMatcher);
+    
     connect(m_ui->actionFused_Line_Extractor, &QAction::triggered, this, &MainWindow::onActionToolWindowFusedLineExtractor);
     connect(m_ui->actionNext_Frame, &QAction::triggered, this, &MainWindow::onActionNextFrame);
     connect(m_ui->actionSave_Current_Frame, &QAction::triggered, this, &MainWindow::onActionSaveCurrentFrame);
@@ -159,11 +159,7 @@ void MainWindow::onActionToolWindowBoundaryExtractor()
     m_toolWindowBoundaryExtractor->show();
 }
 
-void MainWindow::onActionToolWindowICPMatcher()
-{
-    m_toolWindowICPMatcher.reset(new ToolWindowICPMatcher);
-    m_toolWindowICPMatcher->show();
-}
+
 
 void MainWindow::onActionToolWindowFusedLineExtractor()
 {
