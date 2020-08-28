@@ -29,7 +29,7 @@ ToolWindowFusedLineExtractor::ToolWindowFusedLineExtractor(QWidget *parent)
 
     m_cloudViewer = new CloudViewer;
 
-	m_cloudViewer->visualizer()->setBackgroundColor(255, 255, 255);
+	//m_cloudViewer->visualizer()->setBackgroundColor(255, 255, 255);
     m_cloudViewer->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, -1, 0);
 
     m_ui->horizontalLayoutCenter->addWidget(m_cloudViewer);
@@ -72,6 +72,10 @@ void ToolWindowFusedLineExtractor::compute()
 
     //m_extractor->computeGPU(m_frameGpu);
     m_flFrame = m_extractor->compute(m_frame);
+	//m_extractor->generateVoxelsDescriptors(m_frame, m_flFrame.lines(), 0.25f, 5, 4, 8, m_frame.getColorWidth(), m_frame.getColorHeight(), 
+        //m_frame.getDevice()->cx(), m_frame.getDevice()->cy(), m_frame.getDevice()->fx(), m_frame.getDevice()->fy());
+    m_extractor->generateCylinderDescriptors(m_frame, m_flFrame.lines(), 0.5f, 5, m_frame.getColorWidth(), m_frame.getColorHeight(),
+        m_frame.getDevice()->cx(), m_frame.getDevice()->cy(), m_frame.getDevice()->fx(), m_frame.getDevice()->fy());
     pcl::PointCloud<pcl::PointXYZINormal>::Ptr beCloud = m_extractor->allBoundary();
     pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZINormal> beh(beCloud, "intensity");
     m_cloudViewer->visualizer()->addPointCloud(beCloud, beh, "cloud_src");
@@ -155,7 +159,6 @@ void ToolWindowFusedLineExtractor::onActionShowPoints()
     QString cloudName = QString("cloud_%1").arg(cloudIndex);
     m_cloudViewer->visualizer()->removeAllPointClouds();
 
-
     if (m_ui->checkBoxShowPoints->isChecked())
     {
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr beCloud = m_extractor->allBoundary();
@@ -171,6 +174,7 @@ void ToolWindowFusedLineExtractor::onActionShowPoints()
     //QMap<int, LineSegment> lines = m_extractor->lines();
     pcl::PointCloud<LineSegment>::Ptr linesCloud = m_flFrame.lines();
     //for (QMap<int, LineSegment>::iterator i = lines.begin(); i != lines.end(); i++)
+    Eigen::Vector3f minPoint = m_extractor->minPoint();
     for (int i = 0; i < linesCloud->points.size(); i++)
     {
         QString lineNo = QString("line_%1").arg(i);
@@ -181,8 +185,31 @@ void ToolWindowFusedLineExtractor::onActionShowPoints()
         end.getVector3fMap() = line.end();
         middle.getVector3fMap() = line.middle();
         m_cloudViewer->visualizer()->addLine(start, end, 0, 0, 0, lineNo.toStdString());
-        m_cloudViewer->visualizer()->addText3D(textNo.toStdString(), middle, 0.01, 1.0, 0.0, 0.0, textNo.toStdString());
+        if (i == cloudIndex)
+            m_cloudViewer->visualizer()->addText3D(textNo.toStdString(), middle, 0.5, 1.0, 1.0, 1.0, textNo.toStdString());
+        else
+            m_cloudViewer->visualizer()->addText3D(textNo.toStdString(), middle, 0.1, 0.0, 1.0, 0.0, textNo.toStdString());
 		m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo.toStdString());
+
+        if (i != cloudIndex)
+            continue;
+
+        std::vector<std::vector<Eigen::Vector3f>> voxels = line.lineCylinders();
+        for (int li = 0; li < voxels.size(); li++)
+        {
+            QColor color = QColor::fromHsl(li * 360 / voxels.size(), 255, 255);
+            qDebug() << lineNo << li << voxels[li].size();
+            for (int vi = 0; vi < voxels[li].size(); vi++)
+            {
+
+                Eigen::Vector3f voxelKey = voxels[li][vi];
+                Eigen::Vector3f rectMin = voxelKey * m_extractor->resolution() + minPoint;
+                Eigen::Vector3f rectMax = rectMin + Eigen::Vector3f(m_extractor->resolution(), m_extractor->resolution(), m_extractor->resolution());
+                QString cubeName = QString("cube_%1_%2_%3").arg(i).arg(li).arg(vi);
+                m_cloudViewer->visualizer()->addCube(rectMin.x(), rectMax.x(), rectMin.y(), rectMax.y(), rectMin.z(), rectMax.z(), 0, 0, 1, cubeName.toStdString());
+                m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_OPACITY, 0.1, cubeName.toStdString());
+            }
+        }
     }
 }
 

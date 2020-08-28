@@ -1,4 +1,4 @@
-#include "FusedLineExtractor.h"
+﻿#include "FusedLineExtractor.h"
 
 #include <opencv2/cudafilters.hpp>
 #include <pcl/segmentation/impl/extract_clusters.hpp>
@@ -54,7 +54,7 @@ static std::vector<Eigen::Vector3i> QuadrantsSteps{
 FusedLineExtractor::FusedLineExtractor(QObject* parent)
 	: QObject(parent)
 	, m_init(false)
-	, m_resolution(0.005f)
+	, m_resolution(0.05f)
 {
 
 }
@@ -98,7 +98,8 @@ void FusedLineExtractor::init(Frame& frame)
 		params.maxClusterPeaks = Settings::BoundaryExtractor_CudaMaxClusterPeaks.intValue();
 		params.cornerHistSigma = Settings::BoundaryExtractor_CudaCornerHistSigma.value();
 
-
+		m_points.resize(frame.getDepthWidth() * frame.getDepthHeight());
+		m_normals.resize(frame.getDepthWidth() * frame.getDepthHeight());
 		m_frameGpu.parameters = params;
 		m_frameGpu.allocate();
 
@@ -116,7 +117,6 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 	flFrame.setIndex(frame.deviceFrameIndex());
 	flFrame.setTimestamp(frame.timeStampColor());
 
-	// ��ȡedlineֱ��
 	cv::Mat grayImage;
 	cv::cvtColor(frame.colorMat(), grayImage, cv::COLOR_RGB2GRAY);
 	EDLines lineHandler = EDLines(grayImage, SOBEL_OPERATOR);
@@ -129,7 +129,6 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 	int linesCount = lineHandler.getLinesNo();
 	std::vector<LS> lines = lineHandler.getLines();
 	
-	// ��ȡ����ֱ�߼��Ϸ������
 	m_groupPoints.clear();
 	for (int i = 0; i < linesCount; i++)
 	{
@@ -138,15 +137,14 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 
 	m_frameGpu.upload(frame.depthMat());
 
-	// ��cuda��ȡbe������ߵ�
 	cuda::generatePointCloud(m_frameGpu);
 
 	m_frameGpu.boundaryMat.download(m_boundaryMat);
 	m_frameGpu.pointsMat.download(m_pointsMat);
-	std::vector<float3> points;
-	m_frameGpu.pointCloud.download(points);
-	std::vector<float3> normals;
-    m_frameGpu.pointCloudNormals.download(normals);
+	//std::vector<float3> points;
+	//m_points.clear();
+	m_frameGpu.pointCloud.download(m_points);
+    m_frameGpu.pointCloudNormals.download(m_normals);
 	std::vector<uchar> boundaries;
 	m_frameGpu.boundaries.download(boundaries);
 	std::vector<int> indicesImage;
@@ -154,7 +152,6 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 	m_frameGpu.indicesImage.download(indicesImage, cols);
 	std::cout << "indices image cols: " << cols << std::endl;
 
-	// ��ʼ2d��3d�ıȶԡ�
 	m_cloud.reset(new pcl::PointCloud<pcl::PointXYZINormal>);
 	m_allBoundary.reset(new pcl::PointCloud<pcl::PointXYZINormal>);
 	//m_normals.reset(new pcl::PointCloud<pcl::Normal>);
@@ -165,7 +162,7 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 		{
 			cv::Point coord(j, i);
 			int index = i * frame.getDepthWidth() + j;
-			float3 value = points[index];
+			float3 value = m_points[index];
 			uchar pointType = boundaries[index];
 			ushort lineNo = m_linesMat.ptr<ushort>(i)[j];
 			
@@ -183,9 +180,9 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 			ptIn.z = value.z;
 			ptIn.intensity = lineNo;
 
-			ptIn.normal_x = normals[index].x;
-			ptIn.normal_y = normals[index].y;
-			ptIn.normal_z = normals[index].z;
+			ptIn.normal_x = m_normals[index].x;
+			ptIn.normal_y = m_normals[index].y;
+			ptIn.normal_z = m_normals[index].z;
 
 
 			int ptIndex = m_pointsMat.at<int>(coord);
@@ -234,7 +231,6 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 		}
 		gCenter /= m_groupPoints[i]->points.size();
 
-		// ��Ϊͬһֱ�߱�ŵĵ㼯�п��ܼ������Ҳ��veil�㣬������������ָ
 		pcl::IndicesClusters clusters;
 		pcl::EuclideanClusterExtraction<pcl::PointXYZINormal> ece;
 		ece.setClusterTolerance(0.05f);
@@ -247,7 +243,6 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 
 		int maxSize = 0;
 		int maxIndex = 0;
-		// �ָ���ҳ�����������������Ϊ��ʼ�ڵ㼯�ϡ���cloud��
 		for (int j = 0; j < clusters.size(); j++)
 		{
 			Eigen::Vector3f clusterCenter(Eigen::Vector3f::Zero());
@@ -281,7 +276,6 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 		pcl::copyPointCloud(*m_groupPoints[i], clusters[maxIndex].indices, *cloud);
 		//pcl::copyPointCloud(*m_groupPoints[i], *cloud);
 
-		// ���������ʼ�ڵ㼯�ϵ���������е㡣
 		pcl::PCA<pcl::PointXYZINormal> pca;
 		pca.setInputCloud(cloud);
 		Eigen::Vector3f eigenValues = pca.getEigenValues();
@@ -295,12 +289,9 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 		//std::cout << "  " << m_groupPoints[i]->size() << ", cluster: " << clusters.size() << ", a1 = " << a1 << ", a2 = " << a2 << ", a3 = " << a3 << std::endl;
 		//std::cout << "  init inliers size: " << cloud->size() << std::endl;
 
-		// ������
 		Eigen::Vector3f dir = pca.getEigenVectors().col(0).normalized();
-		// �е�
 		Eigen::Vector3f center = pca.getMean().head(3);
 
-		// Ȼ�󣬱���ʣ���������㼯���鿴ÿһ���㵽����ֱ�ߵľ����Ƿ�����ֵ���ڣ��ھͼӵ��ڵ㼯�У����ھ�������
 		for (int j = 0; j < clusters.size(); j++)
 		{
 			if (j == maxIndex)
@@ -312,7 +303,6 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 				pcl::PointXYZINormal pclPt = m_groupPoints[i]->points[nIndex];
 				Eigen::Vector3f pt = pclPt.getArray3fMap();
 				float dist = (pt - center).cross(dir).norm();
-				// ��ʱӲ�������ֵ��
 				if (dist <= 0.05f)
 				{
 					cloud->points.push_back(pclPt);
@@ -322,7 +312,6 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 		if (cloud->size() < 10)
 			continue;
 
-		// ����ټ���һ���ڵ㼯�����������е㡣
 		//std::cout << "    final: " << cloud->size() << ", max size: " << maxSize << ", max index: " << maxIndex << std::endl;
 		//std::cout << "    final: " << cloud->size() << std::endl;
 		pcl::PCA<pcl::PointXYZINormal> pcaFinal;
@@ -334,7 +323,6 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 		//Eigen::Vector3f dir = pcaFinal.getEigenVectors().col(0).normalized();
 		//Eigen::Vector3f center = pcaFinal.getMean().head(3);
 
-		// ȷ���˵㡣
 		Eigen::Vector3f start(0, 0, 0);
 		Eigen::Vector3f end(0, 0, 0);
 		Eigen::Vector3f avgNormal(0, 0, 0);
@@ -347,12 +335,10 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 
 			if (start.isZero())
 			{
-				// �����һ��ѭ�����õ�ǰ����Ϊ���
 				start = projPoint;
 			}
 			else
 			{
-				// ����ǰ���뵱ǰ���������ʱ�������һ�𣬲鿴���뵱ǰ�ۼ��������һ���ԣ���һ����ǰ��Ϊ�µ���㡣
 				if ((start - projPoint).dot(dir) > 0)
 				{
 					start = projPoint;
@@ -361,12 +347,10 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 
 			if (end.isZero())
 			{
-				// �����һ��ѭ�����õ�ǰ����Ϊ�յ�
 				end = projPoint;
 			}
 			else
 			{
-				// ����ǰ���뵱ǰ���������ʱ�յ�����һ�𣬲鿴���뵱ǰ�ۼ��������һ���ԣ���һ����ǰ��Ϊ�µ��յ㡣
 				if ((projPoint - end).dot(dir) > 0)
 				{
 					end = projPoint;
@@ -427,15 +411,33 @@ void FusedLineExtractor::linefilter(pcl::PointCloud<LineSegment>::Ptr lines)
 }
 
 
-void FusedLineExtractor::generateCylinderDescriptors(pcl::PointCloud<LineSegment>::Ptr lines, float radius, int segments, int angleSegments, float width, float height, float cx, float cy, float fx, float fy)
+void FusedLineExtractor::generateCylinderDescriptors(Frame& frame, pcl::PointCloud<LineSegment>::Ptr lines, float radius, int layers, float width, float height, float cx, float cy, float fx, float fy)
 {
-	cv::Mat board(height, width, CV_8UC3, cv::Scalar(255, 255, 255));
+	cv::Mat canvas(height, width, CV_8UC3, cv::Scalar(255, 255, 255));
+	cv::Mat depthMat = frame.depthMat();
+	pcl::search::KdTree<pcl::PointXYZINormal>::Ptr kdtree(new pcl::search::KdTree<pcl::PointXYZINormal>);
+	kdtree->setInputCloud(m_cloud);
+
 	for (int i = 0; i < lines->points.size(); i++)
 	{
+		std::vector<float> layerQuadrants(layers * 8);
+		for (int li = 0; li < layers * 8; li++)
+		{
+			//std::vector<float> quadrants{ 0, 0, 0, 0, 0, 0, 0, 0 };
+			layerQuadrants[li] = 0;
+		}
 		LineSegment ls = lines->points[i];
-		cv::Point2f cvDir2d = ls.end2d() - ls.start2d();
-		Eigen::Vector3f vDir(cvDir2d.y, -cvDir2d.x, 0);
+		Eigen::Quaternionf q(ls.localRotaion());
+		Eigen::Quaternionf qI = q.inverse();
+		//cv::Point2f cvDir2d = ls.end2d() - ls.start2d();	// line direction in 2d
+		//Eigen::Vector3f vDir(cvDir2d.y, -cvDir2d.x, 0);		// calculate vert direction of the 2d line
+
+		// Use line's direction and secondary direction to calculate a vert direction of current line.
+		// A secondary direction has been calculated by the average normals of all the points to fit the line.
+		Eigen::Vector3f vDir = ls.direction().cross(ls.secondaryDir()).normalized();
+
 		vDir.normalize();
+		// Find 4 points of intersecting surface of 3d cylinder
 		Eigen::Vector3f pa = ls.start() - vDir * radius;
 		Eigen::Vector3f pb = ls.start() + vDir * radius;
 		Eigen::Vector3f pc = ls.end() + vDir * radius;
@@ -445,105 +447,146 @@ void FusedLineExtractor::generateCylinderDescriptors(pcl::PointCloud<LineSegment
 		contours[1] = cv::Point2f(pb.x() * fx / pb.z() + cx, pb.y() * fy / pb.z() + cy);
 		contours[2] = cv::Point2f(pc.x() * fx / pc.z() + cx, pc.y() * fy / pc.z() + cy);
 		contours[3] = cv::Point2f(pd.x() * fx / pd.z() + cx, pd.y() * fy / pd.z() + cy);
-		//contours[4] = contours[0];
+
 		cv::Rect rect = cv::boundingRect(contours);
 
-		int histSize = segments * angleSegments;
-		std::vector<Eigen::Vector3f> neighbours;
-		std::vector<int> hist(histSize);
-		//std::vector<int> tmpHist(histSize);
-		for (int n = 0; n < histSize; n++)
-		{
-			hist[n] = 0;
-			//tmpHist[n] = 0;
-		}
-
-		std::vector<int> angles(angleSegments);
-		for (int n = 0; n < angleSegments; n++)
-		{
-			angles[n] = 0;
-		}
-
-		int maxAngleIndex = 0;
-		int maxAngleCount = 0;
 		for (int ix = 0; ix < rect.width; ix++)
 		{
 			for (int iy = 0; iy < rect.height; iy++)
 			{
 				cv::Point pixel(rect.x + ix, rect.y + iy);
-				if (pixel.x >= 0 && pixel.x < width && pixel.y >= 0 && pixel.y < height)
+				// Determine all the pixels within wrapper rect of the contours.
+				if (pixel.x >= 0 && pixel.x < width && pixel.y >= 0 && pixel.y < height && cv::pointPolygonTest(contours, pixel, false) >= 0)
 				{
-					if (cv::pointPolygonTest(contours, pixel, false) >= 0)
+					canvas.at<cv::Vec3b>(pixel) = cv::Vec3b(0, 255, 255);
+					float3 point3 = m_points[pixel.y * width + pixel.x];
+					float3 normal3 = m_normals[pixel.y * width + pixel.x];
+					if (qIsNaN(point3.x) || qIsNaN(point3.y) || qIsNaN(point3.z))
+						continue;
+
+					Eigen::Vector3f point(point3.x, point3.y, point3.z);
+					Eigen::Vector3f normal(normal3.x, normal3.y, normal3.z);
+					float lineDistance = ls.pointDistance(point);
+					if (lineDistance > radius)
+						continue;
+
+					pcl::Indices indices;
+					std::vector<float> dists;
+					pcl::PointXYZINormal pclPoint;
+					pclPoint.getVector3fMap() = point;
+					pclPoint.getNormalVector3fMap() = normal;
+					if (kdtree->radiusSearch(pclPoint, 0.1, indices, dists, 0) > 0)
 					{
-						board.at<cv::Vec3b>(pixel) = cv::Vec3b(0, 255, 255);
-						float3 point3 = m_points[pixel.y * width + pixel.x];
-						Eigen::Vector3f point(point3.x, point3.y, point3.z);
-						Eigen::Vector3f edge = point - ls.start();
-						Eigen::Vector3f dir = ls.direction().normalized();
-						float dist = edge.cross(dir).norm();
-						if (dist <= radius)
+						int layerIndex = lineDistance / radius * layers;
+						int quadrant = -1;
+						Eigen::Vector4f quaternion(Eigen::Vector4f::Zero());
+						std::vector<float> quadrants{ 0, 0, 0, 0, 0, 0, 0, 0 };
+						for (int ni = 0; ni < indices.size(); ni++)
 						{
-							neighbours.push_back(point);
-							Eigen::Vector3f vert = edge.cross(dir).cross(dir).normalized();
-							float radians = qAtan2(vDir.dot(vert), dir.dot(vert)) + M_PI;
-							int angleSeg = radians * angleSegments / (M_PI * 2);
-							int distSeg = qFloor(dist * segments / radius);
-							angles[angleSeg]++;
-							hist[angleSeg * segments + distSeg]++;
-							if (angles[angleSeg] > maxAngleCount)
+							pcl::PointXYZINormal pclNeighbourPoint = m_cloud->points[indices[ni]];
+							Eigen::Vector3f neighbourPoint = pclNeighbourPoint.getArray3fMap();
+							Eigen::Vector3f neighbourNormal = pclNeighbourPoint.getNormalVector3fMap();
+
+							Eigen::Vector3f PN = neighbourPoint - point;
+
+							float m = PN.norm();
+							float theta = atan((neighbourPoint.y() - point.y()) / (neighbourPoint.z() - point.z()));
+							float phi = asin(neighbourPoint.z() - point.z()) / m;
+							float delta = acos(PN.dot(normal) / PN.norm());
+							quaternion.w() = m;
+							quaternion.x() = theta;
+							quaternion.y() = phi;
+							quaternion.z() = delta;
+
+							Eigen::Vector3f vec(theta, phi, delta);
+							//vec = qI * vec;
+
+							if (vec.x() >= 0)
 							{
-								maxAngleIndex = angleSeg;
-								maxAngleCount = angles[angleSeg];
+								if (vec.y() >= 0)
+								{
+									if (vec.z() >= 0)
+										quadrant = 0;
+									else
+										quadrant = 1;
+								}
+								else
+								{
+									if (vec.z() >= 0)
+										quadrant = 2;
+									else
+										quadrant = 3;
+								}
+							}
+							else
+							{
+								if (vec.y() >= 0)
+								{
+									if (vec.z() >= 0)
+										quadrant = 4;
+									else
+										quadrant = 5;
+								}
+								else
+								{
+									if (vec.z() >= 0)
+										quadrant = 6;
+									else
+										quadrant = 7;
+								}
+							}
+
+							if (quadrant >= 0)
+							{
+								quadrants[quadrant] += m;
 							}
 						}
+						//int maxIndex = std::distance(quadrants.begin(), std::max_element(quadrants.begin(), quadrants.end()));
+						//float maxM = quadrants[maxIndex];
+
+						for (int qi = 0; qi < 8; qi++)
+						{
+							layerQuadrants[layerIndex * 8 + qi] += quadrants[qi];
+						}
+
 					}
 				}
 			}
 		}
 
-		if (neighbours.size() >= 3)
-		{
-			for (int n = 0; n < histSize; n++)
-			{
-				int newIndex = (n + histSize - maxAngleIndex * segments) % histSize;
-				int tmp = hist[newIndex];
-				hist[newIndex] = hist[n];
-				hist[n] = tmp;
-			}
-		}
-
-		for (int n = 0; n < histSize; n++)
-		{
-			std::cout << std::setw(4) << hist[n] << " ";
-		}
 		std::cout << std::endl;
-		//if (i == 0)
 		{
-			cv::line(board, ls.start2d(), ls.end2d(), cv::Scalar(255, 0, 0));
+			cv::line(canvas, ls.start2d(), ls.end2d(), cv::Scalar(255, 0, 0));
 			std::vector<std::vector<cv::Point2f>> cc;
 			cc.push_back(contours);
-			cv::line(board, contours[0], contours[1], cv::Scalar(0, 0, 255));
-			cv::line(board, contours[1], contours[2], cv::Scalar(0, 0, 255));
-			cv::line(board, contours[2], contours[3], cv::Scalar(0, 0, 255));
-			cv::line(board, contours[3], contours[0], cv::Scalar(0, 0, 255));
-			cv::rectangle(board, rect, cv::Scalar(0, 255, 0));
+			cv::line(canvas, contours[0], contours[1], cv::Scalar(0, 0, 255));
+			cv::line(canvas, contours[1], contours[2], cv::Scalar(0, 0, 255));
+			cv::line(canvas, contours[2], contours[3], cv::Scalar(0, 0, 255));
+			cv::line(canvas, contours[3], contours[0], cv::Scalar(0, 0, 255));
+			cv::rectangle(canvas, rect, cv::Scalar(0, 255, 0));
 		}
+
+		std::cout << i << ": "  << std::endl;
+		for (int li = 0; li < layers * 8; li++)
+		{
+			std::cout << layerQuadrants[li] << ", ";
+		}
+		std::cout << std::endl;
+		ls.setLongDescriptor(layerQuadrants);
 	}
-	cv::imwrite("desc01.png", board);
+	cv::imwrite("desc01.png", canvas);
 }
-
-
 
 void FusedLineExtractor::generateVoxelsDescriptors(Frame& frame, pcl::PointCloud<LineSegment>::Ptr lines, float radius, int radiusSegments, int segments, int angleSegments, float width, float height, float cx, float cy, float fx, float fy)
 {
 	pcl::octree::OctreePointCloudSearch<pcl::PointXYZINormal> octree(m_resolution);
-	octree.setInputCloud(m_allBoundary);
+	octree.setInputCloud(m_cloud);
 	octree.addPointsFromInputCloud();
 
 	double minX, minY, minZ, maxX, maxY, maxZ;
 	octree.getBoundingBox(minX, minY, minZ, maxX, maxY, maxZ);
-	Eigen::Vector3f minPoint(minX, minY, minZ);
-	Eigen::Vector3f maxPoint(maxX, maxY, maxZ);
+	m_minPoint = Eigen::Vector3f(minX, minY, minZ);
+	m_maxPoint = Eigen::Vector3f(maxX, maxY, maxZ);
 	std::cout << "voxel dims: " << qFloor((maxX - minX) / m_resolution) << ", " << qFloor((maxY - minY) / m_resolution) << ", " << qFloor((maxZ - minZ) / m_resolution) << std::endl;
 
 	int leafCount = octree.getLeafCount();
@@ -554,8 +597,8 @@ void FusedLineExtractor::generateVoxelsDescriptors(Frame& frame, pcl::PointCloud
 
 	pcl::octree::OctreePointCloud<pcl::PointXYZ>::LeafNodeIterator it(&octree);
 
-	// ��ԭ�㴦����һ��Բ���뾶Ϊradius��
 	int voxelRadius = qFloor(radius / m_resolution);
+	qDebug() << "voxel radius:" << voxelRadius;
 	std::vector<std::vector<Eigen::Vector3f>> baseCircles(radiusSegments);
 	for (int i = 0; i < radiusSegments; i++)
 	{
@@ -581,25 +624,14 @@ void FusedLineExtractor::generateVoxelsDescriptors(Frame& frame, pcl::PointCloud
 		std::cout << std::endl;
 	}
 
-	/*for (int i = 0; i < baseCircles.size(); i++)
-	{
-		std::cout << i << ". ";
-		for (int j = 0; j < baseCircles[i].size(); j++)
-		{
-			Eigen::Vector3f key = baseCircles[i][j];
-			std::cout << "[" << key.x() << ", " << key.y() << ", " << key.z() << "] ";
-		}
-		std::cout << std::endl;
-	}*/
-
 	for (int i = 0; i < lines->points.size(); i++)
 	{
 		LineSegment& ls = lines->points[i];
 		Eigen::Vector3f start = ls.start();
 		Eigen::Vector3f end = ls.end();
 
-		Eigen::Vector3f startKey = ((start - minPoint) / m_resolution);
-		Eigen::Vector3f endKey = ((end - minPoint) / m_resolution);
+		Eigen::Vector3f startKey = ((start - m_minPoint) / m_resolution);
+		Eigen::Vector3f endKey = ((end - m_minPoint) / m_resolution);
 
 		std::cout << i << ". [" << start.transpose() << "] [" << end.transpose() << "] [" << startKey.transpose() << "] [" << endKey.transpose() << "]" << std::endl;
 		Eigen::Vector3f voxelDir = endKey - startKey;
@@ -609,19 +641,13 @@ void FusedLineExtractor::generateVoxelsDescriptors(Frame& frame, pcl::PointCloud
 		Eigen::Quaternionf qI = q.inverse();
 
 		QMap<Eigen::Vector3f, bool> done;
-		int steps = qFloor(voxelDir.norm());
+		int steps = qCeil(voxelDir.norm());
 
 		// calculate cylinders layer by layer.
 		std::vector<std::vector<Eigen::Vector3f>> lineCylinders(baseCircles.size());
-		Eigen::Vector3f currentKey = startKey;
 		for (int si = 0; si < steps; si++)
 		{
-			currentKey += voxelDirN * si;
-			if (done.contains(currentKey))
-			{
-				continue;
-			}
-			done.insert(currentKey, true);
+			Eigen::Vector3f currentKey = startKey + voxelDirN * si;
 
 			for (int ci = 0; ci < baseCircles.size(); ci++)
 			{
@@ -630,10 +656,18 @@ void FusedLineExtractor::generateVoxelsDescriptors(Frame& frame, pcl::PointCloud
 					Eigen::Vector3f key = q * baseCircles[ci][ki];
 					key += currentKey;
 					if (octree.existLeaf(key.x(), key.y(), key.z()))
+					{
+						if (done.contains(key))
+						{
+							continue;
+						}
+						done.insert(key, true);
 						lineCylinders[ci].push_back(key);
+					}
 				}
 			}
 		}
+		ls.setLineCylinders(lineCylinders);
 		// end of calculating
 		
 		std::vector<float> desc(radiusSegments * 8);
@@ -656,27 +690,12 @@ void FusedLineExtractor::generateVoxelsDescriptors(Frame& frame, pcl::PointCloud
 				// fetch normal
 				pcl::Indices voxelIndices;
 				pcl::PointXYZINormal ptCenter;
-				Eigen::Vector3f ePtCenter = minPoint + pKey * m_resolution;
+				Eigen::Vector3f ePtCenter = m_minPoint + pKey * m_resolution;
 				ptCenter.getVector3fMap() = ePtCenter;
-				//int count = octree.voxelSearch(ptCenter, voxelIndices);
-				//int count = octree.getIntersectedVoxelIndices(pKey, voxelDirN, voxelIndices);
 				int nearestIndex;
 				float nearstDist;
 				octree.approxNearestSearch(ptCenter, nearestIndex, nearstDist);
 				Eigen::Vector3f pNormal = m_cloud->points[nearestIndex].getNormalVector3fMap();
-				//if (count == 0)
-				//{
-				//	continue;
-				//}
-				//Eigen::Vector3f pNormal(Eigen::Vector3f::Zero());
-				//// use average of all normals of the voxel as final normal.
-				//for (int ni = 0; ni < voxelIndices.size(); ni++)
-				//{
-				//	int index = voxelIndices[ni];
-				//	pcl::PointXYZINormal pt = m_allBoundary->points[index];
-				//	pNormal += pt.getNormalVector3fMap();
-				//}
-				//pNormal /= count;
 
 				int quadrant = -1;
 				Eigen::Vector4f quaternion(Eigen::Vector4f::Zero());
@@ -765,53 +784,6 @@ void FusedLineExtractor::generateVoxelsDescriptors(Frame& frame, pcl::PointCloud
 
 }
 
-//int FusedLineExtractor::quadrantStatisticByVoxel(pcl::octree::OctreePointCloudSearch<pcl::PointXYZINormal>& tree, const Eigen::Vector3f& key, int length, int xStep, int yStep, int zStep)
-//{
-//	int total = 0;
-//	for (int i = 0; i < length; i++)
-//	{
-//		for (int j = 0; j < length; j++)
-//		{
-//			for (int k = 0; k < length; k++)
-//			{
-//				// [x, y, z] represents a neighbour coordinate.
-//				int x = qFloor(key.x() + i * xStep);
-//				int y = qFloor(key.y() + i * yStep);
-//				int z = qFloor(key.z() + i * zStep);
-//
-//				// we should fetch all points of the current neighbour voxel.
-//				if (tree.existLeaf(x, y, z))
-//				{
-//					
-//					//total++;
-//				}
-//				
-//				Cvec vcenter = { key.x(), key.y(), key.z() };
-//				Cvec vdisp, grad;
-//
-//				vdisp.x = (x - vcenter.x) * m_resolution;
-//				vdisp.y = (y - vcenter.y) * m_resolution;
-//				vdisp.z = (z - vcenter.z) * m_resolution;
-//				
-//				
-//				grad.x = 0.5 * ((x + 1, y, z) - (x - 1, y, z));
-//				grad.y = 0.5 * ((x, y + 1, z) - (x, y - 1, z));
-//				grad.z = 0.5 * ((x, y, z + 1) - (x, y, z - 1));
-//
-//				grad.x *= 1.0f / m_resolution;
-//				grad.y *= 1.0f / m_resolution;
-//				grad.z *= 1.0f / m_resolution;
-//
-//
-//				if (tree.existLeaf(x, y, z))
-//				{
-//					total++;
-//				}
-//			}
-//		}
-//	}
-//	return total;
-//}
 	
 
 

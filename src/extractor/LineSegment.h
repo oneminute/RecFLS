@@ -107,6 +107,10 @@ public:
 
 	double blue() const;
 
+	std::vector<std::vector<Eigen::Vector3f>> lineCylinders() const;
+
+	void setLineCylinders(std::vector<std::vector<Eigen::Vector3f>> value);
+
 	Eigen::Matrix3f localRotaion() const;
 
 private:

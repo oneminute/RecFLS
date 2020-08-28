@@ -71,6 +71,8 @@ void LineMatcher::match(
         if (!tree->nearestKSearch(lineSrc, 1, indices, dists))
             continue;
 
+        qDebug().noquote() << i << "-->" << indices[0];
+
         // 若源直线集合中的多条直线对应到了同一条目标集合的直线上，
         // 则选取超维向量距离最小的。
         if (pairs.contains(indices[0]))

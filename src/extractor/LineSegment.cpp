@@ -16,10 +16,16 @@ public:
 		, green(0)
 		, blue(0)
 		, index(-1)
+		, longDescriptor(40)
 	{
 		for (int i = 0; i < shortDescriptor.size(); i++)
 		{
 			shortDescriptor[0] = 0;
+		}
+
+		for (int i = 0; i < longDescriptor.size(); i++)
+		{
+			longDescriptor[0] = 0;
 		}
 	}
 
@@ -37,6 +43,7 @@ public:
 	Eigen::Matrix<float, 1, 13> shortDescriptor;
 	std::vector<float> longDescriptor;
 	std::vector<float> Descriptor;
+	std::vector<std::vector<Eigen::Vector3f>> lineCylinders;
 };
 
 LineSegment::LineSegment(const Eigen::Vector3f &start, const Eigen::Vector3f &end, int segmentNo, QObject *parent)
@@ -366,6 +373,16 @@ double LineSegment::green() const
 double LineSegment::blue() const
 {
 	return data->blue;
+}
+
+std::vector<std::vector<Eigen::Vector3f>> LineSegment::lineCylinders() const
+{
+	return data->lineCylinders;
+}
+
+void LineSegment::setLineCylinders(std::vector<std::vector<Eigen::Vector3f>> value)
+{
+	data->lineCylinders = value;
 }
 
 Eigen::Matrix3f LineSegment::localRotaion() const

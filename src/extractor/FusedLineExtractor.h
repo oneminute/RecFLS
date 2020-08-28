@@ -44,7 +44,7 @@ public:
 	cv::Mat colorLinesMat() const { return m_colorLinesMat; }
 	cv::Mat linesMat() const { return m_linesMat; }
 	void linefilter(pcl::PointCloud<LineSegment>::Ptr lines);
-	void generateCylinderDescriptors(pcl::PointCloud<LineSegment>::Ptr lines, float radius, int segments, int angleSegments, float width, float height, float cx, float cy, float fx, float fy);
+	void generateCylinderDescriptors(Frame& frame, pcl::PointCloud<LineSegment>::Ptr lines, float radius, int layers, float width, float height, float cx, float cy, float fx, float fy);
 	void generateVoxelsDescriptors(Frame& frame, pcl::PointCloud<LineSegment>::Ptr lines, float radius, int radiusSegments, int segments, int angleSegments, float width, float height, float cx, float cy, float fx, float fy);
 
 	//pcl::PointCloud<LineSegment>::Ptr linesCloud() { return m_linesCloud; }
@@ -54,8 +54,14 @@ public:
 	Eigen::Vector2f projTo2d(const Eigen::Vector3f& v);
 	bool available2dPoint(const Eigen::Vector2f& v);*/
 
+	Eigen::Vector3f minPoint() const { return m_minPoint; }
+	Eigen::Vector3f maxPoint() const { return m_maxPoint; }
+	float resolution() const { return m_resolution; }
+
+	pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud() const { return m_cloud; }
+
 private:
-	int quadrantStatisticByVoxel(pcl::octree::OctreePointCloudSearch<pcl::PointXYZINormal>& tree, const Eigen::Vector3f& key, int length, int xStep, int yStep, int zStep);
+	//int quadrantStatisticByVoxel(pcl::octree::OctreePointCloudSearch<pcl::PointXYZINormal>& tree, const Eigen::Vector3f& key, int length, int xStep, int yStep, int zStep);
 
 private:
 	bool m_init;
@@ -64,6 +70,7 @@ private:
 	cv::Mat m_colorLinesMat;
 	cv::Mat m_linesMat;
 	std::vector<float3> m_points;
+	std::vector<float3> m_normals;
 	
 	pcl::PointCloud<pcl::PointXYZINormal>::Ptr m_allBoundary;
 	pcl::PointCloud<pcl::PointXYZINormal>::Ptr m_cloud;
@@ -72,6 +79,8 @@ private:
 	cuda::GpuFrame m_frameGpu;
 	float m_resolution;
 
+	Eigen::Vector3f m_minPoint;
+	Eigen::Vector3f m_maxPoint;
 
 	//Struct defining a vector in Cartesian coordinates
 	typedef struct Cvec

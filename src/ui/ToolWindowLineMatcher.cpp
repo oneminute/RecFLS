@@ -31,9 +31,9 @@ ToolWindowLineMatcher::ToolWindowLineMatcher(QWidget *parent)
     m_cloudViewer1 = new CloudViewer;
     m_cloudViewer2 = new CloudViewer;
     m_cloudViewer3 = new CloudViewer;
-	m_cloudViewer1->visualizer()->setBackgroundColor(255, 255, 255);
-	m_cloudViewer2->visualizer()->setBackgroundColor(255, 255, 255);
-	m_cloudViewer3->visualizer()->setBackgroundColor(255, 255, 255);
+	//m_cloudViewer1->visualizer()->setBackgroundColor(255, 255, 255);
+	//m_cloudViewer2->visualizer()->setBackgroundColor(255, 255, 255);
+	//m_cloudViewer3->visualizer()->setBackgroundColor(255, 255, 255);
 
     m_cloudViewer1->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, -1, 0);
     m_cloudViewer2->setCameraPosition(0, 0, -1.5f, 0, 0, 0, 0, -1, 0);
@@ -151,15 +151,22 @@ void ToolWindowLineMatcher::initCompute()
     m_flFrameSrc.setPose(Eigen::Matrix4f::Identity());
     m_beCloudSrc = m_lineExtractor->allBoundary();
 	//m_groupPointsSrc = m_lineExtractor->groupPoints();
-	m_lineExtractor->generateVoxelsDescriptors(frameSrc, m_flFrameSrc.lines(), 0.05f, 5, 4, 8, frameSrc.getColorWidth(), frameSrc.getColorHeight(), frameSrc.getDevice()->cx(), frameSrc.getDevice()->cy(), frameSrc.getDevice()->fx(), frameSrc.getDevice()->fy());
+    m_lineExtractor->generateCylinderDescriptors(frameSrc, m_flFrameSrc.lines(), 0.5f, 5,
+        frameSrc.getColorWidth(), frameSrc.getColorHeight(),
+        frameSrc.getDevice()->cx(), frameSrc.getDevice()->cy(), 
+        frameSrc.getDevice()->fx(), frameSrc.getDevice()->fy());
+	//m_lineExtractor->generateVoxelsDescriptors(frameSrc, m_flFrameSrc.lines(), 0.05f, 5, 4, 8, frameSrc.getColorWidth(), frameSrc.getColorHeight(), frameSrc.getDevice()->cx(), frameSrc.getDevice()->cy(), frameSrc.getDevice()->fx(), frameSrc.getDevice()->fy());
     
 
     m_flFrameDst = m_lineExtractor->compute(frameDst);
     m_flFrameDst.setPose(Eigen::Matrix4f::Identity());
     m_beCloudDst = m_lineExtractor->allBoundary();
 	//m_groupPointsDst = m_lineExtractor->groupPoints();
-	m_lineExtractor->generateVoxelsDescriptors(frameDst, m_flFrameDst.lines(), 0.05f, 5, 4, 8, frameDst.getColorWidth(), frameDst.getColorHeight(), frameDst.getDevice()->cx(), frameDst.getDevice()->cy(), frameDst.getDevice()->fx(), frameDst.getDevice()->fy());
-    
+    m_lineExtractor->generateCylinderDescriptors(frameDst, m_flFrameSrc.lines(), 0.5f, 5,
+        frameDst.getColorWidth(), frameDst.getColorHeight(),
+        frameDst.getDevice()->cx(), frameDst.getDevice()->cy(), 
+        frameDst.getDevice()->fx(), frameDst.getDevice()->fy());
+	//m_lineExtractor->generateVoxelsDescriptors(frameDst, m_flFrameDst.lines(), 0.05f, 5, 4, 8, frameDst.getColorWidth(), frameDst.getColorHeight(), frameDst.getDevice()->cx(), frameDst.getDevice()->cy(), frameDst.getDevice()->fx(), frameDst.getDevice()->fy());
 
     m_cloudViewer1->visualizer()->removeAllPointClouds();
     m_cloudViewer1->visualizer()->removeAllShapes();
@@ -243,9 +250,9 @@ void ToolWindowLineMatcher::showCloudAndLines(CloudViewer* viewer, pcl::PointClo
         //m_cloudViewer->visualizer()->addArrow(end, start, r, g, b, 0, lineNo);
         //std::cout << line.red() << ", " << line.green() << ", " << line.blue() << std::endl;
         //viewer->visualizer()->addLine(start, end, line.red() / 255, line.green() / 255, line.blue() / 255, lineNo);
-		viewer->visualizer()->setBackgroundColor(255, 255, 255);
-		viewer->visualizer()->addLine(start, end, 0, 0, 0, lineNo);
-        viewer->visualizer()->addText3D(std::to_string(i), middle, 0.025, 0, 0, 0, textNo);
+		//viewer->visualizer()->setBackgroundColor(255, 255, 255);
+		viewer->visualizer()->addLine(start, end, 255, 0, 0, lineNo);
+        viewer->visualizer()->addText3D(std::to_string(i), middle, 0.025, 0, 0, 255, textNo);
         viewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo);
 		viewer->visualizer()->removeAllPointClouds();
 		
