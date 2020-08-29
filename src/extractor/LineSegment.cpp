@@ -17,6 +17,7 @@ public:
 		, blue(0)
 		, index(-1)
 		, longDescriptor(40)
+		, cylinderCloud(new pcl::PointCloud<pcl::PointXYZINormal>)
 	{
 		for (int i = 0; i < shortDescriptor.size(); i++)
 		{
@@ -44,6 +45,7 @@ public:
 	std::vector<float> longDescriptor;
 	std::vector<float> Descriptor;
 	std::vector<std::vector<Eigen::Vector3f>> lineCylinders;
+	pcl::PointCloud<pcl::PointXYZINormal>::Ptr cylinderCloud;
 };
 
 LineSegment::LineSegment(const Eigen::Vector3f &start, const Eigen::Vector3f &end, int segmentNo, QObject *parent)
@@ -149,33 +151,6 @@ void LineSegment::setIndex(int index)
 {
 	data->index = index;
 }
-
-//void LineSegment::reproject(float minLength, float maxLength, Eigen::Vector3f minPoint, Eigen::Vector3f maxPoint)
-//{
-//    Eigen::Vector3f s = start() - minPoint;
-//    Eigen::Vector3f m = middle() - minPoint;
-//    Eigen::Vector3f e = end() - minPoint;
-//
-//    Eigen::Vector3f delta = maxPoint - minPoint;
-//
-//    data->shortDescriptor.resize(1, 13);
-//    data->shortDescriptor[0] = s.x() / delta.x();
-//    data->shortDescriptor[1] = s.y() / delta.y();
-//    data->shortDescriptor[2] = s.z() / delta.z();
-//    data->shortDescriptor[3] = m.x() / delta.x();
-//    data->shortDescriptor[4] = m.y() / delta.y();
-//    data->shortDescriptor[5] = m.z() / delta.z();
-//    data->shortDescriptor[6] = e.x() / delta.x();
-//    data->shortDescriptor[7] = e.y() / delta.y();
-//    data->shortDescriptor[8] = e.z() / delta.z();
-//
-//    Eigen::Vector3f dir = direction().normalized();
-//    data->shortDescriptor[9] = dir[0];
-//    data->shortDescriptor[10] = dir[1];
-//    data->shortDescriptor[11] = dir[2];
-//    data->shortDescriptor[12] = (length() - minLength) / (maxLength - minLength);
-//    data->shortDescriptor.normalize();
-//}
 
 void LineSegment::reproject(const Eigen::Matrix3f& rot, const Eigen::Vector3f& trans)
 {
@@ -392,5 +367,15 @@ Eigen::Matrix3f LineSegment::localRotaion() const
 	Eigen::Vector3f zAxis = xAxis.cross(yAxis).normalized();
 	Eigen::Matrix3f matrix = (Eigen::AngleAxisf(0, xAxis) * Eigen::AngleAxisf(0, yAxis) * Eigen::AngleAxisf(0, zAxis)).toRotationMatrix();
 	return matrix;
+}
+
+pcl::PointCloud<pcl::PointXYZINormal>::Ptr LineSegment::cylinderCloud() const
+{
+	return data->cylinderCloud;
+}
+
+void LineSegment::setCylinderCloud(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud)
+{
+	data->cylinderCloud = cloud;
 }
 
