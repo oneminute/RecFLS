@@ -48,3 +48,12 @@ CMakeLists.txt.user*
 build/
 
 *.user
+
+*.user.*
+
+*.autosave
+
+*.sens
+
+*.png
+samples/

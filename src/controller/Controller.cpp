@@ -1,37 +1,18 @@
 #include "Controller.h"
 #include "common/Parameters.h"
-#include "FrameStepController.h"
+#include "DefaultController.h"
 
-Controller *Controller::m_current(nullptr);
-
-Controller::Controller(QObject *parent) : QObject(parent)
+Controller::Controller(Device *device, QObject *parent)
+    : QObject(parent)
+    , m_device(device)
 {
+    Q_ASSERT(m_device);
 
+//    connect(m_device, &Device::frameFetched, this, &Controller::frameFetched);
 }
 
-Controller *Controller::current()
+bool Controller::supportRandomAccessing() const
 {
-    if (m_current)
-    {
-
-    }
-    else
-    {
-        QString currentClassName = Parameters::Global().stringValue("current_controller", "FrameStepController", "Controller");
-
-        if (currentClassName == "FrameStepController")
-        {
-            m_current = new FrameStepController;
-        }
-    }
-    return m_current;
+    return m_device->supportRandomAccessing();
 }
 
-void Controller::destroy()
-{
-    if (m_current)
-    {
-        delete m_current;
-        m_current = nullptr;
-    }
-}
