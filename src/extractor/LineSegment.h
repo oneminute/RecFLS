@@ -113,6 +113,9 @@ public:
 
 	Eigen::Matrix3f localRotaion() const;
 
+	pcl::PointCloud<pcl::PointXYZINormal>::Ptr cylinderCloud() const;
+	void setCylinderCloud(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud);
+
 private:
 	QSharedDataPointer<LineSegmentData> data;
 };

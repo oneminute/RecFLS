@@ -470,14 +470,17 @@ void FusedLineExtractor::generateCylinderDescriptors(Frame& frame, pcl::PointClo
 					if (lineDistance > radius)
 						continue;
 
+					int layerIndex = lineDistance / radius * layers;
+
 					pcl::Indices indices;
 					std::vector<float> dists;
 					pcl::PointXYZINormal pclPoint;
 					pclPoint.getVector3fMap() = point;
 					pclPoint.getNormalVector3fMap() = normal;
+					pclPoint.intensity = layerIndex;
+					ls.cylinderCloud()->points.push_back(pclPoint);
 					if (kdtree->radiusSearch(pclPoint, 0.1, indices, dists, 0) > 0)
 					{
-						int layerIndex = lineDistance / radius * layers;
 						int quadrant = -1;
 						Eigen::Vector4f quaternion(Eigen::Vector4f::Zero());
 						std::vector<float> quadrants{ 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -553,6 +556,7 @@ void FusedLineExtractor::generateCylinderDescriptors(Frame& frame, pcl::PointClo
 				}
 			}
 		}
+		qDebug() << "cloud size:" << ls.cylinderCloud()->points.size();
 
 		std::cout << std::endl;
 		{
