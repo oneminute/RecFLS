@@ -364,6 +364,7 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 		line.setStart(start);
 		line.setEnd(end);
 		line.setSecondaryDir(avgNormal);
+		line.setCenter(center);
 		line.setStart2d(line2d.start);
 		line.setEnd2d(line2d.end);
 		line.calculateColorAvg(frame.colorMat());

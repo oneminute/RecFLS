@@ -20,18 +20,16 @@ class LineMatcher : public QObject
 public:
     explicit LineMatcher(QObject* parent = nullptr);
 
-    /*Eigen::Matrix4f compute(
+    Eigen::Matrix4f compute(
         FLFrame& srcFrame,
         FLFrame& dstFrame,
         float& error
-    );*/
+    );
 
     void match(
         pcl::PointCloud<LineSegment>::Ptr srcLines
         , pcl::PointCloud<LineSegment>::Ptr dstLines
         , pcl::KdTreeFLANN<LineSegment>::Ptr tree
-        , const Eigen::Matrix3f& rot
-        , const Eigen::Vector3f& trans
         , QMap<int, int>& pairs
         , QMap<int, float>& weights
     );
@@ -39,7 +37,6 @@ public:
     Eigen::Matrix4f step(
         pcl::PointCloud<LineSegment>::Ptr srcLines
         , pcl::PointCloud<LineSegment>::Ptr dstLines
-        , pcl::KdTreeFLANN<LineSegment>::Ptr tree
         , const Eigen::Matrix4f& initPose
         , float& error
         , QMap<int, int>& pairs
@@ -49,7 +46,6 @@ public:
     Eigen::Matrix3f stepRotation(
         pcl::PointCloud<LineSegment>::Ptr srcLines
         , pcl::PointCloud<LineSegment>::Ptr dstLines
-        , pcl::KdTreeFLANN<LineSegment>::Ptr tree
         , const Eigen::Matrix3f& initRot
         , QMap<int, int>& pairs
         , QMap<int, float>& weights
@@ -58,23 +54,21 @@ public:
     Eigen::Vector3f stepTranslation(
         pcl::PointCloud<LineSegment>::Ptr srcLines
         , pcl::PointCloud<LineSegment>::Ptr dstLines
-        , pcl::KdTreeFLANN<LineSegment>::Ptr tree
         , QMap<int, int>& pairs
         , QMap<int, float>& weights
         , const Eigen::Matrix3f& initRot
         , const Eigen::Vector3f& initTrans
-        , const Eigen::Matrix3f& rot = Eigen::Matrix3f::Identity()
+        , const Eigen::Matrix3f& deltaRot = Eigen::Matrix3f::Identity()
     );
 
     float computeError(
         pcl::PointCloud<LineSegment>::Ptr srcLines
         , pcl::PointCloud<LineSegment>::Ptr dstLines
-        , pcl::KdTreeFLANN<LineSegment>::Ptr tree
         , QMap<int, int>& pairs
         , const Eigen::Matrix3f& initRot
         , const Eigen::Vector3f& initTrans
-        , const Eigen::Matrix3f& rot = Eigen::Matrix3f::Identity()
-        , const Eigen::Vector3f& trans = Eigen::Vector3f::Zero()
+        , const Eigen::Matrix3f& deltaRot = Eigen::Matrix3f::Identity()
+        , const Eigen::Vector3f& deltaTrans = Eigen::Vector3f::Zero()
     );
 
     Eigen::Vector3f stepTranslation2(
