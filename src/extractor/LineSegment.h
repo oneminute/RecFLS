@@ -36,6 +36,10 @@ public:
 
 	Eigen::Vector3f middle() const;
 
+	Eigen::Vector3f center() const;
+
+	void setCenter(const Eigen::Vector3f& center);
+
 	cv::Point2f start2d() const;
 
 	Eigen::Vector3f secondaryDir() const;
@@ -62,7 +66,7 @@ public:
 
 	void reproject(const Eigen::Matrix3f& rot = Eigen::Matrix3f::Identity(), const Eigen::Vector3f& trans = Eigen::Vector3f::Zero());
 
-	int shortDescriptorSize() const;
+	static int shortDescriptorSize();
 
 	static int longDescriptorSize();
 
@@ -126,14 +130,15 @@ struct pcl::DefaultPointRepresentation<LineSegment> : public pcl::PointRepresent
 public:
 	DefaultPointRepresentation()
 	{
-		nr_dimensions_ = LineSegment::longDescriptorSize();
+		//nr_dimensions_ = LineSegment::longDescriptorSize();
+		nr_dimensions_ = 13;
 	}
 
 	void copyToFloatArray(const LineSegment& l, float* out) const override
 	{
 		for (int i = 0; i < nr_dimensions_; i++)
 		{
-			out[i] = l.longDescriptor()[i];
+			out[i] = l.shortDescriptor()[i];
 		}
 	}
 

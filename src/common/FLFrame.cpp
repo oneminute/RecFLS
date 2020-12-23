@@ -106,7 +106,7 @@ Eigen::Matrix4f FLFrame::pose() const
 
 void FLFrame::setPose(const Eigen::Matrix4f& _value)
 {
-    m_data->pose = _value;
+    m_data->pose = _value * m_data->pose;
     reproject(_value);
 }
 

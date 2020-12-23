@@ -33,6 +33,7 @@ public:
 	Eigen::Vector3f start;
 	Eigen::Vector3f end;
 	Eigen::Vector3f secondaryDir;
+	Eigen::Vector3f center;
 	cv::Point2d start2d;
 	cv::Point2d end2d;
 	double red;
@@ -97,6 +98,16 @@ Eigen::Vector3f LineSegment::middle() const
 	return (start() + end()) / 2;
 }
 
+Eigen::Vector3f LineSegment::center() const
+{
+	return data->center;
+}
+
+void LineSegment::setCenter(const Eigen::Vector3f& center)
+{
+	data->center = center;
+}
+
 cv::Point2f LineSegment::start2d() const
 {
 	return data->start2d;
@@ -154,13 +165,14 @@ void LineSegment::setIndex(int index)
 
 void LineSegment::reproject(const Eigen::Matrix3f& rot, const Eigen::Vector3f& trans)
 {
-	Eigen::Vector3f start = rot * data->start + trans;
-	Eigen::Vector3f end = rot * data->end + trans;
+	data->start = rot * data->start + trans;
+	data->end = rot * data->end + trans;
 	Eigen::Vector3f middle = rot * this->middle() + trans;
+	data->center = rot * LineSegment::center() + trans;
 
 	Eigen::Vector3f dir = direction().normalized();
-	float length = (start - end).norm();
-	Eigen::Vector3f projPt = start - dir * start.dot(dir);
+	float length = (data->start - data->end).norm();
+	Eigen::Vector3f projPt = data->start - dir * data->start.dot(dir);
 
 	data->shortDescriptor = Eigen::Matrix<float, 1, 13>();
 	data->shortDescriptor[0] = projPt.x();
@@ -169,9 +181,9 @@ void LineSegment::reproject(const Eigen::Matrix3f& rot, const Eigen::Vector3f& t
 	data->shortDescriptor[3] = dir.x();
 	data->shortDescriptor[4] = dir.y();
 	data->shortDescriptor[5] = dir.z();
-	data->shortDescriptor[6] = middle.x();
-	data->shortDescriptor[7] = middle.y();
-	data->shortDescriptor[8] = middle.z();
+	data->shortDescriptor[6] = data->center.x();
+	data->shortDescriptor[7] = data->center.y();
+	data->shortDescriptor[8] = data->center.z();
 	data->shortDescriptor[9] = data->red / 255;
 	data->shortDescriptor[10] = data->green / 255;
 	data->shortDescriptor[11] = data->blue / 255;
@@ -179,9 +191,9 @@ void LineSegment::reproject(const Eigen::Matrix3f& rot, const Eigen::Vector3f& t
 	data->shortDescriptor.normalize();
 }
 
-int LineSegment::shortDescriptorSize() const
+int LineSegment::shortDescriptorSize()
 {
-	return data->shortDescriptor.size();
+	return 13;
 }
 
 int LineSegment::longDescriptorSize()

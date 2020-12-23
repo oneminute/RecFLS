@@ -19,38 +19,38 @@ LineMatcher::LineMatcher(QObject* parent)
 
 }
 
-//Eigen::Matrix4f LineMatcher::compute(
-//    FLFrame& srcFrame
-//    , FLFrame& dstFrame
-//    , float& error)
-//{
-//    Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
-//    pcl::KdTreeFLANN<LineSegment>::Ptr tree(new pcl::KdTreeFLANN<LineSegment>());
-//    tree->setInputCloud(dstFrame.lines());
-//
-//    QMap<int, int> pairs;
-//
-//    for (int i = 0; i < 5; i++)
-//    {
-//        Eigen::Matrix4f stepPose = step(srcFrame.lines(), dstFrame.lines(), tree, error, pairs);
-//        if (pairs.size() < 3)
-//        {
-//            stepPose = Eigen::Matrix4f::Identity();
-//            error = 1;
-//            break;
-//        }
-//        srcFrame.transform(stepPose);
-//    }
-//
-//    return srcFrame.pose();
-//}
+Eigen::Matrix4f LineMatcher::compute(
+    FLFrame& srcFrame
+    , FLFrame& dstFrame
+    , float& error)
+{
+    Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
+    QMap<int, int> pairs; 
+    QMap<int, float> weights;
+    pcl::KdTreeFLANN<LineSegment>::Ptr tree(new pcl::KdTreeFLANN<LineSegment>());
+
+    tree->setInputCloud(dstFrame.lines());
+    match(srcFrame.lines(), dstFrame.lines(), tree, pairs, weights);
+
+    for (int i = 0; i < 5; i++)
+    {
+        Eigen::Matrix4f deltaPose = step(srcFrame.lines(), dstFrame.lines(), pose, error, pairs, weights);
+        if (pairs.size() < 3)
+        {
+            deltaPose = Eigen::Matrix4f::Identity();
+            error = 1;
+            break;
+        }
+        pose = deltaPose * pose;
+    }
+
+    return srcFrame.pose();
+}
 
 void LineMatcher::match(
     pcl::PointCloud<LineSegment>::Ptr srcLines
     , pcl::PointCloud<LineSegment>::Ptr dstLines
     , pcl::KdTreeFLANN<LineSegment>::Ptr tree
-    , const Eigen::Matrix3f& rot
-    , const Eigen::Vector3f& trans
     , QMap<int, int>& pairs
     , QMap<int, float>& weights
 )
@@ -106,10 +106,10 @@ void LineMatcher::match(
         sqrDiff += diff * diff;
 
         Eigen::Vector3f dstDir = dstLine.normalizedDir();
-        Eigen::Vector3f srcDir = rot * srcLine.normalizedDir();
+        Eigen::Vector3f srcDir = srcLine.normalizedDir();
 
         Eigen::Vector3f dstPoint = dstLine.middle();
-        Eigen::Vector3f srcPoint = rot * srcLine.middle() + trans;
+        Eigen::Vector3f srcPoint = srcLine.middle();
 
         float radians = acos(abs(srcDir.dot(dstDir)));
         avgRadians += radians;
@@ -145,10 +145,10 @@ void LineMatcher::match(
         float diff = abs(dstLine.length() - srcLine.length());
 
         Eigen::Vector3f dstDir = dstLine.normalizedDir();
-        Eigen::Vector3f srcDir = rot * srcLine.normalizedDir();
+        Eigen::Vector3f srcDir = srcLine.normalizedDir();
 
         Eigen::Vector3f dstPoint = dstLine.middle();
-        Eigen::Vector3f srcPoint = rot * srcLine.middle() + trans;
+        Eigen::Vector3f srcPoint = srcLine.middle();
 
         float radians = acos(abs(srcDir.dot(dstDir)));
         //float dist = (dstPoint - srcPoint).cross(dstDir).norm();
@@ -188,8 +188,12 @@ void LineMatcher::match(
     float sumLength = 0;
     for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
     {
-        LineSegment dstLine = dstLines->points[i.key()];
-        LineSegment srcLine = srcLines->points[i.value()];
+        LineSegment& dstLine = dstLines->points[i.key()];
+        LineSegment& srcLine = srcLines->points[i.value()];
+
+        float degrees = qAcos(dstLine.normalizedDir().dot(srcLine.normalizedDir()));
+        if ((M_PI - degrees) < 0.1f)
+            srcLine.reverse();
         
         float length = (dstLine.length() + srcLine.length()) / 2;
         weights.insert(i.key(), length);
@@ -205,7 +209,6 @@ void LineMatcher::match(
 Eigen::Matrix4f LineMatcher::step(
     pcl::PointCloud<LineSegment>::Ptr srcLines
     , pcl::PointCloud<LineSegment>::Ptr dstLines
-    , pcl::KdTreeFLANN<LineSegment>::Ptr tree
     , const Eigen::Matrix4f& initPose
     , float& error
     , QMap<int, int>& pairs
@@ -216,28 +219,23 @@ Eigen::Matrix4f LineMatcher::step(
 
     Eigen::Matrix3f initRot = initPose.topLeftCorner(3, 3);
     Eigen::Vector3f initTrans = initPose.topRightCorner(3, 1);
-    match(srcLines, dstLines, tree, initRot, initTrans, pairs, weights);
-    if (pairs.size() < 3)
-    {
-        return out;
-    }
 
-    Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
-    Eigen::Matrix3f rot = stepRotation(srcLines, dstLines, tree, initRot, pairs, weights);
-    Eigen::Vector3f trans = stepTranslation(srcLines, dstLines, tree, pairs, weights, initRot, initTrans, rot);
+    Eigen::Matrix4f deltaPose = Eigen::Matrix4f::Identity();
+    Eigen::Matrix3f deltaRot = stepRotation(srcLines, dstLines, initRot, pairs, weights);
+    Eigen::Vector3f deltaTrans = stepTranslation(srcLines, dstLines, pairs, weights, initRot, initTrans, deltaRot);
+    //Eigen::Vector3f deltaTrans = Eigen::Vector3f::Zero();
 
-    pose.topLeftCorner(3, 3) = rot;
-    pose.topRightCorner(3, 1) = trans;
+    deltaPose.topLeftCorner(3, 3) = deltaRot;
+    deltaPose.topRightCorner(3, 1) = deltaTrans;
 
-    error = computeError(srcLines, dstLines, tree, pairs, initRot, initTrans, rot, trans);
+    error = computeError(srcLines, dstLines, pairs, initRot, initTrans, deltaRot, deltaTrans);
 
-    return pose;
+    return deltaPose;
 }
 
 Eigen::Matrix3f LineMatcher::stepRotation(
     pcl::PointCloud<LineSegment>::Ptr srcLines
     , pcl::PointCloud<LineSegment>::Ptr dstLines
-    , pcl::KdTreeFLANN<LineSegment>::Ptr tree
     , const Eigen::Matrix3f& initRot
     , QMap<int, int>& pairs
     , QMap<int, float>& weights
@@ -251,11 +249,14 @@ Eigen::Matrix3f LineMatcher::stepRotation(
     {
         LineSegment dstLine = dstLines->points[i.key()];
         LineSegment srcLine = srcLines->points[i.value()];
+
+        float degrees = qAcos(dstLine.normalizedDir().dot(srcLine.normalizedDir()));
+        std::cout << i.value() << "-->" << i.key() << " angles: " << degrees << ", " << qRadiansToDegrees(degrees) << std::endl;
+
         dstAvgDir += dstLine.normalizedDir();
 		dstAvgDir /= pairs.size();
 		/*dstAvgDir1 = dstLine.normalizedDir()*weights[i.key()];
 		dstAvgDir += dstAvgDir1;*/
-		
 
         srcAvgDir += initRot * srcLine.normalizedDir()  ;
 		srcAvgDir /= pairs.size();
@@ -275,12 +276,16 @@ Eigen::Matrix3f LineMatcher::stepRotation(
         Eigen::Vector3f srcDiff = initRot * srcLine.normalizedDir() - srcAvgDir;
         cov += srcDiff * dstDiff.transpose();
 		cov /= pairs.size();
-		
-		
-		
-		
-
     }
+    
+    Eigen::EigenSolver<Eigen::Matrix3f> eigensolver(cov);
+    Eigen::Matrix3f em = eigensolver.eigenvectors().real();
+    Eigen::Vector3f ev = eigensolver.eigenvalues().real();
+    Eigen::Vector3f e1 = em.col(0) * ev.x();
+    Eigen::Vector3f e2 = em.col(1) * ev.y();
+    std::cout << "eigen vector 1:" << e1.transpose() << std::endl;
+    std::cout << "eigen values:" << ev.transpose() << std::endl;
+    std::cout << "eigen matrix:" << em << std::endl;
 
     Eigen::JacobiSVD<Eigen::MatrixXf> svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
     Eigen::Matrix3f V = svd.matrixV();
@@ -307,84 +312,37 @@ Eigen::Matrix3f LineMatcher::stepRotation(
 Eigen::Vector3f LineMatcher::stepTranslation(
     pcl::PointCloud<LineSegment>::Ptr srcLines
     , pcl::PointCloud<LineSegment>::Ptr dstLines
-    , pcl::KdTreeFLANN<LineSegment>::Ptr tree
     , QMap<int, int>& pairs
     , QMap<int, float>& weights
     , const Eigen::Matrix3f& initRot
     , const Eigen::Vector3f& initTrans
-    , const Eigen::Matrix3f& rot
+    , const Eigen::Matrix3f& deltaRot
 )
 {
     Eigen::Vector3f trans(Eigen::Vector3f::Zero());
 
-	Eigen::Matrix3f A1(Eigen::Matrix3f::Zero());
-	Eigen::Matrix3f A(Eigen::Matrix3f::Zero());
-    Eigen::Vector3f b1(Eigen::Vector3f::Zero());
-	Eigen::Vector3f b(Eigen::Vector3f::Zero());
-    Eigen::Vector3f avgV(Eigen::Vector3f::Zero());
     for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
     {
+        Eigen::Matrix3f iteRot = deltaRot * initRot;
         LineSegment dstLine = dstLines->points[i.key()];
         LineSegment srcLine = srcLines->points[i.value()];
         Eigen::Vector3f dstLineDir = dstLine.normalizedDir();
-		Eigen::Vector3f srcLineDir = rot * initRot * srcLine.normalizedDir();
+		Eigen::Vector3f srcLineDir = iteRot * srcLine.normalizedDir();
 		
-
-		//Eigen::Vector3f lineDir = (dstLineDir + initRot * srcLineDir) / 2;
-		
-		Eigen::Vector3f lineDir = srcLineDir;
-		
-
-        float a2 = lineDir.x() * lineDir.x();
-        float b2 = lineDir.y() * lineDir.y();
-        float c2 = lineDir.z() * lineDir.z();
-        float ab = lineDir.x() * lineDir.y();
-        float ac = lineDir.x() * lineDir.z();
-        float bc = lineDir.y() * lineDir.z();
-	   /* float a1 = lineDir.x();
-		float a2 = lineDir.y();
-		float a3 = lineDir.z();*/
-        Eigen::Vector3f v = dstLine.middle() - rot * (initRot * srcLine.middle() + initTrans);
-		//avgV += v * weights[i.key()];
-        //float xv = v.x();
-        //float yv = v.y();
-        //float zv = v.z();
-		
-        Eigen::Matrix3f deltaA;
-        deltaA << b2 + c2,     -ab,     -ac,
-                      -ab, a2 + c2,     -bc,
-                      -ac,     -bc, a2 + b2;
-		/*deltaA << 0, -a3, a2,
-			      a3, 0, -a1,
-			     -a2, a1, 0;*/
-
-        //A.row(0)[0] += b2 + c2; A.row(0)[1] +=     -ab; A.row(0)[2] +=     -ac;
-        //A.row(1)[0] +=     -ab; A.row(1)[1] += a2 + c2; A.row(1)[2] +=     -bc;
-        //A.row(2)[0] +=     -ac; A.row(2)[1] +=     -bc; A.row(2)[2] += a2 + b2;
-      
-		b += deltaA * v;
-	    b /= pairs.size();
-		A = deltaA ;
-		A /= pairs.size();
-		
-        
-        //b.x() += (b2 + c2) * xv         -ab * yv         -ac * zv;
-        //b.y() +=       -ab * xv + (a2 + c2) * yv         -bc * zv;
-        //b.z() +=       -ac * xv         -bc * yv + (a2 + b2) * zv;
-        /*b1 = deltaA1 * v* weights[i.key()];
-		b += b1;
-		A1= deltaA1* weights[i.key()] ;
-		A += A1;*/
-		
-		
+        Eigen::Vector3f diff = dstLine.center() - (iteRot * srcLine.center() + initTrans);
+        Eigen::Vector3f vertDir = srcLineDir.cross(dstLineDir);
+        if (vertDir.norm() <= 0.000001f)
+        {
+            vertDir = diff.cross(srcLineDir).cross(srcLineDir);
+        }
+        float dist = diff.dot(vertDir.normalized());
+        std::cout << i.value() << "-->" << i.key() << ":" << dist << "; " << diff.norm() << std::endl;
+        //Eigen::Vector3f t = vertDir.normalized() * dist;
+        Eigen::Vector3f t = diff;
+        trans += t;
     }
-	trans = A.colPivHouseholderQr().solve(b);
-	
-
-	
-    //avgV /= pairs.size();
-    //std::cout << " avgV: " << avgV.transpose() << std::endl;
-    //std::cout << "trans: " << trans.transpose() << std::endl;
+    trans /= pairs.count();
+    std::cout << "trans: " << trans.transpose() << std::endl;
     
     return trans;
 }
@@ -392,12 +350,11 @@ Eigen::Vector3f LineMatcher::stepTranslation(
 float LineMatcher::computeError(
     pcl::PointCloud<LineSegment>::Ptr srcLines
     , pcl::PointCloud<LineSegment>::Ptr dstLines
-    , pcl::KdTreeFLANN<LineSegment>::Ptr tree
     , QMap<int, int>& pairs
     , const Eigen::Matrix3f& initRot
     , const Eigen::Vector3f& initTrans
-    , const Eigen::Matrix3f& rot
-    , const Eigen::Vector3f& trans
+    , const Eigen::Matrix3f& deltaRot
+    , const Eigen::Vector3f& deltaTrans
 )
 {
     float error = 0;
@@ -406,10 +363,10 @@ float LineMatcher::computeError(
         LineSegment dstLine = dstLines->points[i.key()];
         LineSegment srcLine = srcLines->points[i.value()];
         Eigen::Vector3f dstLineDir = dstLine.normalizedDir();
-        Eigen::Vector3f srcLineDir = rot * (initRot * srcLine.normalizedDir() + initTrans);
+        Eigen::Vector3f srcLineDir = deltaRot * (initRot * srcLine.normalizedDir() + initTrans);
 
         Eigen::Vector3f vertLine = srcLineDir.cross(dstLineDir).normalized();
-        float distance = (dstLine.middle() - rot * (initRot * srcLine.middle() - initTrans) - trans).dot(vertLine);
+        float distance = (dstLine.middle() - deltaRot * (initRot * srcLine.middle() - initTrans) - deltaTrans).dot(vertLine);
         error += abs(distance);
     }
     error /= pairs.size();

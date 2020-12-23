@@ -143,7 +143,8 @@ void LineMatchCudaOdometry::optimize(FLFrame& prevFrame)
 
         Eigen::Matrix4f initPose = prevFrame.pose().inverse() * m_srcFrame.pose();
         tree->setInputCloud(prevFrame.lines());
-        Eigen::Matrix4f relPose = m_lineMatcher->step(m_srcFrame.lines(), prevFrame.lines(), tree, initPose, error, pairs, weights);
+        m_lineMatcher->match(m_srcFrame.lines(), m_dstFrame.lines(), tree, pairs, weights);
+        Eigen::Matrix4f relPose = m_lineMatcher->step(m_srcFrame.lines(), prevFrame.lines(), initPose, error, pairs, weights);
         if (error >= 1)
             continue;
 
@@ -258,7 +259,8 @@ void LineMatchCudaOdometry::doProcessing(Frame& frame)
     float error = 0;
     QMap<int, int> pairs;
     QMap<int, float> weights;
-    Eigen::Matrix4f poseDelta = m_lineMatcher->step(m_srcFrame.lines(), m_dstFrame.lines(), tree, initPose, error, pairs, weights);
+    m_lineMatcher->match(m_srcFrame.lines(), m_dstFrame.lines(), tree, pairs, weights);
+    Eigen::Matrix4f poseDelta = m_lineMatcher->step(m_srcFrame.lines(), m_dstFrame.lines(), initPose, error, pairs, weights);
     if (error >= 1)
     {
         return;
