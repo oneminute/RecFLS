@@ -180,7 +180,7 @@ void CloudViewerInteractorStyle::OnMouseMove()
 
             viewer_->removeCloud("interactor_points_alt");
             pointsHolder_->resize(2);
-            pcl::PointXYZRGB pt(255,0,0);
+            pcl::PointXYZRGB pt;
             pt.x = picked[0];
             pt.y = picked[1];
             pt.z = picked[2];
@@ -326,7 +326,7 @@ void CloudViewerInteractorStyle::OnLeftButtonDown()
 
             viewer_->removeCloud("interactor_points");
             pointsHolder_->clear();
-            pcl::PointXYZRGB pt(255,0,0);
+            pcl::PointXYZRGB pt;
             pt.x = picked[0];
             pt.y = picked[1];
             pt.z = picked[2];
