@@ -89,6 +89,9 @@ private:
     QMap<int, pcl::PointCloud<pcl::PointXYZINormal>::Ptr> m_groupPointsSrc;
     QMap<int, pcl::PointCloud<pcl::PointXYZINormal>::Ptr> m_groupPointsDst;
 
+    float m_iterationDuration;
+    float m_totalDuration;
+
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
