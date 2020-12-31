@@ -192,12 +192,12 @@
            <item row="1" column="0">
             <widget class="QLabel" name="label_4">
              <property name="text">
-              <string>Rotation Error</string>
+              <string>Error</string>
              </property>
             </widget>
            </item>
            <item row="1" column="1">
-            <widget class="QLabel" name="labelRotationError">
+            <widget class="QLabel" name="labelError">
              <property name="text">
               <string>0</string>
              </property>
@@ -206,25 +206,25 @@
            <item row="2" column="0">
             <widget class="QLabel" name="label_5">
              <property name="text">
-              <string>Translation Error</string>
+              <string>Iteration Duration</string>
              </property>
             </widget>
            </item>
            <item row="2" column="1">
-            <widget class="QLabel" name="labelTranslationError">
+            <widget class="QLabel" name="labelIterationDuration">
              <property name="text">
               <string>0</string>
              </property>
             </widget>
            </item>
-           <item row="3" column="0">
+           <item row="4" column="0">
             <widget class="QLabel" name="label_6">
              <property name="text">
               <string>Rotation Iterations</string>
              </property>
             </widget>
            </item>
-           <item row="3" column="1">
+           <item row="4" column="1">
             <widget class="QSpinBox" name="spinBoxRotationIterations">
              <property name="maximum">
               <number>100</number>
@@ -234,20 +234,34 @@
              </property>
             </widget>
            </item>
-           <item row="4" column="0">
+           <item row="5" column="0">
             <widget class="QLabel" name="label_7">
              <property name="text">
               <string>Line Chain Pairs</string>
              </property>
             </widget>
            </item>
-           <item row="4" column="1">
+           <item row="5" column="1">
             <widget class="QComboBox" name="comboBoxLineChainPairs"/>
            </item>
-           <item row="5" column="1">
+           <item row="6" column="1">
             <widget class="QPushButton" name="pushButtonShowLineChainPair">
              <property name="text">
               <string>Show Line Chain Pair</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QLabel" name="label_8">
+             <property name="text">
+              <string>Total Duration</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QLabel" name="labelTotalDuration">
+             <property name="text">
+              <string>0</string>
              </property>
             </widget>
            </item>

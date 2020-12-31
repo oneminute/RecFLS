@@ -70,11 +70,6 @@ ToolWindowLineMatcher::~ToolWindowLineMatcher()
 
 void ToolWindowLineMatcher::initCompute()
 {
-    /*if (!m_boundaryExtractor)
-    {
-        m_boundaryExtractor.reset(new BoundaryExtractor);
-    }*/
-
     if (!m_lineExtractor)
     {
         m_lineExtractor.reset(new FusedLineExtractor);
@@ -85,31 +80,9 @@ void ToolWindowLineMatcher::initCompute()
         m_lineMatcher.reset(new LineMatcher);
     }
 
-    /*m_boundaryExtractor.reset(new BoundaryExtractor);
-    m_boundaryExtractor->setBorderLeft(Settings::BoundaryExtractor_BorderLeft.value());
-    m_boundaryExtractor->setBorderRight(Settings::BoundaryExtractor_BorderRight.value());
-    m_boundaryExtractor->setBorderTop(Settings::BoundaryExtractor_BorderTop.value());
-    m_boundaryExtractor->setBorderBottom(Settings::BoundaryExtractor_BorderBottom.value());
-    m_boundaryExtractor->setMinDepth(Settings::BoundaryExtractor_MinDepth.value());
-    m_boundaryExtractor->setMaxDepth(Settings::BoundaryExtractor_MaxDepth.value());
-    m_boundaryExtractor->setCudaNormalKernalRadius(Settings::BoundaryExtractor_CudaNormalKernalRadius.intValue());
-    m_boundaryExtractor->setCudaNormalKnnRadius(Settings::BoundaryExtractor_CudaNormalKnnRadius.value());
-    m_boundaryExtractor->setCudaBEDistance(Settings::BoundaryExtractor_CudaBEDistance.value());
-    m_boundaryExtractor->setCudaBEAngleThreshold(Settings::BoundaryExtractor_CudaBEAngleThreshold.value());
-    m_boundaryExtractor->setCudaBEKernalRadius(Settings::BoundaryExtractor_CudaBEKernalRadius.value());
-    m_boundaryExtractor->setCudaGaussianSigma(Settings::BoundaryExtractor_CudaGaussianSigma.value());
-    m_boundaryExtractor->setCudaGaussianKernalRadius(Settings::BoundaryExtractor_CudaGaussianKernalRadius.value());
-    m_boundaryExtractor->setCudaClassifyKernalRadius(Settings::BoundaryExtractor_CudaClassifyKernalRadius.value());
-    m_boundaryExtractor->setCudaClassifyDistance(Settings::BoundaryExtractor_CudaClassifyDistance.value());
-    m_boundaryExtractor->setCudaPeakClusterTolerance(Settings::BoundaryExtractor_CudaPeakClusterTolerance.intValue());
-    m_boundaryExtractor->setCudaMinClusterPeaks(Settings::BoundaryExtractor_CudaMinClusterPeaks.intValue());
-    m_boundaryExtractor->setCudaMaxClusterPeaks(Settings::BoundaryExtractor_CudaMaxClusterPeaks.intValue());
-    m_boundaryExtractor->setCudaCornerHistSigma(Settings::BoundaryExtractor_CudaCornerHistSigma.value());*/
-
     int frameIndexDst = m_ui->comboBoxDstFrame->currentIndex();
     Frame frameDst = m_device->getFrame(frameIndexDst);
     int frameIndexSrc = m_ui->comboBoxSrcFrame->currentIndex();
-    //int frameIndexSrc = m_ui->comboBoxDstFrame->currentIndex();
     Frame frameSrc = m_device->getFrame(frameIndexSrc);
 
     m_ui->widgetFrame1->setImage(cvMat2QImage(frameSrc.colorMat()));
@@ -151,10 +124,6 @@ void ToolWindowLineMatcher::initCompute()
     m_flFrameSrc.setPose(Eigen::Matrix4f::Identity());
     m_beCloudSrc = m_lineExtractor->allBoundary();
 	//m_groupPointsSrc = m_lineExtractor->groupPoints();
-    /*m_lineExtractor->generateCylinderDescriptors(frameSrc, m_flFrameSrc.lines(), 0.5f, 5,
-        frameSrc.getColorWidth(), frameSrc.getColorHeight(),
-        frameSrc.getDevice()->cx(), frameSrc.getDevice()->cy(), 
-        frameSrc.getDevice()->fx(), frameSrc.getDevice()->fy());*/
 	//m_lineExtractor->generateVoxelsDescriptors(frameSrc, m_flFrameSrc.lines(), 0.05f, 5, 4, 8, frameSrc.getColorWidth(), frameSrc.getColorHeight(), frameSrc.getDevice()->cx(), frameSrc.getDevice()->cy(), frameSrc.getDevice()->fx(), frameSrc.getDevice()->fy());
     
 
@@ -162,10 +131,6 @@ void ToolWindowLineMatcher::initCompute()
     m_flFrameDst.setPose(Eigen::Matrix4f::Identity());
     m_beCloudDst = m_lineExtractor->allBoundary();
 	//m_groupPointsDst = m_lineExtractor->groupPoints();
-    /*m_lineExtractor->generateCylinderDescriptors(frameDst, m_flFrameSrc.lines(), 0.5f, 5,
-        frameDst.getColorWidth(), frameDst.getColorHeight(),
-        frameDst.getDevice()->cx(), frameDst.getDevice()->cy(), 
-        frameDst.getDevice()->fx(), frameDst.getDevice()->fy());*/
 	//m_lineExtractor->generateVoxelsDescriptors(frameDst, m_flFrameDst.lines(), 0.05f, 5, 4, 8, frameDst.getColorWidth(), frameDst.getColorHeight(), frameDst.getDevice()->cx(), frameDst.getDevice()->cy(), frameDst.getDevice()->fx(), frameDst.getDevice()->fy());
 
     m_cloudViewer1->visualizer()->removeAllPointClouds();
@@ -192,13 +157,11 @@ void ToolWindowLineMatcher::initCompute()
     m_flFrameSrc.setPose(m_pose);
 
     m_iteration = 0;
+    m_iterationDuration = 0;
+    m_totalDuration = 0;
 
     qDebug() << "src lines size:" << m_flFrameSrc.lines()->size() << ", dst lines size:" << m_flFrameDst.lines()->size();
     m_lineMatcher->match(m_flFrameSrc.lines(), m_flFrameDst.lines(), m_tree, m_pairs, m_weights);
-    /*for (QMap<int, int>::iterator i = m_pairs.begin(); i != m_pairs.end(); i++)
-    {
-        qDebug().noquote() << i.value() << "-->" << i.key() << ":" << m_weights[i.key()];
-    }*/
 
    {
         pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZINormal> behSrc(m_beCloudSrc, "intensity");
@@ -368,7 +331,11 @@ void ToolWindowLineMatcher::onActionBeginStep()
 
 void ToolWindowLineMatcher::onActionStep()
 {
+    QElapsedTimer timer;
+    timer.start();
     Eigen::Matrix4f pose = m_lineMatcher->step(m_flFrameSrc.lines(), m_flFrameDst.lines(), Eigen::Matrix4f::Identity(), m_error, m_pairs, m_weights);
+    m_iterationDuration = timer.nsecsElapsed() / 1000000.f;
+    m_totalDuration += m_iterationDuration;
     m_flFrameSrc.setPose(pose);
 
     Eigen::Matrix3f rot = pose.topLeftCorner(3, 3);
@@ -380,10 +347,6 @@ void ToolWindowLineMatcher::onActionStep()
 
     m_pose = pose * m_pose;
 
-    /*for (QMap<int, int>::iterator i = m_pairs.begin(); i != m_pairs.end(); i++)
-    {
-        qDebug().noquote() << i.value() << "-->" << i.key() << ":" << m_weights[i.key()];
-    }*/
     std::cout << "pose:" << std::endl << pose << std::endl;
     std::cout << "m_pose:" << std::endl << m_pose << std::endl;
     m_iteration++;
@@ -436,5 +399,7 @@ void ToolWindowLineMatcher::updateWidgets()
     //m_ui->actionReset->setEnabled(m_isLoaded);
 
     m_ui->labelIteration->setText(QString::number(m_iteration));
-    m_ui->labelRotationError->setText(QString::number(qRadiansToDegrees(m_error)));
+    m_ui->labelError->setText(QString::number(m_error));
+    m_ui->labelIterationDuration->setText(QString::number(m_iterationDuration));
+    m_ui->labelTotalDuration->setText(QString::number(m_totalDuration));
 }
