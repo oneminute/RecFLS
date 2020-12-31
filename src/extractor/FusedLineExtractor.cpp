@@ -369,6 +369,8 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 		line.setEnd2d(line2d.end);
 		line.calculateColorAvg(frame.colorMat());
 		line.drawColorLine(m_colorLinesMat);
+		if (line.direction().dot(Eigen::Vector3f(1, 1, 1)) < 0)
+			line.reverse();
 		//line.reproject();
 		//std::cout << line.shortDescriptorSize() << std::endl;
 		line.setIndex(flFrame.lines()->points.size());

@@ -74,8 +74,8 @@ void ToolWindowFusedLineExtractor::compute()
     m_flFrame = m_extractor->compute(m_frame);
 	//m_extractor->generateVoxelsDescriptors(m_frame, m_flFrame.lines(), 0.25f, 5, 4, 8, m_frame.getColorWidth(), m_frame.getColorHeight(), 
         //m_frame.getDevice()->cx(), m_frame.getDevice()->cy(), m_frame.getDevice()->fx(), m_frame.getDevice()->fy());
-    m_extractor->generateCylinderDescriptors(m_frame, m_flFrame.lines(), 0.5f, 5, m_frame.getColorWidth(), m_frame.getColorHeight(),
-        m_frame.getDevice()->cx(), m_frame.getDevice()->cy(), m_frame.getDevice()->fx(), m_frame.getDevice()->fy());
+    //m_extractor->generateCylinderDescriptors(m_frame, m_flFrame.lines(), 0.5f, 5, m_frame.getColorWidth(), m_frame.getColorHeight(),
+        //m_frame.getDevice()->cx(), m_frame.getDevice()->cy(), m_frame.getDevice()->fx(), m_frame.getDevice()->fy());
     //pcl::PointCloud<pcl::PointXYZINormal>::Ptr beCloud = m_extractor->allBoundary();
     //pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZINormal> beh(beCloud, "intensity");
     //m_cloudViewer->visualizer()->addPointCloud(beCloud, beh, "cloud_src");
@@ -189,16 +189,16 @@ void ToolWindowFusedLineExtractor::onActionShowPoints()
         middle.getVector3fMap() = line.middle();
         m_cloudViewer->visualizer()->addLine(start, end, 1.0, 1.0, 1.0, lineNo.toStdString());
         if (i == cloudIndex)
-            m_cloudViewer->visualizer()->addText3D(textNo.toStdString(), middle, 0.5, 1.0, 1.0, 1.0, textNo.toStdString());
+            m_cloudViewer->visualizer()->addText3D(textNo.toStdString(), middle, 0.1, 1.0, 1.0, 1.0, textNo.toStdString());
         else
-            m_cloudViewer->visualizer()->addText3D(textNo.toStdString(), middle, 0.1, 0.0, 1.0, 0.0, textNo.toStdString());
+            m_cloudViewer->visualizer()->addText3D(textNo.toStdString(), middle, 0.025, 0.0, 1.0, 0.0, textNo.toStdString());
 		m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo.toStdString());
 
         QString cylinderCloudName = QString("cylinder_cloud_%1").arg(i);
         pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZINormal> handle(line.cylinderCloud(), "intensity");
         //pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZINormal> handle(line.cylinderCloud(), rgb.red(), rgb.green(), rgb.blue());
-        m_cloudViewer->visualizer()->addPointCloud(line.cylinderCloud(), handle, cylinderCloudName.toStdString());
-        m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, cylinderCloudName.toStdString());
+        //m_cloudViewer->visualizer()->addPointCloud(line.cylinderCloud(), handle, cylinderCloudName.toStdString());
+        //m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, cylinderCloudName.toStdString());
 
         if (i != cloudIndex)
             continue;
