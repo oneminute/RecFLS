@@ -57,3 +57,5 @@ build/
 
 *.png
 samples/
+
+*.pcd
