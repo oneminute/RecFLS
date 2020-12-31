@@ -195,12 +195,11 @@ void ToolWindowLineMatcher::initCompute()
 
     qDebug() << "src lines size:" << m_flFrameSrc.lines()->size() << ", dst lines size:" << m_flFrameDst.lines()->size();
     m_lineMatcher->match(m_flFrameSrc.lines(), m_flFrameDst.lines(), m_tree, m_pairs, m_weights);
-    for (QMap<int, int>::iterator i = m_pairs.begin(); i != m_pairs.end(); i++)
+    /*for (QMap<int, int>::iterator i = m_pairs.begin(); i != m_pairs.end(); i++)
     {
         qDebug().noquote() << i.value() << "-->" << i.key() << ":" << m_weights[i.key()];
-    }
+    }*/
 
-    // ��ʾ����
    {
         pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZINormal> behSrc(m_beCloudSrc, "intensity");
         m_cloudViewer2->visualizer()->addPointCloud(m_beCloudSrc, behSrc, "cloud_src");
@@ -271,10 +270,10 @@ void ToolWindowLineMatcher::showMatchedClouds()
     m_cloudViewer1->visualizer()->removeAllPointClouds();
     m_cloudViewer1->visualizer()->removeAllShapes();
     {
-        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> h1(srcCloud, 255, 0, 0);
-        m_cloudViewer1->visualizer()->addPointCloud(srcCloud, h1, "cloud1");
-        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> h2(m_colorCloudDst, 0, 0, 255);
-        m_cloudViewer1->visualizer()->addPointCloud(m_colorCloudDst, h2, "cloud2");
+        //pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> h1(srcCloud, 255, 0, 0);
+        //m_cloudViewer1->visualizer()->addPointCloud(srcCloud, h1, "cloud1");
+        //pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> h2(m_colorCloudDst, 0, 0, 255);
+        //m_cloudViewer1->visualizer()->addPointCloud(m_colorCloudDst, h2, "cloud2");
     }
 
     for (QMap<int, int>::iterator i = m_pairs.begin(); i != m_pairs.end(); i++)
@@ -296,8 +295,8 @@ void ToolWindowLineMatcher::showMatchedClouds()
         ptEnd.getArray3fMap() = end;
         ptCenter.getArray3fMap() = center;
         m_cloudViewer1->visualizer()->addLine(ptStart, ptEnd, 0, 0, 255, lineNo.toStdString());
-        m_cloudViewer1->visualizer()->addSphere(ptCenter, 0.2, 0, 0, 255, sphereNo.toStdString());
-        m_cloudViewer1->visualizer()->addText3D(std::to_string(dstLine.index()), ptCenter, 0.25, 0, 0, 255, textNo.toStdString());
+        m_cloudViewer1->visualizer()->addSphere(ptCenter, 0.01, 0, 0, 255, sphereNo.toStdString());
+        m_cloudViewer1->visualizer()->addText3D(std::to_string(dstLine.index()), ptCenter, 0.05, 0, 0, 255, textNo.toStdString());
 
         start = rot * srcLine.start() + trans;
         end = rot * srcLine.end() + trans;
@@ -309,8 +308,8 @@ void ToolWindowLineMatcher::showMatchedClouds()
         ptEnd.getArray3fMap() = end;
         ptCenter.getArray3fMap() = center;
         m_cloudViewer1->visualizer()->addLine(ptStart, ptEnd, 255, 0, 0, lineNo.toStdString());
-        m_cloudViewer1->visualizer()->addSphere(ptCenter, 0.2, 255, 0, 0, sphereNo.toStdString());
-        m_cloudViewer1->visualizer()->addText3D(std::to_string(srcLine.index()), ptCenter, 0.25, 255, 0, 0, textNo.toStdString());
+        m_cloudViewer1->visualizer()->addSphere(ptCenter, 0.01, 255, 0, 0, sphereNo.toStdString());
+        m_cloudViewer1->visualizer()->addText3D(std::to_string(srcLine.index()), ptCenter, 0.05, 255, 0, 0, textNo.toStdString());
     }
 }
 
@@ -381,10 +380,10 @@ void ToolWindowLineMatcher::onActionStep()
 
     m_pose = pose * m_pose;
 
-    for (QMap<int, int>::iterator i = m_pairs.begin(); i != m_pairs.end(); i++)
+    /*for (QMap<int, int>::iterator i = m_pairs.begin(); i != m_pairs.end(); i++)
     {
         qDebug().noquote() << i.value() << "-->" << i.key() << ":" << m_weights[i.key()];
-    }
+    }*/
     std::cout << "pose:" << std::endl << pose << std::endl;
     std::cout << "m_pose:" << std::endl << m_pose << std::endl;
     m_iteration++;

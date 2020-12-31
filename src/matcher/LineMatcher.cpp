@@ -71,7 +71,7 @@ void LineMatcher::match(
         if (!tree->nearestKSearch(lineSrc, 1, indices, dists))
             continue;
 
-        qDebug().noquote() << i << "-->" << indices[0];
+        std::cout << std::setw(8) << i << " --> " << indices[0] << std::endl;
 
         // 若源直线集合中的多条直线对应到了同一条目标集合的直线上，
         // 则选取超维向量距离最小的。
@@ -120,7 +120,7 @@ void LineMatcher::match(
         avgDist += dist;
         sqrDist += dist * dist;
 
-        qDebug().noquote() << i.value() << "-->" << i.key() << ":" << radians << dist;
+        std::cout << std::setw(8) << i.value() << " --> " << i.key() << std::setw(12) << ": radians = "  << radians << ", dist = " << dist << std::endl;
     }
     // 求均值
     avgRadians /= pairs.size();
@@ -251,20 +251,19 @@ Eigen::Matrix3f LineMatcher::stepRotation(
         LineSegment srcLine = srcLines->points[i.value()];
 
         float degrees = qAcos(dstLine.normalizedDir().dot(srcLine.normalizedDir()));
-        std::cout << i.value() << "-->" << i.key() << " angles: " << degrees << ", " << qRadiansToDegrees(degrees) << std::endl;
+        std::cout << std::setw(8) << i.value() << " --> " << i.key() << std::setw(12) << ": degrees = " << degrees << ", angles = " << qRadiansToDegrees(degrees) << std::endl;
 
         dstAvgDir += dstLine.normalizedDir();
-		dstAvgDir /= pairs.size();
 		/*dstAvgDir1 = dstLine.normalizedDir()*weights[i.key()];
 		dstAvgDir += dstAvgDir1;*/
 
         srcAvgDir += initRot * srcLine.normalizedDir()  ;
-		srcAvgDir /= pairs.size();
 		/*srcAvgDir1 = initRot * srcLine.normalizedDir()*weights[i.key()];
 		srcAvgDir += srcAvgDir1;
 		*/
     }
-
+    dstAvgDir /= pairs.size();
+    srcAvgDir /= pairs.size();
   
 	Eigen::Matrix3f cov(Eigen::Matrix3f::Zero());
     for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
@@ -274,18 +273,15 @@ Eigen::Matrix3f LineMatcher::stepRotation(
 
         Eigen::Vector3f dstDiff = dstLine.normalizedDir() - dstAvgDir;
         Eigen::Vector3f srcDiff = initRot * srcLine.normalizedDir() - srcAvgDir;
-        cov += srcDiff * dstDiff.transpose();
-		cov /= pairs.size();
+        cov += srcDiff * weights[i.key()] * dstDiff.transpose();
+		//cov /= pairs.size();
     }
     
-    Eigen::EigenSolver<Eigen::Matrix3f> eigensolver(cov);
-    Eigen::Matrix3f em = eigensolver.eigenvectors().real();
-    Eigen::Vector3f ev = eigensolver.eigenvalues().real();
-    Eigen::Vector3f e1 = em.col(0) * ev.x();
-    Eigen::Vector3f e2 = em.col(1) * ev.y();
-    std::cout << "eigen vector 1:" << e1.transpose() << std::endl;
-    std::cout << "eigen values:" << ev.transpose() << std::endl;
-    std::cout << "eigen matrix:" << em << std::endl;
+    //Eigen::EigenSolver<Eigen::Matrix3f> eigensolver(cov);
+    //Eigen::Matrix3f em = eigensolver.eigenvectors().real();
+    //Eigen::Vector3f ev = eigensolver.eigenvalues().real();
+    //std::cout << "eigen values:" << ev.transpose() << std::endl;
+    //std::cout << "eigen matrix:" << std::endl << (em.colwise() * ev.transpose()) << std::endl;
 
     Eigen::JacobiSVD<Eigen::MatrixXf> svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
     Eigen::Matrix3f V = svd.matrixV();
@@ -329,19 +325,19 @@ Eigen::Vector3f LineMatcher::stepTranslation(
         Eigen::Vector3f dstLineDir = dstLine.normalizedDir();
 		Eigen::Vector3f srcLineDir = iteRot * srcLine.normalizedDir();
 		
-        Eigen::Vector3f diff = dstLine.center() - (iteRot * srcLine.center() + initTrans);
+        Eigen::Vector3f diff = dstLine.center() - deltaRot * (initRot * srcLine.center() + initTrans);
         Eigen::Vector3f vertDir = srcLineDir.cross(dstLineDir);
         if (vertDir.norm() <= 0.000001f)
         {
             vertDir = diff.cross(srcLineDir).cross(srcLineDir);
         }
         float dist = diff.dot(vertDir.normalized());
-        std::cout << i.value() << "-->" << i.key() << ":" << dist << "; " << diff.norm() << std::endl;
-        //Eigen::Vector3f t = vertDir.normalized() * dist;
-        Eigen::Vector3f t = diff;
-        trans += t;
+        std::cout << std::setw(8) << i.value() << " --> " << i.key() << std::setw(12) << ": dist = " << dist << ", diff = " << diff.norm() << std::endl;
+        Eigen::Vector3f t = vertDir.normalized() * dist;
+        //Eigen::Vector3f t = diff;
+        trans += t * weights[i.key()];
     }
-    trans /= pairs.count();
+    //trans /= pairs.count();
     std::cout << "trans: " << trans.transpose() << std::endl;
     
     return trans;
@@ -363,15 +359,16 @@ float LineMatcher::computeError(
         LineSegment dstLine = dstLines->points[i.key()];
         LineSegment srcLine = srcLines->points[i.value()];
         Eigen::Vector3f dstLineDir = dstLine.normalizedDir();
-        Eigen::Vector3f srcLineDir = deltaRot * (initRot * srcLine.normalizedDir() + initTrans);
+        Eigen::Vector3f srcLineDir = deltaRot * initRot * srcLine.normalizedDir();
 
         Eigen::Vector3f vertLine = srcLineDir.cross(dstLineDir).normalized();
         float distance = (dstLine.middle() - deltaRot * (initRot * srcLine.middle() - initTrans) - deltaTrans).dot(vertLine);
-        error += abs(distance);
+        float degrees = 1 - dstLineDir.dot(srcLineDir);
+        error += abs(distance) + abs(degrees);
     }
     error /= pairs.size();
 
-    //std::cout << "error: " << error << std::endl;
+    std::cout << "error: " << error << std::endl;
     return error;
 }
 
