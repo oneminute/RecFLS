@@ -22,7 +22,9 @@ LineMatcher::LineMatcher(QObject* parent)
 Eigen::Matrix4f LineMatcher::compute(
     FLFrame& srcFrame
     , FLFrame& dstFrame
-    , float& error)
+    , float& error
+    , int& iterations
+)
 {
     Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
     QMap<int, int> pairs; 
@@ -32,19 +34,33 @@ Eigen::Matrix4f LineMatcher::compute(
     tree->setInputCloud(dstFrame.lines());
     match(srcFrame.lines(), dstFrame.lines(), tree, pairs, weights);
 
-    for (int i = 0; i < 5; i++)
+    float lastError = 100;
+    int i = 0;
+    for (i = 0; i < 20; i++)
     {
         Eigen::Matrix4f deltaPose = step(srcFrame.lines(), dstFrame.lines(), pose, error, pairs, weights);
+        std::cout << "[iteration " << i << "] error: " << error << std::endl;
         if (pairs.size() < 3)
         {
             deltaPose = Eigen::Matrix4f::Identity();
             error = 1;
             break;
         }
+        if (error > lastError)
+        {
+            break;
+        }
+        if (error < 1e-10f)
+        {
+            break;
+        }
+        lastError = error;
         pose = deltaPose * pose;
     }
+    std::cout << "actual iteration count: " << i << std::endl;
+    iterations = i;
 
-    return srcFrame.pose();
+    return pose;
 }
 
 void LineMatcher::match(
@@ -254,13 +270,8 @@ Eigen::Matrix3f LineMatcher::stepRotation(
         std::cout << std::setw(8) << i.value() << " --> " << i.key() << std::setw(12) << ": degrees = " << degrees << ", angles = " << qRadiansToDegrees(degrees) << std::endl;
 
         dstAvgDir += dstLine.normalizedDir();
-		/*dstAvgDir1 = dstLine.normalizedDir()*weights[i.key()];
-		dstAvgDir += dstAvgDir1;*/
 
-        srcAvgDir += initRot * srcLine.normalizedDir()  ;
-		/*srcAvgDir1 = initRot * srcLine.normalizedDir()*weights[i.key()];
-		srcAvgDir += srcAvgDir1;
-		*/
+        srcAvgDir += initRot * srcLine.normalizedDir();
     }
     dstAvgDir /= pairs.size();
     srcAvgDir /= pairs.size();
@@ -277,12 +288,6 @@ Eigen::Matrix3f LineMatcher::stepRotation(
 		//cov /= pairs.size();
     }
     
-    //Eigen::EigenSolver<Eigen::Matrix3f> eigensolver(cov);
-    //Eigen::Matrix3f em = eigensolver.eigenvectors().real();
-    //Eigen::Vector3f ev = eigensolver.eigenvalues().real();
-    //std::cout << "eigen values:" << ev.transpose() << std::endl;
-    //std::cout << "eigen matrix:" << std::endl << (em.colwise() * ev.transpose()) << std::endl;
-
     Eigen::JacobiSVD<Eigen::MatrixXf> svd(cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
     Eigen::Matrix3f V = svd.matrixV();
     Eigen::Matrix3f U = svd.matrixU();
@@ -362,9 +367,10 @@ float LineMatcher::computeError(
         Eigen::Vector3f srcLineDir = deltaRot * initRot * srcLine.normalizedDir();
 
         Eigen::Vector3f vertLine = srcLineDir.cross(dstLineDir).normalized();
-        float distance = (dstLine.middle() - deltaRot * (initRot * srcLine.middle() - initTrans) - deltaTrans).dot(vertLine);
+        float distance = (dstLine.middle() - deltaRot * (initRot * srcLine.middle() + initTrans) - deltaTrans).dot(vertLine);
         float degrees = 1 - dstLineDir.dot(srcLineDir);
-        error += abs(distance) + abs(degrees);
+        //error += abs(distance) + abs(degrees);
+        error += distance * distance + degrees;
     }
     error /= pairs.size();
 

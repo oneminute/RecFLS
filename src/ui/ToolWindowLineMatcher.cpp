@@ -122,17 +122,11 @@ void ToolWindowLineMatcher::initCompute()
     depthMatGpuDst.upload(frameDst.depthMat());
     
     m_flFrameSrc = m_lineExtractor->compute(frameSrc);
-    m_flFrameSrc.setPose(Eigen::Matrix4f::Identity());
     m_beCloudSrc = m_lineExtractor->allBoundary();
-	//m_groupPointsSrc = m_lineExtractor->groupPoints();
-	//m_lineExtractor->generateVoxelsDescriptors(frameSrc, m_flFrameSrc.lines(), 0.05f, 5, 4, 8, frameSrc.getColorWidth(), frameSrc.getColorHeight(), frameSrc.getDevice()->cx(), frameSrc.getDevice()->cy(), frameSrc.getDevice()->fx(), frameSrc.getDevice()->fy());
-    
 
     m_flFrameDst = m_lineExtractor->compute(frameDst);
     m_flFrameDst.setPose(Eigen::Matrix4f::Identity());
     m_beCloudDst = m_lineExtractor->allBoundary();
-	//m_groupPointsDst = m_lineExtractor->groupPoints();
-	//m_lineExtractor->generateVoxelsDescriptors(frameDst, m_flFrameDst.lines(), 0.05f, 5, 4, 8, frameDst.getColorWidth(), frameDst.getColorHeight(), frameDst.getDevice()->cx(), frameDst.getDevice()->cy(), frameDst.getDevice()->fx(), frameDst.getDevice()->fy());
 
     m_cloudViewer1->visualizer()->removeAllPointClouds();
     m_cloudViewer1->visualizer()->removeAllShapes();
@@ -183,10 +177,11 @@ void ToolWindowLineMatcher::initCompute()
 void ToolWindowLineMatcher::compute()
 {
     initCompute();
-    m_pose = m_lineMatcher->compute(m_flFrameSrc, m_flFrameDst, m_error);
-    //std::cout << "m_pose:" << std::endl << m_pose << std::endl;
-    //m_pose = m_flFrameSrc.pose();
-    //std::cout << "m_pose:" << std::endl << m_pose << std::endl;
+    QElapsedTimer timer;
+    timer.start();
+    m_pose = m_lineMatcher->compute(m_flFrameSrc, m_flFrameDst, m_error, m_iteration);
+    m_iterationDuration = timer.nsecsElapsed() / 1000000.f;
+    m_totalDuration += m_iterationDuration;
     m_ui->comboBoxLineChainPairs->clear();
     
     showMatchedClouds();
@@ -223,13 +218,11 @@ void ToolWindowLineMatcher::showCloudAndLines(CloudViewer* viewer, pcl::PointClo
 void ToolWindowLineMatcher::showMatchedClouds()
 {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr srcCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-    //pcl::transformPointCloud(*m_colorCloudSrc, *srcCloud, m_pose);
-    pcl::transformPointCloud(*m_colorCloudSrc, *srcCloud, Eigen::Matrix4f::Identity());
+    pcl::transformPointCloud(*m_colorCloudSrc, *srcCloud, m_pose);
+    std::cout << "m_pose:" << std::endl << m_pose << std::endl;
 
-    //Eigen::Matrix3f rot = m_pose.topLeftCorner(3, 3);
-    //Eigen::Vector3f trans = m_pose.topRightCorner(3, 1);
-    Eigen::Matrix3f rot = Eigen::Matrix3f::Identity();
-    Eigen::Vector3f trans = Eigen::Vector3f::Zero();
+    Eigen::Matrix3f rot = m_pose.topLeftCorner(3, 3);
+    Eigen::Vector3f trans = m_pose.topRightCorner(3, 1);
 
     m_cloudViewer1->visualizer()->removeAllPointClouds();
     m_cloudViewer1->visualizer()->removeAllShapes();
@@ -334,10 +327,10 @@ void ToolWindowLineMatcher::onActionStep()
 {
     QElapsedTimer timer;
     timer.start();
-    Eigen::Matrix4f pose = m_lineMatcher->step(m_flFrameSrc.lines(), m_flFrameDst.lines(), Eigen::Matrix4f::Identity(), m_error, m_pairs, m_weights);
+    Eigen::Matrix4f pose = m_lineMatcher->step(m_flFrameSrc.lines(), m_flFrameDst.lines(), m_pose, m_error, m_pairs, m_weights);
     m_iterationDuration = timer.nsecsElapsed() / 1000000.f;
     m_totalDuration += m_iterationDuration;
-    m_flFrameSrc.setPose(pose);
+    //m_flFrameSrc.setPose(pose);
 
     Eigen::Matrix3f rot = pose.topLeftCorner(3, 3);
     Eigen::Vector3f eulers = rot.eulerAngles(0, 1, 2);
@@ -395,9 +388,6 @@ void ToolWindowLineMatcher::updateWidgets()
     m_ui->actionMatch_Gpu->setEnabled(m_isLoaded);
     m_ui->actionBegin_Step->setEnabled(m_isLoaded);
     m_ui->actionStep->setEnabled(m_isLoaded);
-    //m_ui->actionStep_Rotation_Match->setEnabled(m_isInit && m_isStepMode);
-    //m_ui->actionStep_Translate_Match->setEnabled(m_isInit && m_isStepMode);
-    //m_ui->actionReset->setEnabled(m_isLoaded);
 
     m_ui->labelIteration->setText(QString::number(m_iteration));
     m_ui->labelError->setText(QString::number(m_error));

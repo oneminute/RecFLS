@@ -21,9 +21,10 @@ public:
     explicit LineMatcher(QObject* parent = nullptr);
 
     Eigen::Matrix4f compute(
-        FLFrame& srcFrame,
-        FLFrame& dstFrame,
-        float& error
+        FLFrame& srcFrame
+        , FLFrame& dstFrame
+        , float& error
+        , int& iterations
     );
 
     void match(
