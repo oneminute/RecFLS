@@ -156,7 +156,7 @@ void ToolWindowLineMatcher::initCompute()
     m_totalDuration = 0;
 
     qDebug() << "src lines size:" << m_flFrameSrc.lines()->size() << ", dst lines size:" << m_flFrameDst.lines()->size();
-    m_lineMatcher->match(m_flFrameSrc.lines(), m_flFrameDst.lines(), m_tree, m_pairs, m_weights);
+    m_lineMatcher->match(m_flFrameSrc.lines(), m_flFrameDst.lines(), m_tree, m_pairs, m_weights, m_pose);
 
    {
         pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZINormal> behSrc(m_beCloudSrc, "intensity");
@@ -327,6 +327,7 @@ void ToolWindowLineMatcher::onActionStep()
 {
     QElapsedTimer timer;
     timer.start();
+    m_lineMatcher->match(m_flFrameSrc.lines(), m_flFrameDst.lines(), m_tree, m_pairs, m_weights, m_pose);
     Eigen::Matrix4f pose = m_lineMatcher->step(m_flFrameSrc.lines(), m_flFrameDst.lines(), m_pose, m_error, m_pairs, m_weights);
     m_iterationDuration = timer.nsecsElapsed() / 1000000.f;
     m_totalDuration += m_iterationDuration;

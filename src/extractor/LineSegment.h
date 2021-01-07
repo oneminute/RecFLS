@@ -120,6 +120,8 @@ public:
 	pcl::PointCloud<pcl::PointXYZINormal>::Ptr cylinderCloud() const;
 	void setCylinderCloud(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud);
 
+	LineSegment clone();
+
 private:
 	QSharedDataPointer<LineSegmentData> data;
 };

@@ -391,3 +391,20 @@ void LineSegment::setCylinderCloud(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cl
 	data->cylinderCloud = cloud;
 }
 
+LineSegment LineSegment::clone()
+{
+	LineSegment line(data->start, data->end, data->segmentNo);
+	line.data->start = data->start;
+	line.data->end = data->end;
+	line.data->secondaryDir = data->secondaryDir;
+	line.data->center = data->center;
+	line.data->start2d = data->start2d;
+	line.data->end2d = data->end2d;
+	line.data->red = data->red;
+	line.data->green = data->green;
+	line.data->blue = data->blue;
+	line.data->segmentNo = data->segmentNo;
+	line.data->index = data->index;
+	return line;
+}
+

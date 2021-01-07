@@ -32,12 +32,12 @@ Eigen::Matrix4f LineMatcher::compute(
     pcl::KdTreeFLANN<LineSegment>::Ptr tree(new pcl::KdTreeFLANN<LineSegment>());
 
     tree->setInputCloud(dstFrame.lines());
-    match(srcFrame.lines(), dstFrame.lines(), tree, pairs, weights);
 
     float lastError = 100;
     int i = 0;
     for (i = 0; i < 20; i++)
     {
+        match(srcFrame.lines(), dstFrame.lines(), tree, pairs, weights, pose);
         Eigen::Matrix4f deltaPose = step(srcFrame.lines(), dstFrame.lines(), pose, error, pairs, weights);
         std::cout << "[iteration " << i << "] error: " << error << std::endl;
         if (pairs.size() < 3)
@@ -69,17 +69,22 @@ void LineMatcher::match(
     , pcl::KdTreeFLANN<LineSegment>::Ptr tree
     , QMap<int, int>& pairs
     , QMap<int, float>& weights
+    , const Eigen::Matrix4f& initPose
 )
 {
     pairs.clear();
     weights.clear();
     float sumLength = 0;
 
+    Eigen::Matrix3f initRot = initPose.topLeftCorner(3, 3);
+    Eigen::Vector3f initTrans = initPose.topRightCorner(3, 1);
+
     QMap<int, float> pairsDists;
     // 通过Kdtree进行匹配直线对的初选。
     for (int i = 0; i < srcLines->points.size(); i++)
     {
-        LineSegment lineSrc = srcLines->points[i];
+        LineSegment lineSrc = srcLines->points[i].clone();
+        lineSrc.reproject(initRot, initTrans);
 
         std::vector<int> indices;
         std::vector<float> dists;

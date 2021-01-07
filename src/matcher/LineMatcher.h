@@ -33,6 +33,7 @@ public:
         , pcl::KdTreeFLANN<LineSegment>::Ptr tree
         , QMap<int, int>& pairs
         , QMap<int, float>& weights
+        , const Eigen::Matrix4f& initPose
     );
 
     Eigen::Matrix4f step(
