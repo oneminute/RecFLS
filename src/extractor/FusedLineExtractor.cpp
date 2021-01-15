@@ -481,7 +481,7 @@ void FusedLineExtractor::generateCylinderDescriptors(Frame& frame, pcl::PointClo
 					pclPoint.getVector3fMap() = point;
 					pclPoint.getNormalVector3fMap() = normal;
 					pclPoint.intensity = layerIndex;
-					ls.cylinderCloud()->points.push_back(pclPoint);
+					//ls.cylinderCloud()->points.push_back(pclPoint);
 					if (kdtree->radiusSearch(pclPoint, 0.1, indices, dists, 0) > 0)
 					{
 						int quadrant = -1;
@@ -559,7 +559,7 @@ void FusedLineExtractor::generateCylinderDescriptors(Frame& frame, pcl::PointClo
 				}
 			}
 		}
-		qDebug() << "cloud size:" << ls.cylinderCloud()->points.size();
+		//qDebug() << "cloud size:" << ls.cylinderCloud()->points.size();
 
 		std::cout << std::endl;
 		{
@@ -674,7 +674,7 @@ void FusedLineExtractor::generateVoxelsDescriptors(Frame& frame, pcl::PointCloud
 				}
 			}
 		}
-		ls.setLineCylinders(lineCylinders);
+		//ls.setLineCylinders(lineCylinders);
 		// end of calculating
 		
 		std::vector<float> desc(radiusSegments * 8);

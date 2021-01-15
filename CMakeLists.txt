@@ -25,8 +25,8 @@ include(FindCUDA)
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
 find_package(Eigen3 REQUIRED)
-find_package(Boost REQUIRED)
-find_package(Qt5 COMPONENTS Widgets Charts CONFIG REQUIRED)
+find_package(Boost COMPONENTS system filesystem date_time iostreams REQUIRED)
+find_package(Qt5 COMPONENTS Widgets Charts 3DCore 3DRender 3DInput 3DExtras CONFIG REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(PCL REQUIRED)
 find_package(OpenMP REQUIRED)
@@ -174,10 +174,8 @@ FOREACH(_item ${G2O_LIBS_ITEM})
 ENDFOREACH()
 
 # Use the Widgets module from Qt 5.
-target_link_libraries(${PROJECT_NAME} Qt5::Widgets Qt5::Charts ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${FLANN_LIBRARIES} 
+target_link_libraries(${PROJECT_NAME} Qt5::Widgets Qt5::Charts Qt5::3DCore Qt5::3DRender Qt5::3DInput Qt5::3DExtras ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${FLANN_LIBRARIES} 
                                       ${VTK_LIBRARIES} ${CUDA_blas_LIBRARY} ${CUDA_CUDART_LIBRARY} ${CUDA_curand_LIBRARY}
                                       ${G2O_LIBS} ${OPENGL_gl_LIBRARY} ${OPENGL_glu_LIBRARY})
-
-# Install the executable
-install(TARGETS ${PROJECT_NAME} DESTINATION bin)
+set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 

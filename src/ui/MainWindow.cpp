@@ -13,6 +13,7 @@
 
 #include "ToolWindowFusedLineExtractor.h"
 #include "PreferencesWindow.h"
+#include "LineViewer.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -67,6 +68,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_ui->actionNext_Frame, &QAction::triggered, this, &MainWindow::onActionNextFrame);
     connect(m_ui->actionSave_Current_Frame, &QAction::triggered, this, &MainWindow::onActionSaveCurrentFrame);
     connect(m_ui->actionPreferences, &QAction::triggered, this, &MainWindow::onActionPreferences);
+    connect(m_ui->actionLineViewer, &QAction::triggered, this, &MainWindow::onActionLineViewer);
 }
 
 void MainWindow::setController(Controller *controller)
@@ -176,6 +178,13 @@ void MainWindow::onActionPreferences()
 {
     m_preferencesWindow.reset(new PreferencesWindow);
     m_preferencesWindow->show();
+}
+
+void MainWindow::onActionLineViewer()
+{
+    LineViewer* viewer = new LineViewer;
+    viewer->createAxisAngleScene();
+    viewer->show();
 }
 
 void MainWindow::onFrameFetched(Frame &frame)

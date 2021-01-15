@@ -195,7 +195,7 @@ void ToolWindowFusedLineExtractor::onActionShowPoints()
 		m_cloudViewer->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo.toStdString());
 
         QString cylinderCloudName = QString("cylinder_cloud_%1").arg(i);
-        pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZINormal> handle(line.cylinderCloud(), "intensity");
+        //pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZINormal> handle(line.cylinderCloud(), "intensity");
         //pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZINormal> handle(line.cylinderCloud(), rgb.red(), rgb.green(), rgb.blue());
         //m_cloudViewer->visualizer()->addPointCloud(line.cylinderCloud(), handle, cylinderCloudName.toStdString());
         //m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, cylinderCloudName.toStdString());

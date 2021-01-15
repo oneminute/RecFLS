@@ -44,6 +44,7 @@ private:
     void onActionToolWindowFusedLineExtractor();
     void onActionSaveCurrentFrame();
     void onActionPreferences();
+    void onActionLineViewer();
 
     void onFrameFetched(Frame& frame);
 

@@ -389,3 +389,95 @@ Eigen::Vector3f transBetweenLines(const Eigen::Vector3f& line1, const Eigen::Vec
     }
     return diff;
 }
+
+QMatrix4x4 matrixFrom2Vectors(const QVector3D& v1, const QVector3D& v2)
+{
+    Eigen::Matrix3f m;
+    Eigen::Vector3f ev1(v1.x(), v1.y(), v1.z());
+    Eigen::Vector3f ev2(v2.x(), v2.y(), v2.z());
+    //ev1.normalize();
+    //ev2.normalize();
+    Eigen::Quaternionf q = Eigen::Quaternionf::FromTwoVectors(ev1, ev2);
+    m = q;
+    Eigen::Matrix4f m2 = Eigen::Matrix4f::Identity();
+    m2.topLeftCorner(3, 3) = m;
+    QMatrix4x4 matrix(m2.data());
+    /*QVector3D v1N = v1.normalized();
+    QVector3D v2N = v2.normalized();
+    if (qFuzzyCompare(v1N, v2N))
+    {
+        QMatrix4x4 matrix;
+        matrix.setToIdentity();
+        return matrix;
+    }
+
+    QVector3D yAxis(0.0f, 1.0f, 0.0f);
+    QVector3D v1ProjXZ = v1N - yAxis * QVector3D::dotProduct(v1N, yAxis);
+    QVector3D v2ProjXZ = v2N - yAxis * QVector3D::dotProduct(v2N, yAxis);
+
+    if (qFuzzyCompare(v1, yAxis))
+    {
+        v1ProjXZ = v2ProjXZ;
+    }
+
+    QVector3D vN;
+    if (qFuzzyCompare(v2N, yAxis))
+    {
+        vN = QVector3D::crossProduct(v1N, v2N);
+        vN.normalize();
+        v2ProjXZ = v1ProjXZ;
+    }
+    else
+    {
+        vN = QVector3D::crossProduct(v2N, yAxis);
+        vN.normalize();
+    }
+
+    v1ProjXZ.normalize();
+    v2ProjXZ.normalize();
+    QVector3D v1ProjP = v1N - vN * QVector3D::dotProduct(v1N, vN);
+    v1ProjP.normalize();
+
+    qreal cosAlpha = QVector3D::dotProduct(v1ProjXZ, v2ProjXZ);
+    qreal sinAlpha = QVector3D::crossProduct(v1ProjXZ, v2ProjXZ).length();
+    qreal cosTheta = QVector3D::dotProduct(v1ProjP, v2N);
+    qreal sinTheta = QVector3D::crossProduct(v1ProjP, v2N).length();
+
+    QMatrix4x4 matrix(
+        cosAlpha * cosTheta, -cosAlpha * sinTheta, sinAlpha, 0,
+        sinTheta, cosTheta, 0, 0,
+        -sinAlpha * cosTheta, sinAlpha * sinTheta, cosAlpha, 0,
+        0, 0, 0, 1
+    );
+
+    qDebug() << "v1ProjXZ:" << v1ProjXZ;
+    qDebug() << "v2ProjXZ:" << v2ProjXZ;
+    qDebug() << "v1ProjP:" << v1ProjP;
+    qDebug() << "cosAlpha:" << cosAlpha;
+    qDebug() << "sinAlpha:" << sinAlpha;
+    qDebug() << "cosTheta:" << cosTheta;
+    qDebug() << "sinTheta:" << sinTheta;*/
+    //std::cout << m2 << std::endl;
+    //qDebug() << "v1N:" << v1.normalized();
+    //qDebug() << "v2N:" << v2.normalized();
+    //qDebug() << "result:" << (matrix * v1.normalized());
+    //qDebug() << matrix;
+
+    return matrix;
+}
+
+Eigen::AngleAxisf axisAnglesFrom2Vectors(const QVector3D& v1, const QVector3D& v2)
+{
+    Eigen::Vector3f ev1(v1.x(), v1.y(), v1.z());
+    Eigen::Vector3f ev2(v2.x(), v2.y(), v2.z());
+
+    ev1.normalize();
+    ev2.normalize();
+
+    Eigen::Vector3f v = ev1.cross(ev2);
+    float angles = qAcos(ev1.dot(ev2));
+
+    Eigen::AngleAxisf aa(angles, v);
+
+    return aa;
+}

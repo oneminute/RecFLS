@@ -20,7 +20,7 @@
      <x>0</x>
      <y>0</y>
      <width>878</width>
-     <height>26</height>
+     <height>23</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
@@ -47,6 +47,7 @@
     <addaction name="actionLine_Extractor"/>
     <addaction name="actionLine_Matcher"/>
     <addaction name="actionFused_Line_Extractor"/>
+    <addaction name="actionLineViewer"/>
    </widget>
    <addaction name="menu_File"/>
    <addaction name="menu_Device"/>
@@ -250,6 +251,11 @@
   <action name="actionFused_Line_Extractor">
    <property name="text">
     <string>Fused Line Extractor</string>
+   </property>
+  </action>
+  <action name="actionLineViewer">
+   <property name="text">
+    <string>Line Viewer</string>
    </property>
   </action>
  </widget>

@@ -95,7 +95,13 @@ public:
 
 	float angleToAnotherLine(const LineSegment &other);
 
-	Eigen::Matrix<float, 1, 13> shortDescriptor() const;
+	std::vector<float> shortDescriptor() const;
+
+	std::vector<float> localDescriptor() const;
+
+	void generateLocalDescriptor();
+
+	void showLocalDescriptor();
 
 	//Eigen::VectorXf longDescriptor() const;
 
@@ -105,20 +111,15 @@ public:
 
 	Eigen::Vector3f closedPointOnLine(const Eigen::Vector3f &point);
 
+	Eigen::Vector2f calculateAngles();
+
 	double red() const;
 
 	double green() const;
 
 	double blue() const;
 
-	std::vector<std::vector<Eigen::Vector3f>> lineCylinders() const;
-
-	void setLineCylinders(std::vector<std::vector<Eigen::Vector3f>> value);
-
 	Eigen::Matrix3f localRotaion() const;
-
-	pcl::PointCloud<pcl::PointXYZINormal>::Ptr cylinderCloud() const;
-	void setCylinderCloud(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud);
 
 	LineSegment clone();
 
@@ -126,13 +127,11 @@ private:
 	QSharedDataPointer<LineSegmentData> data;
 };
 
-template<>
-struct pcl::DefaultPointRepresentation<LineSegment> : public pcl::PointRepresentation<LineSegment>
+struct ShortDescriptorRepresentation : public pcl::PointRepresentation<LineSegment>
 {
 public:
-	DefaultPointRepresentation()
+	ShortDescriptorRepresentation()
 	{
-		//nr_dimensions_ = LineSegment::longDescriptorSize();
 		nr_dimensions_ = 13;
 	}
 
@@ -141,6 +140,24 @@ public:
 		for (int i = 0; i < nr_dimensions_; i++)
 		{
 			out[i] = l.shortDescriptor()[i];
+		}
+	}
+
+};
+
+struct LocalDescriptorRepresentation : public pcl::PointRepresentation<LineSegment>
+{
+public:
+	LocalDescriptorRepresentation()
+	{
+		nr_dimensions_ = 5;
+	}
+
+	void copyToFloatArray(const LineSegment& l, float* out) const override
+	{
+		for (int i = 0; i < nr_dimensions_; i++)
+		{
+			out[i] = l.localDescriptor()[i];
 		}
 	}
 

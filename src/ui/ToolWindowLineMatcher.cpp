@@ -136,6 +136,8 @@ void ToolWindowLineMatcher::initCompute()
     m_cloudViewer3->visualizer()->removeAllShapes();
 
     m_tree.reset(new pcl::KdTreeFLANN<LineSegment>());
+    ShortDescriptorRepresentation::ConstPtr sdr(new ShortDescriptorRepresentation);
+    m_tree->setPointRepresentation(sdr);
     m_tree->setInputCloud(m_flFrameDst.lines());
 
     Eigen::AngleAxisf rollAngle(M_PI / 72, Eigen::Vector3f::UnitZ());

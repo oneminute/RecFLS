@@ -30,7 +30,8 @@ Eigen::Matrix4f LineMatcher::compute(
     QMap<int, int> pairs; 
     QMap<int, float> weights;
     pcl::KdTreeFLANN<LineSegment>::Ptr tree(new pcl::KdTreeFLANN<LineSegment>());
-
+    ShortDescriptorRepresentation::ConstPtr sdr(new ShortDescriptorRepresentation);
+    tree->setPointRepresentation(sdr);
     tree->setInputCloud(dstFrame.lines());
 
     float lastError = 100;

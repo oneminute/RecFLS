@@ -17,17 +17,12 @@ public:
 		, blue(0)
 		, index(-1)
 		, longDescriptor(40)
-		, cylinderCloud(new pcl::PointCloud<pcl::PointXYZINormal>)
 	{
-		for (int i = 0; i < shortDescriptor.size(); i++)
-		{
-			shortDescriptor[0] = 0;
-		}
+		shortDescriptor.resize(13);
+		std::fill(shortDescriptor.begin(), shortDescriptor.end(), 0);
 
-		for (int i = 0; i < longDescriptor.size(); i++)
-		{
-			longDescriptor[0] = 0;
-		}
+		localDescriptor.resize(5);
+		std::fill(localDescriptor.begin(), localDescriptor.end(), 0);
 	}
 
 	Eigen::Vector3f start;
@@ -42,11 +37,9 @@ public:
 	int segmentNo;
 	int index;
 
-	Eigen::Matrix<float, 1, 13> shortDescriptor;
+	std::vector<float> shortDescriptor;
 	std::vector<float> longDescriptor;
-	std::vector<float> Descriptor;
-	std::vector<std::vector<Eigen::Vector3f>> lineCylinders;
-	pcl::PointCloud<pcl::PointXYZINormal>::Ptr cylinderCloud;
+	std::vector<float> localDescriptor;
 };
 
 LineSegment::LineSegment(const Eigen::Vector3f &start, const Eigen::Vector3f &end, int segmentNo, QObject *parent)
@@ -174,7 +167,6 @@ void LineSegment::reproject(const Eigen::Matrix3f& rot, const Eigen::Vector3f& t
 	float length = (data->start - data->end).norm();
 	Eigen::Vector3f projPt = data->start - dir * data->start.dot(dir);
 
-	data->shortDescriptor = Eigen::Matrix<float, 1, 13>();
 	data->shortDescriptor[0] = projPt.x();
 	data->shortDescriptor[1] = projPt.y();
 	data->shortDescriptor[2] = projPt.z();
@@ -188,7 +180,8 @@ void LineSegment::reproject(const Eigen::Matrix3f& rot, const Eigen::Vector3f& t
 	data->shortDescriptor[10] = data->green / 255;
 	data->shortDescriptor[11] = data->blue / 255;
 	data->shortDescriptor[12] = length;
-	data->shortDescriptor.normalize();
+	Eigen::Matrix<float, 1, 13>::Map(data->shortDescriptor.data(), 1, 13).normalize();
+	//std::cout << data->shortDescriptor << std::endl;
 }
 
 int LineSegment::shortDescriptorSize()
@@ -314,9 +307,36 @@ float LineSegment::angleToAnotherLine(const LineSegment &other)
 	return qAcos(direction().normalized().dot(other.direction().normalized()));
 }
 
-Eigen::Matrix<float, 1, 13> LineSegment::shortDescriptor() const
+std::vector<float> LineSegment::shortDescriptor() const
 {
 	return data->shortDescriptor;
+}
+
+std::vector<float> LineSegment::localDescriptor() const
+{
+	return data->localDescriptor;
+}
+
+void LineSegment::generateLocalDescriptor()
+{
+	Eigen::Vector3f point = closedPointOnLine(Eigen::Vector3f::Zero());
+	Eigen::Vector2f angles = calculateAngles();
+	data->localDescriptor[0] = angles.x();
+	data->localDescriptor[1] = angles.y();
+	data->localDescriptor[2] = point.x();
+	data->localDescriptor[3] = point.y();
+	data->localDescriptor[4] = point.z();
+	Eigen::Matrix<float, 1, 5>::Map(data->localDescriptor.data(), 1, 5).normalize();
+}
+
+void LineSegment::showLocalDescriptor()
+{
+	std::cout << data->segmentNo <<  " [" << data->start.transpose() << "]: ";
+	for (int i = 0; i < data->localDescriptor.size(); i++)
+	{
+		std::cout << data->localDescriptor[i] << " ";
+	}
+	std::cout << std::endl;
 }
 
 //Eigen::VectorXf LineSegment::longDescriptor() const
@@ -342,9 +362,21 @@ float LineSegment::pointDistance(const Eigen::Vector3f &point)
 Eigen::Vector3f LineSegment::closedPointOnLine(const Eigen::Vector3f &point)
 {
 	Eigen::Vector3f dir = direction().normalized();
-	Eigen::Vector3f ev = point - middle();
-	Eigen::Vector3f closedPoint = middle() + dir * (ev.dot(dir));
+	Eigen::Vector3f ev = point - data->start;
+	Eigen::Vector3f closedPoint = data->start + dir * (ev.dot(dir));
 	return closedPoint;
+}
+
+Eigen::Vector2f LineSegment::calculateAngles()
+{
+	Eigen::Vector3f dir = direction().normalized();
+	float xProj = dir.dot(Eigen::Vector3f(1.0f, 0.0f, 0.0f));
+	float yProj = dir.dot(Eigen::Vector3f(0.0f, 1.0f, 0.0f));
+	float zProj = dir.dot(Eigen::Vector3f(0.0f, 0.0f, 1.0f));
+	float xzProj = (dir - Eigen::Vector3f(0.0f, 1.0f, 0.0f) * yProj).norm();
+	float angleH = qAtan2(zProj, xProj);
+	float angleV = qAtan2(yProj, xzProj);
+	return Eigen::Vector2f(angleH, angleV);
 }
 
 double LineSegment::red() const
@@ -362,16 +394,6 @@ double LineSegment::blue() const
 	return data->blue;
 }
 
-std::vector<std::vector<Eigen::Vector3f>> LineSegment::lineCylinders() const
-{
-	return data->lineCylinders;
-}
-
-void LineSegment::setLineCylinders(std::vector<std::vector<Eigen::Vector3f>> value)
-{
-	data->lineCylinders = value;
-}
-
 Eigen::Matrix3f LineSegment::localRotaion() const
 {
 	Eigen::Vector3f xAxis = direction().normalized();
@@ -379,16 +401,6 @@ Eigen::Matrix3f LineSegment::localRotaion() const
 	Eigen::Vector3f zAxis = xAxis.cross(yAxis).normalized();
 	Eigen::Matrix3f matrix = (Eigen::AngleAxisf(0, xAxis) * Eigen::AngleAxisf(0, yAxis) * Eigen::AngleAxisf(0, zAxis)).toRotationMatrix();
 	return matrix;
-}
-
-pcl::PointCloud<pcl::PointXYZINormal>::Ptr LineSegment::cylinderCloud() const
-{
-	return data->cylinderCloud;
-}
-
-void LineSegment::setCylinderCloud(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud)
-{
-	data->cylinderCloud = cloud;
 }
 
 LineSegment LineSegment::clone()
