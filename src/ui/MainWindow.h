@@ -35,6 +35,7 @@ private:
     void onActionNextFrame();
     void onActionPreviousFrame(bool);
     void onActionOpenDevice(bool checked);
+	void onActionStart(bool checked = false);
     void onActionPause();
     void onActionCloseDevice();
     void onActionToolWindowLineExtractor();

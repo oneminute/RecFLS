@@ -61,8 +61,8 @@ bool IclNuimDevice::open()
     }
 
     Eigen::Matrix4f intrinsic;
-    intrinsic << 481.2f, 0, 319.5f, 0,
-        0, 480.0, 239.5, 0,
+    intrinsic << 538.7, 0, 319.2, 0,
+        0, 540.7, 233.6, 0,
         0, 0, 1, 0,
         0, 0, 0, 1;
 
@@ -122,7 +122,7 @@ Frame IclNuimDevice::getFrame(int frameIndex)
     cv::Mat depthMat = cv::imread(depthFile.toStdString(), cv::IMREAD_UNCHANGED);
     cv::Mat rgbMat = cv::imread(rgbFile.toStdString(), cv::IMREAD_UNCHANGED);
 
-    qDebug() << depthMat.type() << depthMat.at<ushort>(100, 100);
+    //qDebug() << depthMat.type() << depthMat.at<ushort>(100, 100);
 
     frame.setDepthMat(depthMat);
     frame.setColorMat(rgbMat);
@@ -139,14 +139,23 @@ Frame IclNuimDevice::getFrame(int frameIndex)
     return frame;
 }
 
-void IclNuimDevice::fetchNext()
+Frame IclNuimDevice::fetchNext()
 {
+    Frame frame;
+	qDebug() << "m_currentIndex =" << m_currentIndex;
     if (m_currentIndex < m_frameCount)
     {
-        emit frameFetched(getFrame(m_currentIndex++));
+		frame = getFrame(m_currentIndex);
+        emit frameFetched(frame);
+		m_currentIndex++;
     }
     else
     {
         emit reachEnd();
     }
+	return frame;
+}
+
+void IclNuimDevice::start()
+{
 }

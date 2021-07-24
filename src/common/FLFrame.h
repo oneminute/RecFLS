@@ -42,6 +42,7 @@ public:
     Eigen::Vector3f translation() const;
 
     pcl::PointCloud<LineSegment>::Ptr lines() const;
+	pcl::PointCloud<pcl::PointXYZINormal>::Ptr meanPointCloud() const;
 
 private:
     void reproject(const Eigen::Matrix4f& pose);

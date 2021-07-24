@@ -17,6 +17,7 @@ public:
     virtual bool open() override;
     virtual void close() override;
     virtual void fetchNext() override;
+	virtual void start() override;
     virtual void moveTo(int frameIndex) override;
     virtual void skip(int frameNumbers) override;
     virtual void reset() override;

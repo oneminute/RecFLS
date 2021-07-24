@@ -245,6 +245,9 @@ void LineMatchCudaOdometry::doProcessing(Frame& frame)
     m_optimizer.clear();
 
     m_srcFrame = m_lineExtractor->compute(frame);
+	pcl::copyPointCloud(*m_lineExtractor->rgbCloud(), *m_cloud);
+
+	//m_cloud = m_lineExtractor->cloud();
     m_srcFrame.setPrevIndex(m_dstFrame.index());
     Eigen::Matrix3f rot(Eigen::Matrix3f::Identity());
     Eigen::Vector3f trans(Eigen::Vector3f::Zero());

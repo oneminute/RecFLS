@@ -63,9 +63,11 @@ public:
 
     void setColorMat(const cv::Mat &colorMat);
     cv::Mat colorMat();
+	QImage colorImage();
 
     void setDepthMat(const cv::Mat &depthMat);
     cv::Mat depthMat();
+	QImage depthImage();
 
     Frame::COMPRESSION_TYPE_COLOR getColorCompressionType() const;
     void setColorCompressionType(const Frame::COMPRESSION_TYPE_COLOR &value);

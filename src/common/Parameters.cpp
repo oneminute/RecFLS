@@ -59,7 +59,7 @@ IMPLEMENT_STRING_SETTING(DeviceName, "IclNuim", "IclNuim", Device, "");
 
 void Settings::save()
 {
-    QSettings settings("config.ini", QSettings::IniFormat);
+    QSettings settings("config2.ini", QSettings::IniFormat);
     for (SettingItem::SettingMap::iterator i = SettingItem::items().begin(); i != SettingItem::items().end(); i++)
     {
         QString fullKey = i.key();

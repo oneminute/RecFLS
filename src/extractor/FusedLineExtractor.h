@@ -59,6 +59,8 @@ public:
 	float resolution() const { return m_resolution; }
 
 	pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud() const { return m_cloud; }
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgbCloud() const { return m_rgbCloud; }
+	pcl::PointCloud<pcl::PointXYZINormal>::Ptr meanPointCloud() const { return m_meanPointCloud;  }
 
 private:
 	//int quadrantStatisticByVoxel(pcl::octree::OctreePointCloudSearch<pcl::PointXYZINormal>& tree, const Eigen::Vector3f& key, int length, int xStep, int yStep, int zStep);
@@ -74,6 +76,8 @@ private:
 	
 	pcl::PointCloud<pcl::PointXYZINormal>::Ptr m_allBoundary;
 	pcl::PointCloud<pcl::PointXYZINormal>::Ptr m_cloud;
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_rgbCloud;
+	pcl::PointCloud<pcl::PointXYZINormal>::Ptr m_meanPointCloud;
 	QMap<int, pcl::PointCloud<pcl::PointXYZINormal>::Ptr> m_groupPoints;
 	//pcl::PointCloud<LineSegment>::Ptr m_linesCloud;
 	cuda::GpuFrame m_frameGpu;

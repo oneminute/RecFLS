@@ -1,6 +1,7 @@
 #include "Frame.h"
 #include "util/Utils.h"
 
+#include <QImage>
 #include "stb_image.h"
 #include "device/Device.h"
 
@@ -65,8 +66,12 @@ public:
     // RGB图像数据，用cv::Mat管理
     cv::Mat colorMat;
 
+	QImage colorImage;
+
     // 深度图像数据，用cv::Mat管理
     cv::Mat depthMat;
+
+	QImage depthImage;
 
     // 当前帧RGB图像的压缩类型
     Frame::COMPRESSION_TYPE_COLOR colorCompressionType;
@@ -186,6 +191,7 @@ QByteArray Frame::depthCompressed() const
 void Frame::setColorMat(const cv::Mat &colorMat)
 {
     data->colorMat = colorMat;
+	data->colorImage = cvMat2QImage(colorMat);
 }
 
 cv::Mat Frame::colorMat()
@@ -208,9 +214,15 @@ cv::Mat Frame::colorMat()
     return data->colorMat;
 }
 
+QImage Frame::colorImage()
+{
+	return data->colorImage;
+}
+
 void Frame::setDepthMat(const cv::Mat &depthMat)
 {
     data->depthMat = depthMat;
+	data->depthImage = cvMat2QImage(depthMat, false);
 }
 
 cv::Mat Frame::depthMat()
@@ -235,6 +247,11 @@ cv::Mat Frame::depthMat()
         }
     }
     return data->depthMat;
+}
+
+QImage Frame::depthImage()
+{
+	return data->depthImage;
 }
 
 Frame::COMPRESSION_TYPE_COLOR Frame::getColorCompressionType() const

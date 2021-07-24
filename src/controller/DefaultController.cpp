@@ -4,6 +4,7 @@
 
 #include "ui/CloudViewer.h"
 
+#include <QtConcurrent>
 #include <QDebug>
 #include <QDateTime>
 
@@ -15,7 +16,7 @@
 DefaultController::DefaultController(Device *device, QObject *parent)
     : Controller(device, parent)
 {
-    connect(m_device, &Device::frameFetched, this, &DefaultController::onFrameFetched);
+    //connect(m_device, &Device::frameFetched, this, &DefaultController::onFrameFetched);
 
     m_odometry.reset(new LineMatchCudaOdometry);
     
@@ -39,6 +40,19 @@ void DefaultController::close()
 void DefaultController::fetchNext()
 {
     m_device->fetchNext();
+}
+
+void DefaultController::start()
+{
+	// run from another thread
+	QtConcurrent::run([=]() {
+		for (int i = 0; i < 300; i++)
+		{
+			qDebug() << "fetching frame" << i;
+			Frame frame = m_device->fetchNext();
+			onFrameFetched(frame);
+		}
+	});
 }
 
 void DefaultController::moveTo(int frameIndex)

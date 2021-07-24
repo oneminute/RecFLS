@@ -9,8 +9,6 @@
 #include <pcl/segmentation/conditional_euclidean_clustering.h>
 #include <pcl/keypoints/sift_keypoint.h>
 
-
-
 #include "util/Utils.h"
 #include "util/StopWatch.h"
 #include "cuda/cuda.hpp"
@@ -111,12 +109,14 @@ void FusedLineExtractor::init(Frame& frame)
 
 FLFrame FusedLineExtractor::compute(Frame& frame)
 {
+	
 	init(frame);
 
 	FLFrame flFrame;
 	flFrame.setIndex(frame.deviceFrameIndex());
 	flFrame.setTimestamp(frame.timeStampColor());
-
+    
+	TICK("lines_time");
 	cv::Mat grayImage;
 	cv::cvtColor(frame.colorMat(), grayImage, cv::COLOR_RGB2GRAY);
 	EDLines lineHandler = EDLines(grayImage, SOBEL_OPERATOR);
@@ -154,6 +154,7 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 
 	m_cloud.reset(new pcl::PointCloud<pcl::PointXYZINormal>);
 	m_allBoundary.reset(new pcl::PointCloud<pcl::PointXYZINormal>);
+	m_rgbCloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>);
 	//m_normals.reset(new pcl::PointCloud<pcl::Normal>);
 	int negativeNum = 0;
 	for (int i = 0; i < frame.getDepthHeight(); i++)
@@ -165,8 +166,10 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 			float3 value = m_points[index];
 			uchar pointType = boundaries[index];
 			ushort lineNo = m_linesMat.ptr<ushort>(i)[j];
+			cv::Vec3b color = frame.colorMat().ptr<cv::Vec3b>(i)[j];
 			
 			pcl::PointXYZINormal ptIn;
+			pcl::PointXYZRGB ptRGB;
 			//pcl::Normal normal;
 			//pcl::PointNormal pn;
 
@@ -175,15 +178,18 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 			//ptI.z = value.z;
 			//ptI.intensity = lineNo;
 
-			ptIn.x = value.x;
-			ptIn.y = value.y;
-			ptIn.z = value.z;
+			ptRGB.x = ptIn.x = value.x;
+			ptRGB.y = ptIn.y = value.y;
+			ptRGB.z = ptIn.z = value.z;
 			ptIn.intensity = lineNo;
 
 			ptIn.normal_x = m_normals[index].x;
 			ptIn.normal_y = m_normals[index].y;
 			ptIn.normal_z = m_normals[index].z;
 
+			ptRGB.r = color[2];
+			ptRGB.g = color[1];
+			ptRGB.b = color[0];
 
 			int ptIndex = m_pointsMat.at<int>(coord);
 			if (ptIndex < 0)
@@ -194,11 +200,15 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 			{
 				ptIndex -= negativeNum;
 				m_pointsMat.at<int>(coord) = ptIndex;
-				if (!std::isnan(ptIn.x) && !std::isnan(ptIn.y) && !std::isnan(ptIn.z) 
-					&& ptIn.z >= Settings::BoundaryExtractor_MinDepth.value() 
+				if (!std::isnan(ptIn.x) && !std::isnan(ptIn.y) && !std::isnan(ptIn.z)
+					&& ptIn.z >= Settings::BoundaryExtractor_MinDepth.value()
 					&& ptIn.z <= Settings::BoundaryExtractor_MaxDepth.value())
-				//if (indicesImage[index] > 0)
+				{
+					//if (indicesImage[index] > 0)
 					m_cloud->points.push_back(ptIn);
+					m_rgbCloud->points.push_back(ptRGB);
+				}
+					
 			}
 
 			//std::cout << j << ", " << i << ": " << lineNo << std::endl;
@@ -217,7 +227,10 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 	m_allBoundary->width = m_allBoundary->points.size();
 	m_allBoundary->height = 1;
 	m_allBoundary->is_dense = true;
-
+	m_rgbCloud->width = m_rgbCloud->points.size();
+	m_rgbCloud->height = 1;
+	m_rgbCloud->is_dense = true;
+	
 	for (int i = 0; i < linesCount; i++)
 	{
 		if (m_groupPoints[i]->size() < 10)
@@ -383,11 +396,96 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 		flFrame.lines()->height = 1;
 		flFrame.lines()->is_dense = true;
 	}
-
+	qDebug() << "lines size is" << flFrame.lines()->width;
+    TOCK("lines_time");
 	//qDebug() << "all boundary points:"/ << m_allBoundary->size();
-	//TOCK("boundaries_downloading");
+	
 	//linefilter(flFrame.lines());
 	//flFrame.lines()->width = flFrame.lines()->points.size();
+	//pcl::octree::OctreePointCloudSearch<pcl::PointXYZINormal> octree(m_resolution);
+	//octree.setInputCloud(m_cloud);
+	//octree.addPointsFromInputCloud();
+
+	//double minX, minY, minZ, maxX, maxY, maxZ;
+	//octree.getBoundingBox(minX, minY, minZ, maxX, maxY, maxZ);
+	Eigen::Vector4f min, max;
+	pcl::getMinMax3D(*m_cloud, min, max);
+	m_minPoint.x() = min.x();
+	m_minPoint.y() = min.y();
+	m_minPoint.z() = min.z();
+	m_maxPoint.x() = max.x();
+	m_maxPoint.y() = max.y();
+	m_maxPoint.z() = max.z();
+	//m_minPoint = Eigen::Vector3f(minX, minY, minZ);
+	//m_maxPoint = Eigen::Vector3f(maxX, maxY, maxZ);
+	qreal angleThreshold = M_PI / 4;
+	for (int i = 0; i < flFrame.lines()->width - 1; i++)
+	{
+		for (int j = i + 1; j < flFrame.lines()->width; j++)
+		{
+			LineSegment& l1 = flFrame.lines()->points[i];
+			LineSegment& l2 = flFrame.lines()->points[j];
+
+			qreal angleRadians = l1.angleToAnotherLine(l2);
+			qreal angleDegrees = qRadiansToDegrees(angleRadians);
+			//qDebug() << i << "-->" << j << " angle degrees =" << angleDegrees;
+
+			if (angleRadians < angleThreshold || (M_PI - angleRadians) < angleThreshold)
+				continue;
+
+			// 计算公垂线的向量方向，且normalized。这里使用l1xl2，即叉乘出的向量方向遵循右手法则，
+			// 公垂线向量方向为从l1指向l2。
+			Eigen::Vector3f perpLine = l1.direction().cross(l2.direction()).normalized();
+			// 计算公垂线的长度
+			Eigen::Vector3f diff = l1.middle() - l2.middle();
+			float dist = diff.dot(perpLine);
+			// 计算出带有长度公垂线向量，由前述可知，该向量由l1指向l2。
+			perpLine = perpLine * dist;
+
+			// 获取l1直线上的两点，使用拟合时计算出的首尾两点即可。
+			Eigen::Vector3f p11 = l1.start();
+			Eigen::Vector3f p12 = l1.end();
+
+			// 获取l2直线上的两点，也使用首尾两点，但要把该两点通过前面的公垂线向量进行平移。这样，
+			// 平移后的两点，应该与l1是共面的。
+			// Warning: 所以公垂线方向非常重要，如果最终结果有问题，建议先从公垂线方向检查起。
+			Eigen::Vector3f p21 = l2.start() + perpLine;
+			Eigen::Vector3f p22 = l2.end() + perpLine;
+
+			// 设v1为l1直线上由首尾两点构成的向量
+			Eigen::Vector3f v1 = p12 - p11;
+			// 设v2为l2平移到与l1共面后由首尾两点构成的向量
+			Eigen::Vector3f v2 = p22 - p21;
+			// 用headerVec表示两个起点间的向量
+			Eigen::Vector3f headerVec = p21 - p11;
+
+			// 以下计算过程请参见https://blog.csdn.net/xdedzl/article/details/86009147
+			Eigen::Vector3f vecS1 = v1.cross(v2);
+			Eigen::Vector3f vecS2 = headerVec.cross(v2);
+
+			float ratio = vecS2.dot(vecS1) / vecS1.norm();
+			// 获取l1与公垂线的交点
+			Eigen::Vector3f intersection1 = p11 + v1 * ratio;
+			// 获取l2与公垂线的交点
+			Eigen::Vector3f intersection2 = intersection1 - perpLine;
+			// 获得公垂线中点
+			Eigen::Vector3f meanPoint = (intersection1 + intersection2) / 2;
+			if (meanPoint.x() < m_minPoint.x() || meanPoint.y() < m_minPoint.y() || meanPoint.z() < m_minPoint.z()
+				|| meanPoint.x() > m_maxPoint.x() || meanPoint.y() > m_maxPoint.y() || meanPoint.z() > m_maxPoint.z())
+				continue;
+
+			pcl::PointXYZINormal pt;
+			pt.getVector3fMap() = meanPoint;
+			pt.intensity = 0;
+			pt.getNormalVector3fMap() = perpLine.normalized();
+			flFrame.meanPointCloud()->points.push_back(pt);
+		}
+	}
+	flFrame.meanPointCloud()->width = flFrame.meanPointCloud()->points.size();
+	flFrame.meanPointCloud()->height = 1;
+	flFrame.meanPointCloud()->is_dense = true;
+	m_meanPointCloud = flFrame.meanPointCloud();
+	qDebug() << "mean points cloud size is" << flFrame.meanPointCloud()->width;
 
 	return flFrame;
 }

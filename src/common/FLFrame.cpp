@@ -9,13 +9,16 @@ public:
         , qint64 _preIndex = -1
         , bool _isKeyFrame = false
         , Eigen::Matrix4f _pose = Eigen::Matrix4f::Identity()
-        , pcl::PointCloud<LineSegment>::Ptr _lines = pcl::PointCloud<LineSegment>::Ptr(new pcl::PointCloud<LineSegment>))
+        , pcl::PointCloud<LineSegment>::Ptr _lines = pcl::PointCloud<LineSegment>::Ptr(new pcl::PointCloud<LineSegment>)
+		, pcl::PointCloud<pcl::PointXYZINormal>::Ptr _meanPointCloud = pcl::PointCloud<pcl::PointXYZINormal>::Ptr(new pcl::PointCloud<pcl::PointXYZINormal>)
+		)
         : index(_index)
         , keyFrameIndex(_keyFrameIndex)
         , prevIndex(_preIndex)
         , isKeyFrame(_isKeyFrame)
         , pose(_pose)
         , lines(_lines)
+		, meanPointCloud(_meanPointCloud)
     { }
 
     qint64 index;
@@ -25,6 +28,7 @@ public:
     Eigen::Matrix4f pose;
     quint64 timestamp;
     pcl::PointCloud<LineSegment>::Ptr lines;
+	pcl::PointCloud<pcl::PointXYZINormal>::Ptr meanPointCloud;
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
@@ -133,6 +137,11 @@ Eigen::Vector3f FLFrame::translation() const
 pcl::PointCloud<LineSegment>::Ptr FLFrame::lines() const
 {
     return m_data->lines;
+}
+
+pcl::PointCloud<pcl::PointXYZINormal>::Ptr FLFrame::meanPointCloud() const
+{
+	return m_data->meanPointCloud;
 }
 
 void FLFrame::reproject(const Eigen::Matrix4f& pose)

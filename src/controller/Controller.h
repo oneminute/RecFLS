@@ -27,6 +27,8 @@ public:
 
     virtual void fetchNext() = 0;
 
+	virtual void start() = 0;
+
     virtual void moveTo(int frameIndex) = 0;
 
     virtual void skip(int frameNumbers) = 0;

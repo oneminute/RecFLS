@@ -167,14 +167,21 @@ Frame SensorReaderDevice::getFrame(int frameIndex)
     return frame;
 }
 
-void SensorReaderDevice::fetchNext()
+Frame SensorReaderDevice::fetchNext()
 {
+	Frame frame;
     if (m_currentIndex < m_frameCount)
     {
-        emit frameFetched(getFrame(m_currentIndex++));
+		frame = getFrame(m_currentIndex);
+        emit frameFetched(frame);
     }
     else
     {
         emit reachEnd();
     }
+	return frame;
+}
+
+void SensorReaderDevice::start()
+{
 }

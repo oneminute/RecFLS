@@ -19,7 +19,8 @@ public:
     virtual bool supportRandomAccessing();
     virtual void skip(int skipCount);
     virtual Frame getFrame(int frameIndex);
-    virtual void fetchNext();
+    virtual Frame fetchNext();
+	virtual void start() override;
     virtual quint64 totalFrames() { return m_frameCount; }
 
 private:

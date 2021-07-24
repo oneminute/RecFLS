@@ -28,7 +28,9 @@ public:
 
     virtual Frame getFrame(int frameIndex) = 0;
 
-    virtual void fetchNext() = 0;
+    virtual Frame fetchNext() = 0;
+
+	virtual void start() = 0;
 
     virtual quint64 totalFrames() = 0;
 

@@ -12,6 +12,7 @@
 #include <Eigen/SVD>
 
 #include "util/Utils.h"
+#include "util/StopWatch.h"
 
 LineMatcher::LineMatcher(QObject* parent)
     : QObject(parent)
@@ -32,14 +33,18 @@ Eigen::Matrix4f LineMatcher::compute(
     pcl::KdTreeFLANN<LineSegment>::Ptr tree(new pcl::KdTreeFLANN<LineSegment>());
 
     tree->setInputCloud(dstFrame.lines());
+	
     match(srcFrame.lines(), dstFrame.lines(), tree, pairs, weights);
-
-    float lastError = 100;
+	
+	TICK("icl");
+    float lastError = 1;
     int i = 0;
-    for (i = 0; i < 20; i++)
+	//1. Number of iterations has reached the maximum user imposed number of iterations
+    for (i = 0; i < 1000; i++)
     {
+		
         Eigen::Matrix4f deltaPose = step(srcFrame.lines(), dstFrame.lines(), pose, error, pairs, weights);
-        std::cout << "[iteration " << i << "] error: " << error << std::endl;
+        //std::cout << "[iteration " << i << "] error: " << error << std::endl;
         if (pairs.size() < 3)
         {
             deltaPose = Eigen::Matrix4f::Identity();
@@ -50,17 +55,27 @@ Eigen::Matrix4f LineMatcher::compute(
         {
             break;
         }
-        if (error < 1e-10f)
-        {
-            break;
-        }
+
+		if (std::abs(error - lastError) < 1e-10)
+		{
+			break;
+		}
+
+		// Relative
+		if (std::abs(error - lastError) / lastError < 0.001)
+		{
+			break;
+		}
+
         lastError = error;
         pose = deltaPose * pose;
     }
-    std::cout << "actual iteration count: " << i << std::endl;
+    
     iterations = i;
-
+	TOCK("icl");
+    //std::cout << "actual iteration count: " << i << std::endl;
     return pose;
+	
 }
 
 void LineMatcher::match(
@@ -71,6 +86,7 @@ void LineMatcher::match(
     , QMap<int, float>& weights
 )
 {
+	TICK("match");
     pairs.clear();
     weights.clear();
     float sumLength = 0;
@@ -88,7 +104,7 @@ void LineMatcher::match(
         if (!tree->nearestKSearch(lineSrc, 1, indices, dists))
             continue;
 
-        std::cout << std::setw(8) << i << " --> " << indices[0] << std::endl;
+        //std::cout << std::setw(8) << i << " --> " << indices[0] << std::endl;
 
         // 若源直线集合中的多条直线对应到了同一条目标集合的直线上，
         // 则选取超维向量距离最小的。
@@ -143,7 +159,7 @@ void LineMatcher::match(
         avgDist += dist * weight;
         sqrDist += dist * dist * weight;
 
-        std::cout << std::setw(8) << i.value() << " --> " << i.key() << std::setw(12) << ": radians = "  << radians << ", dist = " << dist << std::endl;
+        //std::cout << std::setw(8) << i.value() << " --> " << i.key() << std::setw(12) << ": radians = "  << radians << ", dist = " << dist << std::endl;
     }
     // 求均值
     //avgRadians /= pairs.size();
@@ -156,7 +172,7 @@ void LineMatcher::match(
     float sdRadians = sqrtf(sqrRadians - avgRadians * avgRadians);
     float sdDist = sqrtf(sqrDist - avgDist * avgDist);
     float sdDiff = sqrtf(sqrDiff - avgDiff * avgDiff);
-    qDebug() << "sdRadians:" << sdRadians << ", sdDist:" << sdDist << ", sdDiff:" << sdDiff << ", avgLength:" << avgLength;
+   // qDebug() << "sdRadians:" << sdRadians << ", sdDist:" << sdDist << ", sdDiff:" << sdDiff << ", avgLength:" << avgLength;
 
     // 角度值或距离值大于一个标准差的均剔除掉
     QList<int> removedIds;
@@ -179,25 +195,25 @@ void LineMatcher::match(
 
         if (abs(radians - avgRadians) > sdRadians * 1.2f)
         {
-            std::cout << "removed(r): " << i.value() << " --> " << i.key() << ": " << radians << std::endl;
+            //std::cout << "removed(r): " << i.value() << " --> " << i.key() << ": " << radians << std::endl;
             removedIds.append(i.key());
             continue;
         }
         if (abs(dist - avgDist) > sdDist * 1.2f)
         {
-            std::cout << "removed(d): " << i.value() << " --> " << i.key() << ": " << dist << std::endl;
+            //std::cout << "removed(d): " << i.value() << " --> " << i.key() << ": " << dist << std::endl;
             removedIds.append(i.key());
             continue;
         }
         if (abs(diff - avgDiff) > sdDiff * 1.2f)
         {
-            std::cout << "removed(f): " << i.value() << " --> " << i.key() << ": " << diff << std::endl;
+            //std::cout << "removed(f): " << i.value() << " --> " << i.key() << ": " << diff << std::endl;
             removedIds.append(i.key());
             continue;
         }
         if (length < avgLength * 0.5f)
         {
-            std::cout << "removed(l): " << i.value() << " --> " << i.key() << ": " << length << std::endl;
+           // std::cout << "removed(l): " << i.value() << " --> " << i.key() << ": " << length << std::endl;
             removedIds.append(i.key());
             continue;
         }
@@ -227,8 +243,9 @@ void LineMatcher::match(
     for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
     {
         weights[i.key()] /= sumLength;
-        std::cout << "final: " << std::setw(8) << i.value() << " --> " << i.key() << ": weight = " << weights[i.key()] << std::endl;
+        //std::cout << "final: " << std::setw(8) << i.value() << " --> " << i.key() << ": weight = " << weights[i.key()] << std::endl;
     }
+	TOCK("match");
 }
 
 Eigen::Matrix4f LineMatcher::step(
@@ -246,15 +263,18 @@ Eigen::Matrix4f LineMatcher::step(
     Eigen::Vector3f initTrans = initPose.topRightCorner(3, 1);
 
     Eigen::Matrix4f deltaPose = Eigen::Matrix4f::Identity();
+	
     Eigen::Matrix3f deltaRot = stepRotation(srcLines, dstLines, initRot, pairs, weights);
+	
     Eigen::Vector3f deltaTrans = stepTranslation(srcLines, dstLines, pairs, weights, initRot, initTrans, deltaRot);
+	
     //Eigen::Vector3f deltaTrans = Eigen::Vector3f::Zero();
 
     deltaPose.topLeftCorner(3, 3) = deltaRot;
     deltaPose.topRightCorner(3, 1) = deltaTrans;
-
+	
     error = computeError(srcLines, dstLines, pairs, initRot, initTrans, deltaRot, deltaTrans);
-
+	
     return deltaPose;
 }
 
@@ -266,6 +286,7 @@ Eigen::Matrix3f LineMatcher::stepRotation(
     , QMap<int, float>& weights
 )
 {
+	//TICK("r");
     Eigen::Vector3f srcAvgDir1(Eigen::Vector3f::Zero());
     Eigen::Vector3f dstAvgDir1(Eigen::Vector3f::Zero());
 	Eigen::Vector3f srcAvgDir(Eigen::Vector3f::Zero());
@@ -314,8 +335,9 @@ Eigen::Matrix3f LineMatcher::stepRotation(
     //std::cout << "V:" << std::endl << V << std::endl;
     //std::cout << "S:" << std::endl << S << std::endl;
     //std::cout << "U:" << std::endl << U << std::endl;
-    std::cout << "delta rotation:" << std::endl << R << std::endl;
-
+    //std::cout << "delta rotation:" << std::endl << R << std::endl;
+	//TOCK("r");
+	
     return R;
 }
 
@@ -329,6 +351,7 @@ Eigen::Vector3f LineMatcher::stepTranslation(
     , const Eigen::Matrix3f& deltaRot
 )
 {
+	TICK("t"); 
     Eigen::Vector3f trans(Eigen::Vector3f::Zero());
 
     for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
@@ -346,13 +369,14 @@ Eigen::Vector3f LineMatcher::stepTranslation(
             vertDir = diff.cross(srcLineDir).cross(srcLineDir);
         }
         float dist = diff.dot(vertDir.normalized());
-        std::cout << std::setw(8) << i.value() << " --> " << i.key() << std::setw(12) << ": dist = " << dist << ", diff = " << diff.norm() << std::endl;
+        //std::cout << std::setw(8) << i.value() << " --> " << i.key() << std::setw(12) << ": dist = " << dist << ", diff = " << diff.norm() << std::endl;
         Eigen::Vector3f t = vertDir.normalized() * dist;
         //Eigen::Vector3f t = diff;
         trans += t * weights[i.key()];
     }
     //trans /= pairs.count();
-    std::cout << "delta translation: " << trans.transpose() << std::endl;
+	TOCK("t");
+    //std::cout << "delta translation: " << trans.transpose() << std::endl;
     
     return trans;
 }
@@ -367,7 +391,9 @@ float LineMatcher::computeError(
     , const Eigen::Vector3f& deltaTrans
 )
 {
+	//TICK("e");
     float error = 0;
+	float distance;
     for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
     {
         LineSegment dstLine = dstLines->points[i.key()];
@@ -376,14 +402,14 @@ float LineMatcher::computeError(
         Eigen::Vector3f srcLineDir = deltaRot * initRot * srcLine.normalizedDir();
 
         Eigen::Vector3f vertLine = srcLineDir.cross(dstLineDir).normalized();
-        float distance = (dstLine.middle() - deltaRot * (initRot * srcLine.middle() + initTrans) - deltaTrans).dot(vertLine);
+         distance = (dstLine.middle() - deltaRot * (initRot * srcLine.middle() + initTrans) - deltaTrans).dot(vertLine);
         float degrees = 1 - dstLineDir.dot(srcLineDir);
         //error += abs(distance) + abs(degrees);
         error += distance * distance + degrees;
     }
     error /= pairs.size();
-
-    std::cout << "error: " << error << std::endl;
+	//TOCK("e");
+    //std::cout << "error: " << error << std::endl;
     return error;
 }
 

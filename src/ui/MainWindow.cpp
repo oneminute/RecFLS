@@ -1,18 +1,18 @@
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
-#include "util/Utils.h"
 
+#include <pcl/common/pca.h>
+#include <pcl/filters/filter.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#include <pcl/filters/filter.h>
-#include <pcl/common/pca.h>
+#include <pcl/visualization/pcl_visualizer.h>
 
+#include "PreferencesWindow.h"
+#include "ToolWindowBoundaryExtractor.h"
+#include "ToolWindowFusedLineExtractor.h"
 #include "ToolWindowLineExtractor.h"
 #include "ToolWindowLineMatcher.h"
-#include "ToolWindowBoundaryExtractor.h"
-
-#include "ToolWindowFusedLineExtractor.h"
-#include "PreferencesWindow.h"
+#include "util/Utils.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -65,6 +65,7 @@ MainWindow::MainWindow(QWidget *parent)
     
     connect(m_ui->actionFused_Line_Extractor, &QAction::triggered, this, &MainWindow::onActionToolWindowFusedLineExtractor);
     connect(m_ui->actionNext_Frame, &QAction::triggered, this, &MainWindow::onActionNextFrame);
+    connect(m_ui->actionStart, &QAction::triggered, this, &MainWindow::onActionStart);
     connect(m_ui->actionSave_Current_Frame, &QAction::triggered, this, &MainWindow::onActionSaveCurrentFrame);
     connect(m_ui->actionPreferences, &QAction::triggered, this, &MainWindow::onActionPreferences);
 }
@@ -131,6 +132,11 @@ void MainWindow::onActionOpenDevice(bool checked)
     }
 }
 
+void MainWindow::onActionStart(bool checked)
+{
+	m_controller->start();
+}
+
 void MainWindow::onActionPause()
 {
 
@@ -180,38 +186,38 @@ void MainWindow::onActionPreferences()
 
 void MainWindow::onFrameFetched(Frame &frame)
 {
-    frame.showInfo();
+    //frame.showInfo();
 
-    m_ui->widgetColorImage->setImage(cvMat2QImage(frame.colorMat()));
-    m_ui->widgetDepthImage->setImage(cvMat2QImage(frame.depthMat(), false));
+    m_ui->widgetColorImage->setImage(frame.colorImage());
+    m_ui->widgetDepthImage->setImage(frame.depthImage());
 
-    m_ui->dockWidgetContentsFilters->setUpdatesEnabled(false);
-    qDeleteAll(m_ui->dockWidgetContentsFilters->findChildren<ImageViewer*>("", Qt::FindDirectChildrenOnly));
-    m_ui->dockWidgetContentsFilters->setUpdatesEnabled(true);
+    //m_ui->dockWidgetContentsFilters->setUpdatesEnabled(false);
+    //qDeleteAll(m_ui->dockWidgetContentsFilters->findChildren<ImageViewer*>("", Qt::FindDirectChildrenOnly));
+    //m_ui->dockWidgetContentsFilters->setUpdatesEnabled(true);
 
-    for (QList<QPair<QString, cv::Mat>>::iterator i = m_controller->filteredMats().begin(); i != m_controller->filteredMats().end(); i++)
-    {
-        QString name = i->first;
-        cv::Mat mat = i->second;
+    //for (QList<QPair<QString, cv::Mat>>::iterator i = m_controller->filteredMats().begin(); i != m_controller->filteredMats().end(); i++)
+    //{
+    //    QString name = i->first;
+    //    cv::Mat mat = i->second;
 
-        ImageViewer *widget = new ImageViewer(m_ui->dockWidgetContentsFilters);
-        m_ui->layoutFilters->addWidget(widget);
-        if (name.contains("depth"))
-        {
-            widget->setImage(cvMat2QImage(mat, false));
-        }
-        else if (name.contains("color"))
-        {
-            widget->setImage(cvMat2QImage(mat));
-        }
-    }
+    //    ImageViewer *widget = new ImageViewer(m_ui->dockWidgetContentsFilters);
+    //    m_ui->layoutFilters->addWidget(widget);
+    //    if (name.contains("depth"))
+    //    {
+    //        widget->setImage(cvMat2QImage(mat, false));
+    //    }
+    //    else if (name.contains("color"))
+    //    {
+    //        widget->setImage(cvMat2QImage(mat));
+    //    }
+    //}
 
     QString frameId = QString("cloud_%1").arg(frame.frameIndex());
     std::cout << "#### frame index: " << frame.deviceFrameIndex() << std::endl;
     
-    pcl::IndicesPtr indices(new std::vector<int>);
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = frame.getCloud(*indices);
-    //pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = m_controller->cloud();
+    //pcl::IndicesPtr indices(new std::vector<int>);
+    //pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = frame.getCloud(*indices);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = m_controller->cloud();
     if (cloud && !cloud->empty())
     {
         //Eigen::Matrix4f pose = m_controller->pose().inverse();
@@ -231,8 +237,13 @@ void MainWindow::onFrameFetched(Frame &frame)
         //if (frame.deviceFrameIndex() % 10 == 0)
         {
             pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmpCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+			pcl::Indices indices;
+			pcl::removeNaNFromPointCloud(*cloud, *cloud, indices);
             pcl::transformPointCloud(*cloud, *tmpCloud, pose);
-            m_cloudViewer->addCloud(frameId, tmpCloud);
+            //m_cloudViewer->addCloud(frameId, tmpCloud);
+			pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> h(tmpCloud);
+			m_cloudViewer->visualizer()->addPointCloud(tmpCloud, h, frameId.toStdString());
+			m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, frameId.toStdString());
         }
     }
 
