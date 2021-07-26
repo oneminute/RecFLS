@@ -224,9 +224,9 @@ void ToolWindowFusedLineExtractor::onActionShowPoints()
             }
         }*/
     }
-	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZINormal> h(m_flFrame.meanPointCloud(), 255, 255, 0);
-	m_cloudViewer->visualizer()->addPointCloud(m_flFrame.meanPointCloud(), h, "meanPointCloud");
-	m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "meanPointCloud");
+	//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZINormal> h(m_flFrame.meanPointCloud(), 255, 255, 0);
+	//m_cloudViewer->visualizer()->addPointCloud(m_flFrame.meanPointCloud(), h, "meanPointCloud");
+	//m_cloudViewer->visualizer()->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "meanPointCloud");
 }
 
 void ToolWindowFusedLineExtractor::updateWidgets()

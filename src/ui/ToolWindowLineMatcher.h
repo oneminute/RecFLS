@@ -38,6 +38,9 @@ protected:
     void onActionBeginStep();
     void onActionStep();
     void onActionReset();
+    void onActionRefresh();
+    void onActionAvgRemoveOverlaps();
+    void onActionSingleRemoveOverlaps();
 
     void onComboBox1CurrentIndexChanged(int index);
     void onActionShowPair(bool isChecked = false);
@@ -88,6 +91,8 @@ private:
 	pcl::PointCloud<pcl::PointXYZINormal>::Ptr m_beCloudDst;
     QMap<int, pcl::PointCloud<pcl::PointXYZINormal>::Ptr> m_groupPointsSrc;
     QMap<int, pcl::PointCloud<pcl::PointXYZINormal>::Ptr> m_groupPointsDst;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_fusedCloud;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr m_overlappedCloud;
 
     float m_iterationDuration;
     float m_totalDuration;

@@ -230,6 +230,7 @@ FLFrame FusedLineExtractor::compute(Frame& frame)
 	m_rgbCloud->width = m_rgbCloud->points.size();
 	m_rgbCloud->height = 1;
 	m_rgbCloud->is_dense = true;
+	flFrame.setAllBoundaries(m_allBoundary);
 	
 	for (int i = 0; i < linesCount; i++)
 	{

@@ -29,6 +29,7 @@ public:
     quint64 timestamp;
     pcl::PointCloud<LineSegment>::Ptr lines;
 	pcl::PointCloud<pcl::PointXYZINormal>::Ptr meanPointCloud;
+    pcl::PointCloud<pcl::PointXYZINormal>::Ptr allBoundaries;
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
@@ -142,6 +143,16 @@ pcl::PointCloud<LineSegment>::Ptr FLFrame::lines() const
 pcl::PointCloud<pcl::PointXYZINormal>::Ptr FLFrame::meanPointCloud() const
 {
 	return m_data->meanPointCloud;
+}
+
+void FLFrame::setAllBoundaries(const pcl::PointCloud<pcl::PointXYZINormal>::Ptr& cloud)
+{
+    m_data->allBoundaries = cloud;
+}
+
+pcl::PointCloud<pcl::PointXYZINormal>::Ptr FLFrame::allBoundaries() const
+{
+    return m_data->allBoundaries;
 }
 
 void FLFrame::reproject(const Eigen::Matrix4f& pose)

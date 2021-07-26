@@ -27,6 +27,13 @@ public:
         , int& iterations
     );
 
+    Eigen::Matrix4f compute2(
+        FLFrame& srcFrame
+        , FLFrame& dstFrame
+        , float& error
+        , int& iterations
+    );
+
     void match(
         pcl::PointCloud<LineSegment>::Ptr srcLines
         , pcl::PointCloud<LineSegment>::Ptr dstLines

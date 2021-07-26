@@ -861,6 +861,80 @@ public:
         return (true);
     }
 
+    // Inherited via PointCloudColorHandler
+    virtual vtkSmartPointer<vtkDataArray> getColor() const override
+    {
+        if (!capable_ || !cloud_)
+            return nullptr;
+
+        auto scalars = vtkSmartPointer<vtkFloatArray>::New();
+        scalars->SetNumberOfComponents(3);
+
+        vtkIdType nr_points = cloud_->width * cloud_->height;
+        // Allocate enough memory to hold all colors
+        float * intensities = new float[nr_points];
+        float intensity;
+        size_t point_offset = cloud_->fields[field_idx_].offset;
+        size_t j = 0;
+
+        // If XYZ present, check if the points are invalid
+        int x_idx = pcl::getFieldIndex (*cloud_, "x");
+        if (x_idx != -1)
+        {
+            float x_data, y_data, z_data;
+            size_t x_point_offset = cloud_->fields[x_idx].offset;
+
+            // Color every point
+            for (vtkIdType cp = 0; cp < nr_points; ++cp,
+                 point_offset += cloud_->point_step,
+                 x_point_offset += cloud_->point_step)
+            {
+                // Copy the value at the specified field
+                memcpy (&intensity, &cloud_->data[point_offset], sizeof (float));
+
+                memcpy (&x_data, &cloud_->data[x_point_offset], sizeof (float));
+                memcpy (&y_data, &cloud_->data[x_point_offset + sizeof (float)], sizeof (float));
+                memcpy (&z_data, &cloud_->data[x_point_offset + 2 * sizeof (float)], sizeof (float));
+
+                if (!std::isfinite (x_data) || !std::isfinite (y_data) || !std::isfinite (z_data))
+                    continue;
+
+                intensities[j++] = intensity;
+            }
+        }
+        // No XYZ data checks
+        else
+        {
+            // Color every point
+            for (vtkIdType cp = 0; cp < nr_points; ++cp, point_offset += cloud_->point_step)
+            {
+                // Copy the value at the specified field
+                memcpy (&intensity, &cloud_->data[point_offset], sizeof (float));
+
+                intensities[j++] = intensity;
+            }
+        }
+        float* colors = new float[j * 3];
+        if (j != 0)
+        {
+            // Allocate enough memory to hold all colors
+            float min, max;
+            findMinMax(intensities, j, min, max);
+            for(size_t k=0; k<j; ++k)
+            {
+                colors[k*3+0] = colors[k*3+1] = colors[k*3+2] = max>0?(float)(intensities[k]/max*255.0f):0;
+            }
+            scalars->SetNumberOfTuples (j);
+            scalars->SetArray(colors, j*3, 0, vtkUnsignedCharArray::VTK_DATA_ARRAY_DELETE);
+        }
+        else
+            reinterpret_cast<vtkUnsignedCharArray*>(&(*scalars))->SetNumberOfTuples (0);
+        //delete [] colors;
+        delete [] intensities;
+        scalars->SetArray(colors, j, 0, vtkFloatArray::VTK_DATA_ARRAY_DELETE);
+        return scalars;
+    }
+
 protected:
     /** \brief Get the name of the class. */
     virtual std::string
@@ -869,6 +943,8 @@ protected:
     /** \brief Get the name of the field used. */
     virtual std::string
     getFieldName () const { return ("intensity"); }
+
+    
 };
 
 bool CloudViewer::addCloud(const QString &id,

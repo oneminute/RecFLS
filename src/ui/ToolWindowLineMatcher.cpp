@@ -5,12 +5,13 @@
 #include <QtMath>
 #include <QPushButton>
 #include <QElapsedTimer>
+#include <QSet>
 
-#include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/visualization//impl/point_cloud_geometry_handlers.hpp>
-#include <pcl/kdtree/impl/kdtree_flann.hpp>
 #include <pcl/common/pca.h>
+#include <pcl/kdtree/impl/kdtree_flann.hpp>
+#include <pcl/registration/correspondence_estimation.h>
 #include <pcl/visualization/impl/point_cloud_geometry_handlers.hpp>
+#include <pcl/visualization/pcl_visualizer.h>
 
 #include "common/Parameters.h"
 #include "util/Utils.h"
@@ -56,6 +57,9 @@ ToolWindowLineMatcher::ToolWindowLineMatcher(QWidget *parent)
     connect(m_ui->actionBegin_Step, &QAction::triggered, this, &ToolWindowLineMatcher::onActionBeginStep);
     connect(m_ui->actionStep, &QAction::triggered, this, &ToolWindowLineMatcher::onActionStep);
     connect(m_ui->actionReset, &QAction::triggered, this, &ToolWindowLineMatcher::onActionReset);
+    connect(m_ui->actionRefresh, &QAction::triggered, this, &ToolWindowLineMatcher::onActionRefresh);
+    connect(m_ui->actionAvg_Remove_Overlaps, &QAction::triggered, this, &ToolWindowLineMatcher::onActionAvgRemoveOverlaps);
+    connect(m_ui->actionSingle_Remove_Overlaps, &QAction::triggered, this, &ToolWindowLineMatcher::onActionSingleRemoveOverlaps);
 
     connect(m_ui->comboBoxDstFrame, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &ToolWindowLineMatcher::onComboBox1CurrentIndexChanged);
     connect(m_ui->pushButtonShowLineChainPair, &QPushButton::clicked, this, &ToolWindowLineMatcher::onActionShowPair);
@@ -99,10 +103,13 @@ void ToolWindowLineMatcher::initCompute()
     m_cloudSrc.reset(new pcl::PointCloud<pcl::PointXYZ>);
     m_cloudDst.reset(new pcl::PointCloud<pcl::PointXYZ>);
 
-    m_colorCloudSrc = frameSrc.getCloud(*indicesSrc);
-    m_colorCloudDst = frameDst.getCloud(*indicesDst);
+    m_colorCloudSrc = frameSrc.getCloud(*indicesSrc, 0.1f, 100.0f);
+    m_colorCloudDst = frameDst.getCloud(*indicesDst, 0.1f, 100.0f);
     pcl::copyPointCloud<pcl::PointXYZRGB, pcl::PointXYZ>(*m_colorCloudSrc, *m_cloudSrc);
     pcl::copyPointCloud<pcl::PointXYZRGB, pcl::PointXYZ>(*m_colorCloudDst, *m_cloudDst);
+
+    m_fusedCloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>);
+    m_overlappedCloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>);
 
     if (!m_isInit)
     {
@@ -186,6 +193,7 @@ void ToolWindowLineMatcher::compute()
    
     timer.start();
     m_pose = m_lineMatcher->compute(m_flFrameSrc, m_flFrameDst, m_error, m_iteration);
+    //m_pose = m_lineMatcher->compute2(m_flFrameSrc, m_flFrameDst, m_error, m_iteration);
     m_iterationDuration = timer.nsecsElapsed() / 1000000.f;
     m_totalDuration += m_iterationDuration;
     m_ui->comboBoxLineChainPairs->clear();
@@ -234,55 +242,83 @@ void ToolWindowLineMatcher::showMatchedClouds()
 
     m_cloudViewer1->visualizer()->removeAllPointClouds();
     m_cloudViewer1->visualizer()->removeAllShapes();
+    if (m_ui->checkBoxShowCloud->isChecked())
     {
-        //pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> h1(srcCloud, 255, 0, 0);
-        //m_cloudViewer1->visualizer()->addPointCloud(srcCloud, h1, "cloud1");
-        //pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> h2(m_colorCloudDst, 0, 0, 255);
-        //m_cloudViewer1->visualizer()->addPointCloud(m_colorCloudDst, h2, "cloud2");
-		
-		//œ‘ æ≈‰◊º∫ÛµƒallBoundary
-		//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZINormal>  tranbeSrc(srcTransbeCloud, 255, 0, 0);//∫Ï
-		//m_cloudViewer1->visualizer()->addPointCloud(srcTransbeCloud, tranbeSrc, "cloud_trans");
-
-		//pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZINormal>   behDst(m_beCloudDst, 0, 0, 255);//¿∂
-		//m_cloudViewer1->visualizer()->addPointCloud(m_beCloudDst, behDst, "cloud_dst");
+        if (m_ui->checkBoxUseOrignalColor->isChecked())
+        {
+            pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> h1(srcCloud);
+            m_cloudViewer1->visualizer()->addPointCloud(srcCloud, h1, "cloud1");
+            pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> h2(m_colorCloudDst);
+            m_cloudViewer1->visualizer()->addPointCloud(m_colorCloudDst, h2, "cloud2");
+        }
+        else
+        {
+            pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> h1(srcCloud, 255, 0, 0);
+            m_cloudViewer1->visualizer()->addPointCloud(srcCloud, h1, "cloud1");
+            pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> h2(m_colorCloudDst, 0, 0, 255);
+            m_cloudViewer1->visualizer()->addPointCloud(m_colorCloudDst, h2, "cloud2");
+        }
     }
 
-    for (QMap<int, int>::iterator i = m_pairs.begin(); i != m_pairs.end(); i++)
+    if (m_ui->checkBoxShowFusedCloud->isChecked())
     {
-        LineSegment dstLine = m_flFrameDst.lines()->points[i.key()];
-        LineSegment srcLine = m_flFrameSrc.lines()->points[i.value()];
+        pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> h(m_fusedCloud);
+        m_cloudViewer1->visualizer()->addPointCloud(m_fusedCloud, h, "fusedCloud");
+    }
 
-        if (dstLine.index() == -1 || srcLine.index() == -1)
-            continue;
+    if (m_ui->checkBoxShowOverlappedCloud->isChecked())
+    {
+        pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> h(m_overlappedCloud);
+        m_cloudViewer1->visualizer()->addPointCloud(m_overlappedCloud, h, "overlappedCloud");
+    }
+    
+    if (m_ui->checkBoxShowAllBoundaries->isChecked())
+    {
+        //ÊòæÁ§∫ÈÖçÂáÜÂêéÁöÑallBoundary
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZINormal>  tranbeSrc(srcTransbeCloud, 255, 0, 0);//Á∫¢
+        m_cloudViewer1->visualizer()->addPointCloud(srcTransbeCloud, tranbeSrc, "cloud_trans");
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZINormal>   behDst(m_beCloudDst, 0, 0, 255);//Ëìù
+        m_cloudViewer1->visualizer()->addPointCloud(m_beCloudDst, behDst, "cloud_dst");
+    }
 
-        Eigen::Vector3f start = dstLine.start();
-        Eigen::Vector3f end = dstLine.end();
-        Eigen::Vector3f center = dstLine.center();
-        QString lineNo = QString("dst_line_%1").arg(dstLine.index());
-        QString textNo = QString("dst_id_%1").arg(dstLine.index());
-        QString sphereNo = QString("dst_s_%1").arg(dstLine.index());
-        pcl::PointXYZ ptStart, ptEnd, ptCenter;
-        ptStart.getArray3fMap() = start;
-        ptEnd.getArray3fMap() = end;
-        ptCenter.getArray3fMap() = center;
-        m_cloudViewer1->visualizer()->addLine(ptStart, ptEnd, 0, 0, 255, lineNo.toStdString());
-       // m_cloudViewer1->visualizer()->addSphere(ptCenter, 0.01, 0, 0, 255, sphereNo.toStdString());
-        //m_cloudViewer1->visualizer()->addText3D(std::to_string(dstLine.index()), ptCenter, 0.05, 0, 0, 255, textNo.toStdString());
-		m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo.toStdString());
-        start = rot * srcLine.start() + trans;
-        end = rot * srcLine.end() + trans;
-        center = rot * srcLine.center() + trans;
-        lineNo = QString("src_line_%1").arg(srcLine.index());
-        textNo = QString("src_id_%1").arg(srcLine.index());
-        sphereNo = QString("src_s_%1").arg(dstLine.index());
-        ptStart.getArray3fMap() = start;
-        ptEnd.getArray3fMap() = end;
-        ptCenter.getArray3fMap() = center;
-        m_cloudViewer1->visualizer()->addLine(ptStart, ptEnd, 255, 0, 0, lineNo.toStdString());
-        //m_cloudViewer1->visualizer()->addSphere(ptCenter, 0.01, 255, 0, 0, sphereNo.toStdString());
-       // m_cloudViewer1->visualizer()->addText3D(std::to_string(srcLine.index()), ptCenter, 0.05, 255, 0, 0, textNo.toStdString());
-		m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo.toStdString());
+    if (m_ui->checkBoxShowLines->isChecked())
+    {
+        for (QMap<int, int>::iterator i = m_pairs.begin(); i != m_pairs.end(); i++)
+        {
+            LineSegment dstLine = m_flFrameDst.lines()->points[i.key()];
+            LineSegment srcLine = m_flFrameSrc.lines()->points[i.value()];
+
+            if (dstLine.index() == -1 || srcLine.index() == -1)
+                continue;
+
+            Eigen::Vector3f start = dstLine.start();
+            Eigen::Vector3f end = dstLine.end();
+            Eigen::Vector3f center = dstLine.center();
+            QString lineNo = QString("dst_line_%1").arg(dstLine.index());
+            QString textNo = QString("dst_id_%1").arg(dstLine.index());
+            QString sphereNo = QString("dst_s_%1").arg(dstLine.index());
+            pcl::PointXYZ ptStart, ptEnd, ptCenter;
+            ptStart.getArray3fMap() = start;
+            ptEnd.getArray3fMap() = end;
+            ptCenter.getArray3fMap() = center;
+            m_cloudViewer1->visualizer()->addLine(ptStart, ptEnd, 0, 0, 255, lineNo.toStdString());
+            // m_cloudViewer1->visualizer()->addSphere(ptCenter, 0.01, 0, 0, 255, sphereNo.toStdString());
+             //m_cloudViewer1->visualizer()->addText3D(std::to_string(dstLine.index()), ptCenter, 0.05, 0, 0, 255, textNo.toStdString());
+            m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo.toStdString());
+            start = rot * srcLine.start() + trans;
+            end = rot * srcLine.end() + trans;
+            center = rot * srcLine.center() + trans;
+            lineNo = QString("src_line_%1").arg(srcLine.index());
+            textNo = QString("src_id_%1").arg(srcLine.index());
+            sphereNo = QString("src_s_%1").arg(dstLine.index());
+            ptStart.getArray3fMap() = start;
+            ptEnd.getArray3fMap() = end;
+            ptCenter.getArray3fMap() = center;
+            m_cloudViewer1->visualizer()->addLine(ptStart, ptEnd, 255, 0, 0, lineNo.toStdString());
+            //m_cloudViewer1->visualizer()->addSphere(ptCenter, 0.01, 255, 0, 0, sphereNo.toStdString());
+           // m_cloudViewer1->visualizer()->addText3D(std::to_string(srcLine.index()), ptCenter, 0.05, 255, 0, 0, textNo.toStdString());
+            m_cloudViewer1->visualizer()->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 2, lineNo.toStdString());
+        }
     }
 }
 
@@ -372,6 +408,157 @@ void ToolWindowLineMatcher::onActionReset()
     m_iteration = 0;
 
     updateWidgets();
+}
+
+void ToolWindowLineMatcher::onActionRefresh()
+{
+    showMatchedClouds();
+}
+
+void ToolWindowLineMatcher::onActionAvgRemoveOverlaps()
+{
+    m_fusedCloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>);
+    m_overlappedCloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>);
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr srcCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::transformPointCloud(*m_colorCloudSrc, *srcCloud, m_pose);
+
+    pcl::registration::CorrespondenceEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB> est;
+    est.setInputSource(srcCloud);
+    est.setInputTarget(m_colorCloudDst);
+
+    pcl::Correspondences allCorrespondences;
+    // Determine all reciprocal correspondences
+    est.determineReciprocalCorrespondences(allCorrespondences);
+
+    qDebug() << "correspondences size:" << allCorrespondences.size();
+
+    QSet<int> set1;
+    QSet<int> set2;
+    for (size_t i = 0; i < allCorrespondences.size(); i++)
+    {
+        pcl::Correspondence& c = allCorrespondences[i];
+        if (c.index_match >= 0)
+        {
+            set1.insert(c.index_query);
+            set2.insert(c.index_match);
+
+            pcl::PointXYZRGB pt1 = srcCloud->points[c.index_query];
+            pcl::PointXYZRGB pt2 = m_colorCloudDst->points[c.index_match];
+            pcl::PointXYZRGB pt;
+            if (m_ui->radioButtonUseSourceFrame->isChecked())
+            {
+                pt = pt1;
+            }
+            else
+            {
+                pt = pt2;
+            }
+
+            m_fusedCloud->points.push_back(pt);
+            m_overlappedCloud->points.push_back(pt);
+        }
+        else
+        {
+
+        }
+    }
+
+    for (int i = 0; i < srcCloud->size(); i++)
+    {
+        if (set1.contains(i))
+            continue;
+
+        m_fusedCloud->points.push_back(srcCloud->points[i]);
+    }
+    for (int i = 0; i < m_colorCloudDst->size(); i++)
+    {
+        if (set1.contains(i))
+            continue;
+
+        m_fusedCloud->points.push_back(m_colorCloudDst->points[i]);
+    }
+
+    m_fusedCloud->width = m_fusedCloud->points.size();
+    m_fusedCloud->height = 1;
+    m_fusedCloud->is_dense = true;
+    m_overlappedCloud->width = m_overlappedCloud->points.size();
+    m_overlappedCloud->height = 1;
+    m_overlappedCloud->is_dense = true;
+
+    showMatchedClouds();
+}
+
+void ToolWindowLineMatcher::onActionSingleRemoveOverlaps()
+{
+    m_fusedCloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>);
+    m_overlappedCloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>);
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr srcCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::transformPointCloud(*m_colorCloudSrc, *srcCloud, m_pose);
+
+    pcl::registration::CorrespondenceEstimation<pcl::PointXYZRGB, pcl::PointXYZRGB> est;
+    est.setInputSource(srcCloud);
+    est.setInputTarget(m_colorCloudDst);
+
+    pcl::Correspondences allCorrespondences;
+    // Determine all reciprocal correspondences
+    est.determineReciprocalCorrespondences(allCorrespondences);
+
+    qDebug() << "correspondences size:" << allCorrespondences.size();
+
+    QSet<int> set1;
+    QSet<int> set2;
+    for (size_t i = 0; i < allCorrespondences.size(); i++)
+    {
+        pcl::Correspondence& c = allCorrespondences[i];
+        if (c.index_match >= 0)
+        {
+            set1.insert(c.index_query);
+            set2.insert(c.index_match);
+
+            pcl::PointXYZRGB pt1 = srcCloud->points[c.index_query];
+            pcl::PointXYZRGB pt2 = m_colorCloudDst->points[c.index_match];
+            pcl::PointXYZRGB pt;
+            pt.x = (pt1.x + pt2.x) / 2;
+            pt.y = (pt1.y + pt2.y) / 2;
+            pt.z = (pt1.z + pt2.z) / 2;
+            pt.r = (pt1.r + pt2.r) / 2;
+            pt.g = (pt1.g + pt2.g) / 2;
+            pt.b = (pt1.b + pt2.b) / 2;
+
+            m_fusedCloud->points.push_back(pt);
+            m_overlappedCloud->points.push_back(pt);
+        }
+        else
+        {
+
+        }
+    }
+
+    for (int i = 0; i < srcCloud->size(); i++)
+    {
+        if (set1.contains(i))
+            continue;
+
+        m_fusedCloud->points.push_back(srcCloud->points[i]);
+    }
+    for (int i = 0; i < m_colorCloudDst->size(); i++)
+    {
+        if (set1.contains(i))
+            continue;
+
+        m_fusedCloud->points.push_back(m_colorCloudDst->points[i]);
+    }
+
+    m_fusedCloud->width = m_fusedCloud->points.size();
+    m_fusedCloud->height = 1;
+    m_fusedCloud->is_dense = true;
+    m_overlappedCloud->width = m_overlappedCloud->points.size();
+    m_overlappedCloud->height = 1;
+    m_overlappedCloud->is_dense = true;
+
+    showMatchedClouds();
 }
 
 void ToolWindowLineMatcher::onComboBox1CurrentIndexChanged(int index)

@@ -1,0 +1,132 @@
+﻿{
+  "configurations": [
+    {
+      "name": "x64-Debug (default)",
+      "generator": "Visual Studio 16 2019 Win64",
+      "configurationType": "Debug",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "intelliSenseMode": "windows-msvc-x64",
+      "variables": [
+        {
+          "name": "Eigen3_DIR",
+          "value": "D:/build/Eigen3/share/eigen3/cmake",
+          "type": "PATH"
+        },
+        {
+          "name": "EIGEN3_INCLUDE_DIR",
+          "value": "D:/build/Eigen3/include/eigen3",
+          "type": "PATH"
+        },
+        {
+          "name": "Qt5_DIR",
+          "value": "C:/Qt/5.15.1/msvc2019_64/lib/cmake/Qt5",
+          "type": "PATH"
+        },
+        {
+          "name": "OpenCV_DIR",
+          "value": "D:/build/opencv4_vs2019_x64/x64/vc16/lib",
+          "type": "PATH"
+        },
+        {
+          "name": "flann_DIR",
+          "value": "D:/build/flann_vs2019_x64/lib/pkgconfig",
+          "type": "PATH"
+        },
+        {
+          "name": "GLEW_DIR",
+          "value": "D:/build/glew_vs2019_x64/lib",
+          "type": "PATH"
+        },
+        {
+          "name": "GLEW_INCLUDE_DIR",
+          "value": "D:/build/glew_vs2019_x64/include",
+          "type": "PATH"
+        },
+        {
+          "name": "GLEW_SHARED_LIBRARY_DEBUG",
+          "value": "D:/build/glew_vs2019_x64/lib/libglew_sharedd.lib",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "GLEW_SHARED_LIBRARY_RELEASE",
+          "value": "D:/build/glew_vs2019_x64/lib/libglew_shared.lib",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "GLEW_STATIC_LIBRARY_DEBUG",
+          "value": "D:/build/glew_vs2019_x64/lib/glewd.lib",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "GLEW_STATIC_LIBRARY_RELEASE",
+          "value": "D:/build/glew_vs2019_x64/lib/glew.dll",
+          "type": "FILEPATH"
+        }
+      ]
+    },
+    {
+      "name": "x64-Release",
+      "generator": "Visual Studio 16 2019 Win64",
+      "configurationType": "Release",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "variables": [
+        {
+          "name": "Eigen3_DIR",
+          "value": "D:/build/Eigen3/share/eigen3/cmake",
+          "type": "PATH"
+        },
+        {
+          "name": "EIGEN3_INCLUDE_DIR",
+          "value": "D:/build/Eigen3/include/eigen3",
+          "type": "PATH"
+        },
+        {
+          "name": "Qt5_DIR",
+          "value": "C:/Qt/5.15.1/msvc2019_64/lib/cmake/Qt5",
+          "type": "PATH"
+        },
+        {
+          "name": "GLEW_DIR",
+          "value": "D:/build/glew_vs2019_x64/lib",
+          "type": "PATH"
+        },
+        {
+          "name": "GLEW_INCLUDE_DIR",
+          "value": "D:/build/glew_vs2019_x64/include",
+          "type": "PATH"
+        },
+        {
+          "name": "GLEW_SHARED_LIBRARY_DEBUG",
+          "value": "D:/build/glew_vs2019_x64/lib/libglew_sharedd.lib",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "GLEW_SHARED_LIBRARY_RELEASE",
+          "value": "D:/build/glew_vs2019_x64/lib/libglew_shared.lib",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "GLEW_STATIC_LIBRARY_DEBUG",
+          "value": "D:/build/glew_vs2019_x64/lib/glewd.lib",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "GLEW_STATIC_LIBRARY_RELEASE",
+          "value": "D:/build/glew_vs2019_x64/lib/glew.lib",
+          "type": "FILEPATH"
+        }
+      ],
+      "intelliSenseMode": "windows-msvc-x64"
+    }
+  ]
+}

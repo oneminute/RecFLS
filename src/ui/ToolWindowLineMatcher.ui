@@ -244,7 +244,7 @@
            <item row="5" column="1">
             <widget class="QComboBox" name="comboBoxLineChainPairs"/>
            </item>
-           <item row="6" column="1">
+           <item row="14" column="1">
             <widget class="QPushButton" name="pushButtonShowLineChainPair">
              <property name="text">
               <string>Show Line Chain Pair</string>
@@ -265,6 +265,74 @@
              </property>
             </widget>
            </item>
+           <item row="6" column="1">
+            <widget class="QCheckBox" name="checkBoxShowLines">
+             <property name="text">
+              <string>Show lines</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="7" column="1">
+            <widget class="QCheckBox" name="checkBoxShowCloud">
+             <property name="text">
+              <string>Show clouds</string>
+             </property>
+            </widget>
+           </item>
+           <item row="8" column="1">
+            <widget class="QCheckBox" name="checkBoxShowAllBoundaries">
+             <property name="text">
+              <string>Show All Boundaries</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="9" column="1">
+            <widget class="QCheckBox" name="checkBoxUseOrignalColor">
+             <property name="text">
+              <string>Use Orignal Color</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="10" column="1">
+            <widget class="QCheckBox" name="checkBoxShowFusedCloud">
+             <property name="text">
+              <string>Show Fused Cloud</string>
+             </property>
+            </widget>
+           </item>
+           <item row="11" column="1">
+            <widget class="QCheckBox" name="checkBoxShowOverlappedCloud">
+             <property name="text">
+              <string>Show Overlapped Cloud</string>
+             </property>
+            </widget>
+           </item>
+           <item row="12" column="1">
+            <widget class="QRadioButton" name="radioButtonUseSourceFrame">
+             <property name="text">
+              <string>Use Source Frame</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="13" column="1">
+            <widget class="QRadioButton" name="radioButtonUseDestinationFrame">
+             <property name="text">
+              <string>Use Destination Frame</string>
+             </property>
+            </widget>
+           </item>
           </layout>
          </widget>
         </item>
@@ -280,7 +348,7 @@
      <x>0</x>
      <y>0</y>
      <width>1163</width>
-     <height>23</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
@@ -313,6 +381,9 @@
    <addaction name="actionMatch_Gpu"/>
    <addaction name="actionBegin_Step"/>
    <addaction name="actionStep"/>
+   <addaction name="actionRefresh"/>
+   <addaction name="actionAvg_Remove_Overlaps"/>
+   <addaction name="actionSingle_Remove_Overlaps"/>
   </widget>
   <action name="actionLoad_Data_Set">
    <property name="text">
@@ -358,6 +429,21 @@
   <action name="actionStep">
    <property name="text">
     <string>Step</string>
+   </property>
+  </action>
+  <action name="actionRefresh">
+   <property name="text">
+    <string>Refresh</string>
+   </property>
+  </action>
+  <action name="actionAvg_Remove_Overlaps">
+   <property name="text">
+    <string>Avg Remove Overlaps</string>
+   </property>
+  </action>
+  <action name="actionSingle_Remove_Overlaps">
+   <property name="text">
+    <string>Single Remove Overlaps</string>
    </property>
   </action>
  </widget>

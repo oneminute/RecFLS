@@ -8,6 +8,7 @@
 #include <pcl/search/kdtree.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/kdtree/impl/kdtree_flann.hpp>
+#include <pcl/registration/icp.h>
 
 #include <Eigen/SVD>
 
@@ -78,6 +79,20 @@ Eigen::Matrix4f LineMatcher::compute(
 	
 }
 
+Eigen::Matrix4f LineMatcher::compute2(FLFrame& srcFrame, FLFrame& dstFrame, float& error, int& iterations)
+{
+    pcl::IterativeClosestPoint<pcl::PointXYZINormal, pcl::PointXYZINormal> icp;
+    //icp.setInputSource(srcFrame.meanPointCloud());
+    //icp.setInputTarget(dstFrame.meanPointCloud());
+    icp.setInputSource(srcFrame.allBoundaries());
+    icp.setInputTarget(dstFrame.allBoundaries());
+
+    pcl::PointCloud<pcl::PointXYZINormal> final;
+    icp.align(final);
+    return icp.getFinalTransformation();
+    //return Eigen::Matrix4f();
+}
+
 void LineMatcher::match(
     pcl::PointCloud<LineSegment>::Ptr srcLines
     , pcl::PointCloud<LineSegment>::Ptr dstLines
@@ -92,22 +107,22 @@ void LineMatcher::match(
     float sumLength = 0;
 
     QMap<int, float> pairsDists;
-    // Í¨¹ıKdtree½øĞĞÆ¥ÅäÖ±Ïß¶ÔµÄ³õÑ¡¡£
+    // é€šè¿‡Kdtreeè¿›è¡ŒåŒ¹é…ç›´çº¿å¯¹çš„åˆé€‰ã€‚
     for (int i = 0; i < srcLines->points.size(); i++)
     {
         LineSegment lineSrc = srcLines->points[i];
 
         std::vector<int> indices;
         std::vector<float> dists;
-        // ×¢ÒâÏÂÒ»¾ä£¬Ö»ÓÃKdtreeÑ¡È¡µ±Ç°Ö±ÏßµÄÒ»ÌõÄ¿±êÖ±Ïß¡£ÓĞÇÒÖ»ÓĞÒ»Ìõ¡£
-        // ÔÚÕâÖÖÇé¿öÏÂ£¬Ñ¡³öµÄÖ±Ïß¿ÉÄÜÓëÔ´Ö±ÏßÎó²î¼«´ó£¬ĞèÒª½øĞĞÉ¸Ñ¡¡£
+        // æ³¨æ„ä¸‹ä¸€å¥ï¼Œåªç”¨Kdtreeé€‰å–å½“å‰ç›´çº¿çš„ä¸€æ¡ç›®æ ‡ç›´çº¿ã€‚æœ‰ä¸”åªæœ‰ä¸€æ¡ã€‚
+        // åœ¨è¿™ç§æƒ…å†µä¸‹ï¼Œé€‰å‡ºçš„ç›´çº¿å¯èƒ½ä¸æºç›´çº¿è¯¯å·®æå¤§ï¼Œéœ€è¦è¿›è¡Œç­›é€‰ã€‚
         if (!tree->nearestKSearch(lineSrc, 1, indices, dists))
             continue;
 
         //std::cout << std::setw(8) << i << " --> " << indices[0] << std::endl;
 
-        // ÈôÔ´Ö±Ïß¼¯ºÏÖĞµÄ¶àÌõÖ±Ïß¶ÔÓ¦µ½ÁËÍ¬Ò»ÌõÄ¿±ê¼¯ºÏµÄÖ±ÏßÉÏ£¬
-        // ÔòÑ¡È¡³¬Î¬ÏòÁ¿¾àÀë×îĞ¡µÄ¡£
+        // è‹¥æºç›´çº¿é›†åˆä¸­çš„å¤šæ¡ç›´çº¿å¯¹åº”åˆ°äº†åŒä¸€æ¡ç›®æ ‡é›†åˆçš„ç›´çº¿ä¸Šï¼Œ
+        // åˆ™é€‰å–è¶…ç»´å‘é‡è·ç¦»æœ€å°çš„ã€‚
         if (pairs.contains(indices[0]))
         {
             if (dists[0] > pairsDists[indices[0]])
@@ -123,14 +138,14 @@ void LineMatcher::match(
         sumLength += length;
     }
     
-    float avgRadians = 0;   // Ö±Ïß¼ä½Ç¶ÈÖµÆ½¾ùÖµ
-    float sqrRadians = 0;   // Ö±Ïß¼ä½Ç¶ÈÖµÆ½·½ºÍ
-    float avgDist = 0;      // Ö±Ïß¼ä¾àÀëÖµÆ½¾ùÖµ
-    float sqrDist = 0;      // Ö±Ïß¼ä¾àÀëÖµÆ½·½ºÍ
-    float avgDiff = 0;      // Ïß¶Î³¤¶È²îÆ½¾ùÖµ
-    float sqrDiff = 0;      // Ïß¶Î³¤¶È²îÆ½·½ºÍ
+    float avgRadians = 0;   // ç›´çº¿é—´è§’åº¦å€¼å¹³å‡å€¼
+    float sqrRadians = 0;   // ç›´çº¿é—´è§’åº¦å€¼å¹³æ–¹å’Œ
+    float avgDist = 0;      // ç›´çº¿é—´è·ç¦»å€¼å¹³å‡å€¼
+    float sqrDist = 0;      // ç›´çº¿é—´è·ç¦»å€¼å¹³æ–¹å’Œ
+    float avgDiff = 0;      // çº¿æ®µé•¿åº¦å·®å¹³å‡å€¼
+    float sqrDiff = 0;      // çº¿æ®µé•¿åº¦å·®å¹³æ–¹å’Œ
 
-    // ½øĞĞ¼ÓºÍ
+    // è¿›è¡ŒåŠ å’Œ
     float avgLength = 0;
     for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
     {
@@ -161,20 +176,20 @@ void LineMatcher::match(
 
         //std::cout << std::setw(8) << i.value() << " --> " << i.key() << std::setw(12) << ": radians = "  << radians << ", dist = " << dist << std::endl;
     }
-    // Çó¾ùÖµ
+    // æ±‚å‡å€¼
     //avgRadians /= pairs.size();
     //avgDist /= pairs.size();
     //avgDiff /= pairs.size();
     avgLength /= pairs.size();
     int n = pairs.size();
 
-    // Çó½Ç¶ÈÖµÓë¾àÀëÖµµÄ±ê×¼²î
+    // æ±‚è§’åº¦å€¼ä¸è·ç¦»å€¼çš„æ ‡å‡†å·®
     float sdRadians = sqrtf(sqrRadians - avgRadians * avgRadians);
     float sdDist = sqrtf(sqrDist - avgDist * avgDist);
     float sdDiff = sqrtf(sqrDiff - avgDiff * avgDiff);
    // qDebug() << "sdRadians:" << sdRadians << ", sdDist:" << sdDist << ", sdDiff:" << sdDiff << ", avgLength:" << avgLength;
 
-    // ½Ç¶ÈÖµ»ò¾àÀëÖµ´óÓÚÒ»¸ö±ê×¼²îµÄ¾ùÌŞ³ıµô
+    // è§’åº¦å€¼æˆ–è·ç¦»å€¼å¤§äºä¸€ä¸ªæ ‡å‡†å·®çš„å‡å‰”é™¤æ‰
     QList<int> removedIds;
     for (QMap<int, int>::iterator i = pairs.begin(); i != pairs.end(); i++)
     {

@@ -44,6 +44,9 @@ public:
     pcl::PointCloud<LineSegment>::Ptr lines() const;
 	pcl::PointCloud<pcl::PointXYZINormal>::Ptr meanPointCloud() const;
 
+    void setAllBoundaries(const pcl::PointCloud<pcl::PointXYZINormal>::Ptr& cloud);
+    pcl::PointCloud<pcl::PointXYZINormal>::Ptr allBoundaries() const;
+
 private:
     void reproject(const Eigen::Matrix4f& pose);
 

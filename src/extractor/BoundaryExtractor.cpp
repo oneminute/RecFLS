@@ -242,7 +242,7 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr BoundaryExtractor::computeVBRG()
     qDebug() << "[BoundaryExtractor::computeVBRG] bounding box:" << minX << minY << minZ << maxX << maxY << maxZ;
 
     pcl::octree::OctreePointCloud<pcl::PointXYZ>::LeafNodeIterator it(&octree);
-    while (it != octree.leaf_end())
+    while (it != octree.leaf_depth_end())
     {
         //qDebug() << it.getNodeID() << ", branch:" << it.isBranchNode() << ", leaf:" << it.isLeafNode() << ", depth:" << it.getCurrentOctreeDepth() << ", points size:" << it.getLeafContainer().getSize();
         VoxelInfo vi;
